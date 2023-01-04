@@ -74,7 +74,7 @@ class FirstTaskHandler extends TaskHandler {
           print(e);
         }
       }
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(Duration(seconds: 10));
     }
   }
 

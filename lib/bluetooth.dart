@@ -7,12 +7,20 @@ StreamSubscription<ConnectionStateUpdate>? deviceSub;
 String? currentDevice;
 DeviceConnectionState? currentStatus;
 
+QualifiedCharacteristic getChar(String deviceID) {
+  return QualifiedCharacteristic(
+      serviceId: Uuid.parse('00001554-1212-EFDE-1523-785FEABCD123'),
+      characteristicId: Uuid.parse('0000155F-1212-EFDE-1523-785FEABCD123'),
+      deviceId: deviceID);
+}
+
 Future<void> doIT(String deviceID) async {
   print('doing it with $deviceID');
   // await runScan();
   try {
     await connect(deviceID);
-    await flashLight(deviceID);
+    // await flashLight(deviceID);
+    await maxSpeed(deviceID);
   } catch (e) {
     reset();
   }
@@ -47,10 +55,7 @@ void reset() {
 Future<void> flashLight(String deviceId) async {
   var onValue = strToLis('00D1 0104 0100 0000 0000');
   var offValue = strToLis('00D1 0004 0100 0000 0000');
-  final characteristic = QualifiedCharacteristic(
-      serviceId: Uuid.parse('00001554-1212-EFDE-1523-785FEABCD123'),
-      characteristicId: Uuid.parse('0000155F-1212-EFDE-1523-785FEABCD123'),
-      deviceId: deviceId);
+  final characteristic = getChar(deviceId);
   await FlutterReactiveBle()
       .writeCharacteristicWithResponse(characteristic, value: onValue);
   await Future.delayed(const Duration(seconds: 1));
@@ -102,28 +107,13 @@ Future<DeviceConnectionState> connect(
   return complete.future;
 }
 
-
-
-
-  // void _maxSpped() async {
-  //   if (connectedDevice == null) {
-  //     return;
-  //   }
-  //   print('sending max speed');
-  //   var value = strToLis('00D1 0004 0300 0000 0000');
-  //   print(connectedDevice!);
-  //   print(value);
-  //   final characteristic = QualifiedCharacteristic(
-  //       serviceId: Uuid.parse('00001554-1212-EFDE-1523-785FEABCD123'),
-  //       characteristicId: Uuid.parse('0000155F-1212-EFDE-1523-785FEABCD123'),
-  //       deviceId: connectedDevice!.id);
-  //   var resp = await flutterReactiveBle.readCharacteristic(characteristic);
-  //   print(resp);
-  //   await flutterReactiveBle.writeCharacteristicWithResponse(characteristic,
-  //       value: value);
-  //   resp = await flutterReactiveBle.readCharacteristic(characteristic);
-  //   print(resp);
-  // }
+Future<void> maxSpeed(deviceID) async {
+  print('sending max speed');
+  var value = strToLis('00D1 0004 0300 0000 0000');
+  final characteristic = getChar(deviceID);
+  await FlutterReactiveBle()
+      .writeCharacteristicWithResponse(characteristic, value: value);
+}
 
   // void _toggleLight() async {
   //   if (connectedDevice == null) {
