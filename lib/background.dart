@@ -10,8 +10,8 @@ void start() async {
   } else {
     print('start service');
     FlutterForegroundTask.startService(
-      notificationTitle: 'Foreground Service is running',
-      notificationText: 'Tap to return to the app',
+      notificationTitle: 'SuperDuper is running',
+      notificationText: 'Tap to return',
       callback: startCallback,
     );
   }
@@ -74,7 +74,7 @@ class FirstTaskHandler extends TaskHandler {
           print(e);
         }
       }
-      await Future.delayed(Duration(seconds: 10));
+      await Future.delayed(const Duration(seconds: 10));
     }
   }
 

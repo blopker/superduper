@@ -71,41 +71,6 @@ class _MyHomePageState extends State<MyHomePage> {
     bg.start();
   }
 
-  void _connect(DiscoveredDevice device) {
-    print('connecting to ${device.id}');
-    if (deviceSub != null) {
-      deviceSub!.cancel();
-      setState(() {
-        connectedDevice = null;
-        deviceSub = null;
-      });
-      return;
-    }
-    deviceSub = flutterReactiveBle
-        .connectToAdvertisingDevice(
-      id: device.id,
-      withServices: [],
-      prescanDuration: const Duration(seconds: 5),
-    )
-        .listen((connectionState) async {
-      print(connectionState);
-      if (connectionState.connectionState == DeviceConnectionState.connected) {
-        setState(() {
-          connectedDevice = device;
-        });
-      }
-      if (connectionState.connectionState ==
-          DeviceConnectionState.disconnected) {
-        setState(() {
-          connectedDevice = null;
-        });
-      }
-      // Handle connection state updates
-    }, onError: (dynamic error) {
-      // Handle a possible error
-    });
-  }
-
   void _toggleListen() async {
     print(await FlutterForegroundTask.getAllData());
     setState(() {
@@ -230,10 +195,98 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: selectedDevice == null ? null : _startBG,
                 child: serviceRunning
                     ? const Text('Stop watch')
-                    : const Text('Start watch'))
+                    : const Text('Start watch')),
+            Expanded(child: Container()),
+            if (selectedDevice != null)
+              DataDumper(
+                deviceID: selectedDevice!,
+              )
           ],
         ), // This trailing comma makes auto-formatting nicer for build methods.
       ),
     );
+  }
+}
+
+class DataDumper extends StatefulWidget {
+  DataDumper({super.key, required this.deviceID});
+  String deviceID;
+  @override
+  State<DataDumper> createState() => _DataDumperState();
+}
+
+class _DataDumperState extends State<DataDumper> {
+  StreamSubscription<ConnectionStateUpdate>? deviceSub;
+  Future<bool> _connect(String device) async {
+    print('connecting to $device');
+    if (deviceSub != null) {
+      return true;
+    }
+    var connected = false;
+    deviceSub = FlutterReactiveBle()
+        .connectToAdvertisingDevice(
+      id: device,
+      withServices: [],
+      prescanDuration: const Duration(seconds: 5),
+    )
+        .listen((connectionState) async {
+      print(connectionState);
+      if (connectionState.connectionState == DeviceConnectionState.connected) {
+        connected = true;
+      }
+      // Handle connection state updates
+    }, onError: (dynamic error) {
+      // Handle a possible error
+    });
+    await Future.delayed(Duration(seconds: 10));
+    return connected;
+  }
+
+  void onPressed() async {
+    var device = widget.deviceID;
+    var connected = await _connect(widget.deviceID);
+    if (!connected) {
+      return;
+    }
+    FlutterReactiveBle().characteristicValueStream.listen((event) {
+      print(event);
+    });
+    var services = await FlutterReactiveBle().discoverServices(widget.deviceID);
+    print(services);
+    var qc = QualifiedCharacteristic(
+        characteristicId: Uuid.parse('2a26'),
+        serviceId: Uuid.parse('180a'),
+        deviceId: device);
+    var res = await FlutterReactiveBle().readCharacteristic(qc);
+    print(res);
+    qc = QualifiedCharacteristic(
+        characteristicId: Uuid.parse('2a27'),
+        serviceId: Uuid.parse('180a'),
+        deviceId: device);
+    res = await FlutterReactiveBle().readCharacteristic(qc);
+    print(res);
+    qc = QualifiedCharacteristic(
+        characteristicId: Uuid.parse('2a28'),
+        serviceId: Uuid.parse('180a'),
+        deviceId: device);
+    res = await FlutterReactiveBle().readCharacteristic(qc);
+    print(res);
+    qc = QualifiedCharacteristic(
+        characteristicId: Uuid.parse('2a29'),
+        serviceId: Uuid.parse('180a'),
+        deviceId: device);
+    res = await FlutterReactiveBle().readCharacteristic(qc);
+    print(res);
+    qc = QualifiedCharacteristic(
+        characteristicId: Uuid.parse('2a29'),
+        serviceId: Uuid.parse('180a'),
+        deviceId: device);
+    res = await FlutterReactiveBle().readCharacteristic(qc);
+    print(res);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(onPressed: onPressed, child: Text('Dump Data'));
   }
 }

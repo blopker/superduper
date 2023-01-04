@@ -2,15 +2,24 @@ import 'dart:async';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:superduper/utils.dart';
+import 'package:superduper/services.dart';
 
 StreamSubscription<ConnectionStateUpdate>? deviceSub;
 String? currentDevice;
+BikeState currentState = BikeState.defaultState();
 DeviceConnectionState? currentStatus;
 
-QualifiedCharacteristic getChar(String deviceID) {
+QualifiedCharacteristic getWriteChar(String deviceID) {
   return QualifiedCharacteristic(
-      serviceId: Uuid.parse('00001554-1212-EFDE-1523-785FEABCD123'),
-      characteristicId: Uuid.parse('0000155F-1212-EFDE-1523-785FEABCD123'),
+      serviceId: UUID_METRICS_SERVICE,
+      characteristicId: UUID_CHARACTERISTIC_REGISTER,
+      deviceId: deviceID);
+}
+
+QualifiedCharacteristic getNotifyChar(String deviceID) {
+  return QualifiedCharacteristic(
+      serviceId: UUID_METRICS_SERVICE,
+      characteristicId: UUID_CHARACTERISTIC_REGISTER_NOTIFIER,
       deviceId: deviceID);
 }
 
@@ -30,6 +39,7 @@ Future<void> doIT(String deviceID) async {
 
 void reset() {
   deviceSub!.cancel();
+  currentState = BikeState.defaultState();
   currentDevice = null;
   currentStatus = null;
 }
@@ -55,7 +65,7 @@ void reset() {
 Future<void> flashLight(String deviceId) async {
   var onValue = strToLis('00D1 0104 0100 0000 0000');
   var offValue = strToLis('00D1 0004 0100 0000 0000');
-  final characteristic = getChar(deviceId);
+  final characteristic = getWriteChar(deviceId);
   await FlutterReactiveBle()
       .writeCharacteristicWithResponse(characteristic, value: onValue);
   await Future.delayed(const Duration(seconds: 1));
@@ -94,6 +104,16 @@ Future<DeviceConnectionState> connect(
       if (!complete.isCompleted) {
         complete.complete(connectionState.connectionState);
       }
+      FlutterReactiveBle()
+          .subscribeToCharacteristic(getNotifyChar(deviceId))
+          .listen((event) {
+        if (BikeState.isConfig(event)) {
+          print('got new state $event');
+          currentState = BikeState(event);
+        }
+      }, onError: (e) {
+        print(e);
+      });
     }
     if (connectionState.connectionState == DeviceConnectionState.disconnected) {
       if (!complete.isCompleted) {
@@ -108,9 +128,17 @@ Future<DeviceConnectionState> connect(
 }
 
 Future<void> maxSpeed(deviceID) async {
+  if (currentState.mode == 3) {
+    print('max speed already set');
+    return;
+  }
   print('sending max speed');
-  var value = strToLis('00D1 0004 0300 0000 0000');
-  final characteristic = getChar(deviceID);
+  var state = BikeState(currentState.config);
+  state.assist = 4;
+  state.mode = 3;
+  var value = state.write();
+  print('writting $value');
+  final characteristic = getWriteChar(deviceID);
   await FlutterReactiveBle()
       .writeCharacteristicWithResponse(characteristic, value: value);
 }
