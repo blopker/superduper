@@ -188,7 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 30,
             ),
             const Text(
-              'Select Super 73:',
+              'Select bike:',
             ),
             if (devices.isEmpty) Text('No bikes found, start scan!'),
             ListView.builder(
