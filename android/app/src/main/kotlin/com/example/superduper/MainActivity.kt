@@ -1,4 +1,4 @@
-package com.example.superduper
+package io.kbl.superduper
 
 import io.flutter.embedding.android.FlutterActivity
 

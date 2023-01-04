@@ -148,8 +148,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<List<String>> getDevices() async {
-    String devices = await FlutterForegroundTask.getData(key: 'devices');
-    return devices.split('|');
+    String? devices = await FlutterForegroundTask.getData(key: 'devices');
+    return devices?.split('|') ?? [];
   }
 
   Future<void> setSelectedDevice(String? device) async {
