@@ -1,16 +1,11 @@
 # superduper
 
-A new Flutter project.
+This app help keep your bike on mode 4 (off-road) and speed 4 (4/4). It is a background process that periodically changes the bike into 4/4 mode. Obviously for off-road use only.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Open the app and select the "Start scan" button. This will find any bikes around you that are on and save the details into the app. 
+- When you see your bike, stop the scan. 
+- Select your bike in the list. 
+- Then hit "Start watch". 
+- While the watch is running your bike will reset to 4/4 mode around every 10 seconds.
