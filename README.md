@@ -9,3 +9,5 @@ This app help keep your bike on mode 4 (off-road) and speed 4 (4/4). It is a bac
 - Select your bike in the list. 
 - Then hit "Start watch". 
 - While the watch is running your bike will reset to 4/4 mode around every 10 seconds.
+
+**Make sure your bluetooth is on**
