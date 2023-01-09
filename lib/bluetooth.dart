@@ -1,8 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/utils.dart';
 import 'package:superduper/services.dart';
+
+// part 'bluetooth.g.dart';
+
+// @riverpod
+// FlutterReactiveBle getBle() {
+//   return FlutterReactiveBle();
+// }
 
 StreamSubscription<ConnectionStateUpdate>? deviceSub;
 String? currentDevice;
