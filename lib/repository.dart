@@ -31,6 +31,7 @@ class ConnectionHandler {
         .connectedDeviceStream
         .listen((event) {
       if (event.deviceId == connectedId) {
+        print('deviceSub: $event');
         var connNotify = ref.read(connectionStatusProvider.notifier);
         connNotify.state = event.connectionState;
       }

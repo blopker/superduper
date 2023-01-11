@@ -91,7 +91,7 @@ class DiscoverCard extends StatelessWidget {
     var endColor = gradientStartColor;
     if (!selected) {
       startColor = Colors.grey[800];
-      endColor = Colors.black87;
+      endColor = Colors.grey[800];
     }
     return Material(
       color: Colors.transparent,

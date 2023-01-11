@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/repository.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +20,30 @@ void main() {
       child: SuperDuper(),
     ),
   );
+}
+
+Future<List<Permission>> getPermissions() async {
+  var perms = <Permission>[];
+  var deviceInfo = DeviceInfoPlugin();
+  if (Platform.isAndroid) {
+    if ((await deviceInfo.androidInfo).version.sdkInt < 31) {
+      perms.addAll([Permission.bluetooth, Permission.location]);
+    } else {
+      perms.addAll([
+        Permission.location,
+        Permission.bluetoothConnect,
+        Permission.bluetoothScan,
+      ]);
+    }
+  } else {
+    perms.addAll([
+      Permission.location,
+      Permission.bluetooth,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+    ]);
+  }
+  return perms;
 }
 
 class SuperDuper extends StatelessWidget {
@@ -42,12 +69,7 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     var bike = ref.watch(currentBikeProvider);
     ref.watch(connectionHandlerProvider);
-    var permFuture = [
-      Permission.location,
-      Permission.bluetooth,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-    ].request();
+    var permFuture = getPermissions().then((value) => value.request());
     Widget page = const NoBikePage();
     if (bike != null) {
       ref.watch(bikeProvider(bike.id));

@@ -1,7 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/names.dart';
 import 'package:superduper/preferences.dart';
 part 'saved_bike.freezed.dart';
 part 'saved_bike.g.dart';
@@ -19,16 +19,9 @@ class SavedBike with _$SavedBike {
       _$SavedBikeFromJson(json);
 }
 
-@riverpod
-SavedBike? currentBike(CurrentBikeRef ref) {
-  try {
-    return ref
-        .watch(savedBikeListProvider)
-        .firstWhere((element) => element.selected);
-  } catch (e) {
-    return null;
-  }
-}
+final currentBikeProvider = StateProvider<SavedBike?>((ref) {
+  return null;
+});
 
 @riverpod
 class SavedBikeList extends _$SavedBikeList {
@@ -68,7 +61,9 @@ class SavedBikeList extends _$SavedBikeList {
       return e.copyWith(selected: e.id == id ? true : false);
     }).toList();
     save();
-    return state.firstWhere((element) => element.id == id);
+    var b = state.firstWhere((element) => element.id == id);
+    ref.read(currentBikeProvider.notifier).state = b;
+    return b;
   }
 
   SavedBike? getCurrentBike() {

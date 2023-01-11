@@ -46,7 +46,7 @@ class _SystemHash {
   }
 }
 
-String _$SavedBikeListHash() => r'b11cad7db032a6a68d9ae032836054409cf255a3';
+String _$SavedBikeListHash() => r'08c5c6512cfe5c590645f354754472d55fd0baf2';
 
 /// See also [SavedBikeList].
 final savedBikeListProvider =
@@ -63,14 +63,3 @@ abstract class _$SavedBikeList extends AutoDisposeNotifier<List<SavedBike>> {
   @override
   List<SavedBike> build();
 }
-
-String _$currentBikeHash() => r'9391b09e0add3a2070e35cbaf71f4f5936aeafee';
-
-/// See also [currentBike].
-final currentBikeProvider = AutoDisposeProvider<SavedBike?>(
-  currentBike,
-  name: r'currentBikeProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$currentBikeHash,
-);
-typedef CurrentBikeRef = AutoDisposeProviderRef<SavedBike?>;
