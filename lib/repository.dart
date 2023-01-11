@@ -1,8 +1,71 @@
+import 'dart:async';
+
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/services.dart';
 
 part 'repository.g.dart';
+
+final connectionHandlerProvider = Provider<ConnectionHandler>((ref) {
+  return ConnectionHandler(ref);
+});
+
+final connectionStatusProvider = StateProvider<DeviceConnectionState>((ref) {
+  return DeviceConnectionState.disconnected;
+});
+
+class ConnectionHandler {
+  StreamSubscription<ConnectionStateUpdate>? _deviceSub;
+  StreamSubscription<ConnectionStateUpdate>? _connectionSub;
+
+  Timer? connectTimer;
+  String? connectedId;
+  Ref ref;
+
+  ConnectionHandler(this.ref) {
+    ref.onDispose(dispose);
+    _deviceSub = ref
+        .read(bluetoothRepositoryProvider)
+        .ble
+        .connectedDeviceStream
+        .listen((event) {
+      if (event.deviceId == connectedId) {
+        var connNotify = ref.read(connectionStatusProvider.notifier);
+        connNotify.state = event.connectionState;
+      }
+    });
+  }
+
+  void dispose() {
+    _deviceSub?.cancel();
+    connectTimer?.cancel();
+  }
+
+  void connect(String id) {
+    var connNotify = ref.read(connectionStatusProvider.notifier);
+    connNotify.state = DeviceConnectionState.connecting;
+    if (connectedId == id &&
+        connNotify.state == DeviceConnectionState.connected) {
+      print('already connected');
+      return;
+    }
+    connectedId = id;
+    _connectionSub?.cancel();
+    _connectionSub =
+        ref.read(bluetoothRepositoryProvider).connect(id).listen((event) {
+      connNotify.state = event.connectionState;
+      print("conectionSub: $event");
+    });
+  }
+
+  void disconect() {
+    connectedId = null;
+    _connectionSub?.cancel();
+    var connNotify = ref.read(connectionStatusProvider.notifier);
+    connNotify.state = DeviceConnectionState.disconnected;
+  }
+}
 
 @riverpod
 BluetoothRepository bluetoothRepository(BluetoothRepositoryRef ref) =>
@@ -27,8 +90,12 @@ class BluetoothRepository {
 
   Stream<DiscoveredDevice>? scan() {
     if (ble.status == BleStatus.ready) {
-      return ble
-          .scanForDevices(withServices: [], scanMode: ScanMode.lowLatency);
+      try {
+        return ble
+            .scanForDevices(withServices: [], scanMode: ScanMode.lowLatency);
+      } catch (e) {
+        print(e);
+      }
     }
     return null;
   }
@@ -49,19 +116,29 @@ class BluetoothRepository {
         serviceId: serviceId ?? UUID_METRICS_SERVICE,
         characteristicId: characteristicId ?? UUID_CHARACTERISTIC_REGISTER,
         deviceId: deviceId);
-    await ble.writeCharacteristicWithResponse(char, value: data);
+    print('Writing $data to $deviceId');
+    try {
+      await ble.writeCharacteristicWithResponse(char, value: data);
+    } catch (e) {
+      print(e);
+    }
   }
 
-  Future<List<int>> read(String deviceId,
+  Future<List<int>?> read(String deviceId,
       {Uuid? serviceId, Uuid? characteristicId}) async {
     var char = QualifiedCharacteristic(
         serviceId: serviceId ?? UUID_METRICS_SERVICE,
         characteristicId: characteristicId ?? UUID_CHARACTERISTIC_REGISTER,
         deviceId: deviceId);
-    return await ble.readCharacteristic(char);
+    try {
+      return await ble.readCharacteristic(char);
+    } catch (e) {
+      print(e);
+    }
+    return null;
   }
 
-  Future<List<int>> readCurrentState(String deviceId) async {
+  Future<List<int>?> readCurrentState(String deviceId) async {
     // Set the char register to the right mode to get the current state.
     await write(deviceId,
         data: currentStateId,

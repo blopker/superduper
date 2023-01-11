@@ -29,7 +29,7 @@ class _SystemHash {
   }
 }
 
-String _$BikeHash() => r'ac284ce9fa1a091b81df19a612220bfaa8d77a87';
+String _$BikeHash() => r'57b27c1c2eecf8ffe4fe186c65a6d21cb095a994';
 
 /// See also [Bike].
 class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {

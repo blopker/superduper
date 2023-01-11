@@ -1,18 +1,13 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/background.dart' as bg;
 import 'package:superduper/bike.dart';
 import 'package:superduper/saved_bike.dart';
-import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
-import 'package:superduper/widgets.dart';
-import 'package:superduper/names.dart';
+import 'package:superduper/repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +41,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var bike = ref.watch(currentBikeProvider);
+    ref.watch(connectionHandlerProvider);
     var permFuture = [
       Permission.location,
       Permission.bluetooth,
@@ -54,6 +50,7 @@ class HomePage extends ConsumerWidget {
     ].request();
     Widget page = const NoBikePage();
     if (bike != null) {
+      ref.watch(bikeProvider(bike.id));
       page = BikePage(bike: bike);
     }
     return Scaffold(

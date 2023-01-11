@@ -17,12 +17,9 @@ final _privateConstructorUsedError = UnsupportedError(
 /// @nodoc
 mixin _$BikeState {
   String get id => throw _privateConstructorUsedError;
-  double get rssi => throw _privateConstructorUsedError;
   int get mode => throw _privateConstructorUsedError;
   bool get light => throw _privateConstructorUsedError;
   int get assist => throw _privateConstructorUsedError;
-  DeviceConnectionState get conectionStatus =>
-      throw _privateConstructorUsedError;
   double get voltage => throw _privateConstructorUsedError;
 
   @JsonKey(ignore: true)
@@ -35,14 +32,7 @@ abstract class $BikeStateCopyWith<$Res> {
   factory $BikeStateCopyWith(BikeState value, $Res Function(BikeState) then) =
       _$BikeStateCopyWithImpl<$Res, BikeState>;
   @useResult
-  $Res call(
-      {String id,
-      double rssi,
-      int mode,
-      bool light,
-      int assist,
-      DeviceConnectionState conectionStatus,
-      double voltage});
+  $Res call({String id, int mode, bool light, int assist, double voltage});
 }
 
 /// @nodoc
@@ -59,11 +49,9 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
   @override
   $Res call({
     Object? id = null,
-    Object? rssi = null,
     Object? mode = null,
     Object? light = null,
     Object? assist = null,
-    Object? conectionStatus = null,
     Object? voltage = null,
   }) {
     return _then(_value.copyWith(
@@ -71,10 +59,6 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      rssi: null == rssi
-          ? _value.rssi
-          : rssi // ignore: cast_nullable_to_non_nullable
-              as double,
       mode: null == mode
           ? _value.mode
           : mode // ignore: cast_nullable_to_non_nullable
@@ -87,10 +71,6 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      conectionStatus: null == conectionStatus
-          ? _value.conectionStatus
-          : conectionStatus // ignore: cast_nullable_to_non_nullable
-              as DeviceConnectionState,
       voltage: null == voltage
           ? _value.voltage
           : voltage // ignore: cast_nullable_to_non_nullable
@@ -106,14 +86,7 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
       __$$_BikeStateCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String id,
-      double rssi,
-      int mode,
-      bool light,
-      int assist,
-      DeviceConnectionState conectionStatus,
-      double voltage});
+  $Res call({String id, int mode, bool light, int assist, double voltage});
 }
 
 /// @nodoc
@@ -128,11 +101,9 @@ class __$$_BikeStateCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
-    Object? rssi = null,
     Object? mode = null,
     Object? light = null,
     Object? assist = null,
-    Object? conectionStatus = null,
     Object? voltage = null,
   }) {
     return _then(_$_BikeState(
@@ -140,10 +111,6 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
-      rssi: null == rssi
-          ? _value.rssi
-          : rssi // ignore: cast_nullable_to_non_nullable
-              as double,
       mode: null == mode
           ? _value.mode
           : mode // ignore: cast_nullable_to_non_nullable
@@ -156,10 +123,6 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      conectionStatus: null == conectionStatus
-          ? _value.conectionStatus
-          : conectionStatus // ignore: cast_nullable_to_non_nullable
-              as DeviceConnectionState,
       voltage: null == voltage
           ? _value.voltage
           : voltage // ignore: cast_nullable_to_non_nullable
@@ -173,11 +136,9 @@ class __$$_BikeStateCopyWithImpl<$Res>
 class _$_BikeState extends _BikeState {
   const _$_BikeState(
       {required this.id,
-      required this.rssi,
       required this.mode,
       required this.light,
       required this.assist,
-      required this.conectionStatus,
       this.voltage = 0.0})
       : assert(mode <= 3),
         assert(mode >= 0),
@@ -188,22 +149,18 @@ class _$_BikeState extends _BikeState {
   @override
   final String id;
   @override
-  final double rssi;
-  @override
   final int mode;
   @override
   final bool light;
   @override
   final int assist;
   @override
-  final DeviceConnectionState conectionStatus;
-  @override
   @JsonKey()
   final double voltage;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, rssi: $rssi, mode: $mode, light: $light, assist: $assist, conectionStatus: $conectionStatus, voltage: $voltage)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, voltage: $voltage)';
   }
 
   @override
@@ -212,18 +169,15 @@ class _$_BikeState extends _BikeState {
         (other.runtimeType == runtimeType &&
             other is _$_BikeState &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.rssi, rssi) || other.rssi == rssi) &&
             (identical(other.mode, mode) || other.mode == mode) &&
             (identical(other.light, light) || other.light == light) &&
             (identical(other.assist, assist) || other.assist == assist) &&
-            (identical(other.conectionStatus, conectionStatus) ||
-                other.conectionStatus == conectionStatus) &&
             (identical(other.voltage, voltage) || other.voltage == voltage));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, rssi, mode, light, assist, conectionStatus, voltage);
+  int get hashCode =>
+      Object.hash(runtimeType, id, mode, light, assist, voltage);
 
   @JsonKey(ignore: true)
   @override
@@ -235,26 +189,20 @@ class _$_BikeState extends _BikeState {
 abstract class _BikeState extends BikeState {
   const factory _BikeState(
       {required final String id,
-      required final double rssi,
       required final int mode,
       required final bool light,
       required final int assist,
-      required final DeviceConnectionState conectionStatus,
       final double voltage}) = _$_BikeState;
   const _BikeState._() : super._();
 
   @override
   String get id;
   @override
-  double get rssi;
-  @override
   int get mode;
   @override
   bool get light;
   @override
   int get assist;
-  @override
-  DeviceConnectionState get conectionStatus;
   @override
   double get voltage;
   @override

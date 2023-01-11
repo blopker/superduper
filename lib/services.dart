@@ -22,25 +22,18 @@ final UUID_INFO_SERVICE = Uuid.parse("180a");
 // see https://nordicsemiconductor.github.io/Nordic-Thingy52-FW/documentation/firmware_architecture.html
 final UUID_DEVICE_FIRMWARE_UPDATES = Uuid.parse('fe59');
 
-class Service {
-  final Uuid serviceId;
-  static final InfoService = Service(UUID_INFO_SERVICE);
-  static final MetricService = Service(UUID_METRICS_SERVICE);
-  const Service(this.serviceId);
-}
-
-class BikeState {
-  BikeState(this.config);
+class StateData {
+  StateData(this.config);
   List<int> config;
   final _lightIdx = 4;
   final _modeIdx = 5;
   final _assistIdx = 2;
 
-  factory BikeState.defaultState() {
-    return BikeState(strToLis('03000000000000000000'));
+  factory StateData.defaultState() {
+    return StateData(strToLis('03000000000000000000'));
   }
 
-  static isConfig(List<int> maybeConfig) {
+  static isValid(List<int> maybeConfig) {
     // Read configs start with 3.
     return maybeConfig[0] == 3;
   }

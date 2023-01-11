@@ -14,7 +14,7 @@ import 'package:superduper/services.dart';
 
 StreamSubscription<ConnectionStateUpdate>? deviceSub;
 String? currentDevice;
-BikeState currentState = BikeState.defaultState();
+StateData currentState = StateData.defaultState();
 DeviceConnectionState? currentStatus;
 
 QualifiedCharacteristic getWriteChar(String deviceID) {
@@ -47,7 +47,7 @@ Future<void> doIT(String deviceID) async {
 
 void reset() {
   deviceSub!.cancel();
-  currentState = BikeState.defaultState();
+  currentState = StateData.defaultState();
   currentDevice = null;
   currentStatus = null;
 }
@@ -115,9 +115,9 @@ Future<DeviceConnectionState> connect(
       FlutterReactiveBle()
           .subscribeToCharacteristic(getNotifyChar(deviceId))
           .listen((event) {
-        if (BikeState.isConfig(event)) {
+        if (StateData.isValid(event)) {
           print('got new state $event');
-          currentState = BikeState(event);
+          currentState = StateData(event);
         }
       }, onError: (e) {
         print(e);
@@ -141,7 +141,7 @@ Future<void> maxSpeed(deviceID) async {
     return;
   }
   print('sending max speed');
-  var state = BikeState(currentState.config);
+  var state = StateData(currentState.config);
   state.assist = 4;
   state.mode = 3;
   var value = state.write();

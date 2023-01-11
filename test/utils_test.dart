@@ -12,16 +12,16 @@ void main() {
   test('bike state', () {
     var lightOn = strToLis('03000400010100000000');
     var lightOff = strToLis('03000400000100000000');
-    var state = BikeState(lightOff);
+    var state = StateData(lightOff);
     expect(state.lightOn, false);
-    state = BikeState(lightOn);
+    state = StateData(lightOn);
     expect(state.lightOn, true);
     var assist4mode3 = strToLis('03000400000300000000');
     var assist3mode2 = strToLis('03000300000200000000');
-    state = BikeState(assist4mode3);
+    state = StateData(assist4mode3);
     expect(state.assist, 4);
     expect(state.mode, 3);
-    state = BikeState(assist3mode2);
+    state = StateData(assist3mode2);
     expect(state.assist, 3);
     expect(state.mode, 2);
     state.mode = 3;
