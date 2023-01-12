@@ -42,6 +42,7 @@ void main(List<String> args) {
   print(asd);
   print(toStr(asd));
   //https://www.comodule.com/
+  //nordic bluetooth
 
   var ung = UniqueNameGenerator(
     dictionaries: [adjectives, animals],

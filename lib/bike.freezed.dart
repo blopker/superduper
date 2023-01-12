@@ -14,14 +14,20 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
+BikeState _$BikeStateFromJson(Map<String, dynamic> json) {
+  return _BikeState.fromJson(json);
+}
+
 /// @nodoc
 mixin _$BikeState {
   String get id => throw _privateConstructorUsedError;
   int get mode => throw _privateConstructorUsedError;
   bool get light => throw _privateConstructorUsedError;
   int get assist => throw _privateConstructorUsedError;
-  double get voltage => throw _privateConstructorUsedError;
+  String get name => throw _privateConstructorUsedError;
+  bool get selected => throw _privateConstructorUsedError;
 
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $BikeStateCopyWith<BikeState> get copyWith =>
       throw _privateConstructorUsedError;
@@ -32,7 +38,13 @@ abstract class $BikeStateCopyWith<$Res> {
   factory $BikeStateCopyWith(BikeState value, $Res Function(BikeState) then) =
       _$BikeStateCopyWithImpl<$Res, BikeState>;
   @useResult
-  $Res call({String id, int mode, bool light, int assist, double voltage});
+  $Res call(
+      {String id,
+      int mode,
+      bool light,
+      int assist,
+      String name,
+      bool selected});
 }
 
 /// @nodoc
@@ -52,7 +64,8 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? mode = null,
     Object? light = null,
     Object? assist = null,
-    Object? voltage = null,
+    Object? name = null,
+    Object? selected = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -71,10 +84,14 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      voltage: null == voltage
-          ? _value.voltage
-          : voltage // ignore: cast_nullable_to_non_nullable
-              as double,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      selected: null == selected
+          ? _value.selected
+          : selected // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -86,7 +103,13 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
       __$$_BikeStateCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, int mode, bool light, int assist, double voltage});
+  $Res call(
+      {String id,
+      int mode,
+      bool light,
+      int assist,
+      String name,
+      bool selected});
 }
 
 /// @nodoc
@@ -104,7 +127,8 @@ class __$$_BikeStateCopyWithImpl<$Res>
     Object? mode = null,
     Object? light = null,
     Object? assist = null,
-    Object? voltage = null,
+    Object? name = null,
+    Object? selected = null,
   }) {
     return _then(_$_BikeState(
       id: null == id
@@ -123,28 +147,36 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      voltage: null == voltage
-          ? _value.voltage
-          : voltage // ignore: cast_nullable_to_non_nullable
-              as double,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      selected: null == selected
+          ? _value.selected
+          : selected // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$_BikeState extends _BikeState {
   const _$_BikeState(
       {required this.id,
       required this.mode,
       required this.light,
       required this.assist,
-      this.voltage = 0.0})
+      required this.name,
+      this.selected = false})
       : assert(mode <= 3),
         assert(mode >= 0),
         assert(assist >= 0),
         assert(assist <= 4),
         super._();
+
+  factory _$_BikeState.fromJson(Map<String, dynamic> json) =>
+      _$$_BikeStateFromJson(json);
 
   @override
   final String id;
@@ -155,12 +187,14 @@ class _$_BikeState extends _BikeState {
   @override
   final int assist;
   @override
+  final String name;
+  @override
   @JsonKey()
-  final double voltage;
+  final bool selected;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, voltage: $voltage)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, selected: $selected)';
   }
 
   @override
@@ -172,18 +206,28 @@ class _$_BikeState extends _BikeState {
             (identical(other.mode, mode) || other.mode == mode) &&
             (identical(other.light, light) || other.light == light) &&
             (identical(other.assist, assist) || other.assist == assist) &&
-            (identical(other.voltage, voltage) || other.voltage == voltage));
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.selected, selected) ||
+                other.selected == selected));
   }
 
+  @JsonKey(ignore: true)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, id, mode, light, assist, voltage);
+      Object.hash(runtimeType, id, mode, light, assist, name, selected);
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$_BikeStateCopyWith<_$_BikeState> get copyWith =>
       __$$_BikeStateCopyWithImpl<_$_BikeState>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$_BikeStateToJson(
+      this,
+    );
+  }
 }
 
 abstract class _BikeState extends BikeState {
@@ -192,8 +236,12 @@ abstract class _BikeState extends BikeState {
       required final int mode,
       required final bool light,
       required final int assist,
-      final double voltage}) = _$_BikeState;
+      required final String name,
+      final bool selected}) = _$_BikeState;
   const _BikeState._() : super._();
+
+  factory _BikeState.fromJson(Map<String, dynamic> json) =
+      _$_BikeState.fromJson;
 
   @override
   String get id;
@@ -204,7 +252,9 @@ abstract class _BikeState extends BikeState {
   @override
   int get assist;
   @override
-  double get voltage;
+  String get name;
+  @override
+  bool get selected;
   @override
   @JsonKey(ignore: true)
   _$$_BikeStateCopyWith<_$_BikeState> get copyWith =>

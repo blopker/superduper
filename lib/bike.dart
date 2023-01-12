@@ -5,8 +5,8 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:superduper/names.dart';
 import 'package:superduper/repository.dart';
-import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
@@ -25,11 +25,16 @@ class BikeState with _$BikeState {
     required int mode,
     required bool light,
     required int assist,
-    @Default(0.0) double voltage,
+    required String name,
+    @Default(false) bool selected,
   }) = _BikeState;
 
-  factory BikeState.defaultState() {
-    return const BikeState(id: '', mode: 0, light: false, assist: 0);
+  factory BikeState.fromJson(Map<String, Object?> json) =>
+      _$BikeStateFromJson(json);
+
+  factory BikeState.defaultState(String id) {
+    return BikeState(
+        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id));
   }
 
   BikeState updateFromData(List<int> data) {
@@ -50,9 +55,10 @@ class BikeState with _$BikeState {
 @riverpod
 class Bike extends _$Bike {
   Timer? _updateDebounce;
+
   @override
   BikeState build(String id) {
-    return BikeState(id: id, mode: 0, light: false, assist: 0);
+    return BikeState.defaultState(id);
   }
 
   Future<void> updateStateData() async {
@@ -99,7 +105,7 @@ class Bike extends _$Bike {
 
 class BikePage extends ConsumerStatefulWidget {
   const BikePage({super.key, required this.bike});
-  final SavedBike bike;
+  final BikeState bike;
 
   @override
   BikePageState createState() => BikePageState();

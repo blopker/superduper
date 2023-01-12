@@ -24,6 +24,7 @@ class ConnectionHandler {
   Ref ref;
 
   ConnectionHandler(this.ref) {
+    print("CREATED CH");
     ref.onDispose(dispose);
     _deviceSub = ref
         .read(bluetoothRepositoryProvider)
@@ -83,10 +84,10 @@ class BluetoothRepository {
 
   Stream<ConnectionStateUpdate> connect(String deviceId) {
     return ble.connectToAdvertisingDevice(
-      id: deviceId,
-      withServices: [],
-      prescanDuration: const Duration(seconds: 5),
-    );
+        id: deviceId,
+        withServices: [],
+        prescanDuration: const Duration(seconds: 1),
+        connectionTimeout: const Duration(seconds: 5));
   }
 
   Stream<DiscoveredDevice>? scan() {

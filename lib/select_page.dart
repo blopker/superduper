@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:superduper/names.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
+import 'package:superduper/bike.dart';
 
 class BikeSelectWidget extends ConsumerStatefulWidget {
   const BikeSelectWidget({super.key});
@@ -19,7 +19,7 @@ class BikeSelectWidget extends ConsumerStatefulWidget {
 class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   late StreamSubscription<DiscoveredDevice>? scanStream;
   late StreamSubscription<BleStatus> bleStatusStream;
-  final List<SavedBike> foundBikes = [];
+  final List<BikeState> foundBikes = [];
   BleStatus? bleStatus;
   @override
   void initState() {
@@ -41,7 +41,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
         return;
       }
       setState(() {
-        foundBikes.add(SavedBike(id: device.id));
+        foundBikes.add(BikeState.defaultState(device.id));
       });
     });
     super.initState();
@@ -98,7 +98,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                       bikeNotifier.selectBike(bikeList[i].id);
                       Navigator.pop(context);
                     },
-                    title: bikeList[i].name ?? getName(seed: bikeList[i].id),
+                    title: bikeList[i].name,
                     subtitle: bikeList[i].id,
                   );
                 }),
@@ -124,17 +124,16 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
               itemCount: foundBikes.length,
               itemBuilder: (ctx, i) {
                 var b = foundBikes[i];
-                var name = getName(seed: foundBikes[i].id);
                 return Padding(
                   padding: const EdgeInsets.only(top: 20.0),
                   child: DiscoverCard(
                     selected: b.selected,
                     onTap: () {
-                      bikeNotifier.addBike(SavedBike(id: b.id, name: name));
+                      bikeNotifier.addBike(b);
                       bikeNotifier.selectBike(b.id);
                       Navigator.pop(context);
                     },
-                    title: name,
+                    title: b.name,
                     subtitle: b.id,
                   ),
                 );

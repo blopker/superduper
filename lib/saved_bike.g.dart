@@ -3,23 +3,6 @@
 part of 'saved_bike.dart';
 
 // **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
-
-_$_SavedBike _$$_SavedBikeFromJson(Map<String, dynamic> json) => _$_SavedBike(
-      id: json['id'] as String,
-      selected: json['selected'] as bool? ?? false,
-      name: json['name'] as String?,
-    );
-
-Map<String, dynamic> _$$_SavedBikeToJson(_$_SavedBike instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'selected': instance.selected,
-      'name': instance.name,
-    };
-
-// **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
@@ -46,20 +29,31 @@ class _SystemHash {
   }
 }
 
-String _$SavedBikeListHash() => r'08c5c6512cfe5c590645f354754472d55fd0baf2';
+String _$SavedBikeListHash() => r'1410728375729163c1713b58dde4aca32dc8bf47';
 
 /// See also [SavedBikeList].
 final savedBikeListProvider =
-    AutoDisposeNotifierProvider<SavedBikeList, List<SavedBike>>(
+    AutoDisposeNotifierProvider<SavedBikeList, List<BikeState>>(
   SavedBikeList.new,
   name: r'savedBikeListProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
       ? null
       : _$SavedBikeListHash,
 );
-typedef SavedBikeListRef = AutoDisposeNotifierProviderRef<List<SavedBike>>;
+typedef SavedBikeListRef = AutoDisposeNotifierProviderRef<List<BikeState>>;
 
-abstract class _$SavedBikeList extends AutoDisposeNotifier<List<SavedBike>> {
+abstract class _$SavedBikeList extends AutoDisposeNotifier<List<BikeState>> {
   @override
-  List<SavedBike> build();
+  List<BikeState> build();
 }
+
+String _$currentBikeHash() => r'e6582f7a975d17b943fd5c8a0027a60b5a372188';
+
+/// See also [currentBike].
+final currentBikeProvider = AutoDisposeProvider<BikeState?>(
+  currentBike,
+  name: r'currentBikeProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$currentBikeHash,
+);
+typedef CurrentBikeRef = AutoDisposeProviderRef<BikeState?>;
