@@ -80,6 +80,10 @@ class Bike extends _$Bike {
   }
 
   void writeStateData(BikeState newState) {
+    var status = ref.read(connectionStatusProvider);
+    if (status != DeviceConnectionState.connected) {
+      return;
+    }
     ref
         .read(bluetoothRepositoryProvider)
         .write(newState.id, data: newState.toWriteData());
@@ -143,7 +147,7 @@ class BikePageState extends ConsumerState<BikePage> {
                     },
                     child: Row(
                       children: [
-                        Text(widget.bike.name!, style: Styles.header),
+                        Text(widget.bike.name, style: Styles.header),
                         SizedBox(
                           width: 10,
                         ),
