@@ -15,4 +15,6 @@ This app help keep your bike on mode 4 (off-road) and speed 4 (4/4). It is a bac
 ## Developers
 ### Releases
 1. Update version, save.
-2. Run `make tag`
+1. Run `make tag`
+1. Run `make build`
+1. Upload aab to https://play.google.com/console/u/0/developers/6048825475784314007/app/4973912181639360195/tracks/internal-testing

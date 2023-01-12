@@ -29,7 +29,7 @@ class _SystemHash {
   }
 }
 
-String _$SavedBikeListHash() => r'1410728375729163c1713b58dde4aca32dc8bf47';
+String _$SavedBikeListHash() => r'df80298598a2686c2e8d4d9f04566c6cacdad138';
 
 /// See also [SavedBikeList].
 final savedBikeListProvider =
