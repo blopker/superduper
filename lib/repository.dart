@@ -20,7 +20,9 @@ class ConnectionHandler {
   StreamSubscription<ConnectionStateUpdate>? _connectionSub;
 
   Timer? connectTimer;
+  Timer? reconnectTimer;
   String? connectedId;
+  bool shouldReconect = false;
   Ref ref;
 
   ConnectionHandler(this.ref) {
@@ -37,14 +39,17 @@ class ConnectionHandler {
         connNotify.state = event.connectionState;
       }
     });
+    reconnectTimer = Timer.periodic(Duration(seconds: 10), (t) => reconect());
   }
 
   void dispose() {
     _deviceSub?.cancel();
     connectTimer?.cancel();
+    reconnectTimer?.cancel();
   }
 
   void connect(String id) {
+    shouldReconect = true;
     var connNotify = ref.read(connectionStatusProvider.notifier);
     connNotify.state = DeviceConnectionState.connecting;
     if (connectedId == id &&
@@ -61,7 +66,17 @@ class ConnectionHandler {
     });
   }
 
+  void reconect() {
+    var conn = ref.read(connectionStatusProvider);
+    if (shouldReconect &&
+        connectedId != null &&
+        conn == DeviceConnectionState.disconnected) {
+      connect(connectedId!);
+    }
+  }
+
   void disconect() {
+    shouldReconect = false;
     connectedId = null;
     _connectionSub?.cancel();
     var connNotify = ref.read(connectionStatusProvider.notifier);
