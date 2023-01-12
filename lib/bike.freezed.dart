@@ -25,6 +25,7 @@ mixin _$BikeState {
   bool get light => throw _privateConstructorUsedError;
   int get assist => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
+  bool get modeLock => throw _privateConstructorUsedError;
   bool get selected => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -44,6 +45,7 @@ abstract class $BikeStateCopyWith<$Res> {
       bool light,
       int assist,
       String name,
+      bool modeLock,
       bool selected});
 }
 
@@ -65,6 +67,7 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? light = null,
     Object? assist = null,
     Object? name = null,
+    Object? modeLock = null,
     Object? selected = null,
   }) {
     return _then(_value.copyWith(
@@ -88,6 +91,10 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      modeLock: null == modeLock
+          ? _value.modeLock
+          : modeLock // ignore: cast_nullable_to_non_nullable
+              as bool,
       selected: null == selected
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
@@ -109,6 +116,7 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
       bool light,
       int assist,
       String name,
+      bool modeLock,
       bool selected});
 }
 
@@ -128,6 +136,7 @@ class __$$_BikeStateCopyWithImpl<$Res>
     Object? light = null,
     Object? assist = null,
     Object? name = null,
+    Object? modeLock = null,
     Object? selected = null,
   }) {
     return _then(_$_BikeState(
@@ -151,6 +160,10 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      modeLock: null == modeLock
+          ? _value.modeLock
+          : modeLock // ignore: cast_nullable_to_non_nullable
+              as bool,
       selected: null == selected
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
@@ -168,6 +181,7 @@ class _$_BikeState extends _BikeState {
       required this.light,
       required this.assist,
       required this.name,
+      this.modeLock = false,
       this.selected = false})
       : assert(mode <= 3),
         assert(mode >= 0),
@@ -190,11 +204,14 @@ class _$_BikeState extends _BikeState {
   final String name;
   @override
   @JsonKey()
+  final bool modeLock;
+  @override
+  @JsonKey()
   final bool selected;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, selected: $selected)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, modeLock: $modeLock, selected: $selected)';
   }
 
   @override
@@ -207,14 +224,16 @@ class _$_BikeState extends _BikeState {
             (identical(other.light, light) || other.light == light) &&
             (identical(other.assist, assist) || other.assist == assist) &&
             (identical(other.name, name) || other.name == name) &&
+            (identical(other.modeLock, modeLock) ||
+                other.modeLock == modeLock) &&
             (identical(other.selected, selected) ||
                 other.selected == selected));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, mode, light, assist, name, selected);
+  int get hashCode => Object.hash(
+      runtimeType, id, mode, light, assist, name, modeLock, selected);
 
   @JsonKey(ignore: true)
   @override
@@ -237,6 +256,7 @@ abstract class _BikeState extends BikeState {
       required final bool light,
       required final int assist,
       required final String name,
+      final bool modeLock,
       final bool selected}) = _$_BikeState;
   const _BikeState._() : super._();
 
@@ -253,6 +273,8 @@ abstract class _BikeState extends BikeState {
   int get assist;
   @override
   String get name;
+  @override
+  bool get modeLock;
   @override
   bool get selected;
   @override

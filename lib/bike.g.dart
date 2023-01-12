@@ -12,6 +12,7 @@ _$_BikeState _$$_BikeStateFromJson(Map<String, dynamic> json) => _$_BikeState(
       light: json['light'] as bool,
       assist: json['assist'] as int,
       name: json['name'] as String,
+      modeLock: json['modeLock'] as bool? ?? false,
       selected: json['selected'] as bool? ?? false,
     );
 
@@ -22,6 +23,7 @@ Map<String, dynamic> _$$_BikeStateToJson(_$_BikeState instance) =>
       'light': instance.light,
       'assist': instance.assist,
       'name': instance.name,
+      'modeLock': instance.modeLock,
       'selected': instance.selected,
     };
 
@@ -52,7 +54,7 @@ class _SystemHash {
   }
 }
 
-String _$BikeHash() => r'41e7f449e3aff56b2373ad76aa628ef33134e77e';
+String _$BikeHash() => r'5c22de6c8c907b0d4c1c32482631046b67e4fb7c';
 
 /// See also [Bike].
 class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {

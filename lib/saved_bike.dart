@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/preferences.dart';
 import 'package:superduper/bike.dart';
@@ -17,6 +18,7 @@ BikeState? currentBike(CurrentBikeRef ref) {
 @riverpod
 class SavedBikeList extends _$SavedBikeList {
   final prefKey = 'SavedBikeList';
+  ProviderSubscription? psub;
   @override
   List<BikeState> build() {
     load();
@@ -28,10 +30,15 @@ class SavedBikeList extends _$SavedBikeList {
     var bikes =
         (json['list'] as List).map((e) => BikeState.fromJson(e)).toList();
     state = bikes;
+    var bike = getCurrentBike();
+    if (bike != null) {
+      selectBike(bike.id);
+    }
   }
 
   Future<void> save() async {
     var map = {'list': (state.map((e) => e.toJson())).toList()};
+    // print('save $map');
     await ref.read(prefProvider).setJson(prefKey, map);
   }
 
@@ -52,6 +59,16 @@ class SavedBikeList extends _$SavedBikeList {
       return e.copyWith(selected: e.id == id ? true : false);
     }).toList();
     save();
+    psub?.close();
+    psub = ref.listen<BikeState>(bikeProvider(id), (previous, next) {
+      state = state.map<BikeState>((e) {
+        if (e.id == next.id) {
+          return next.copyWith(selected: true);
+        }
+        return e;
+      }).toList();
+      save();
+    });
     return state.firstWhere((element) => element.selected);
   }
 
@@ -64,6 +81,7 @@ class SavedBikeList extends _$SavedBikeList {
   }
 
   void unselect() {
+    psub?.close();
     state = state.map((e) {
       return e.copyWith(selected: false);
     }).toList();

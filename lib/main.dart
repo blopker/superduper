@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/background.dart' as bg;
@@ -14,7 +13,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  bg.init();
+  // bg.init();
   runApp(
     const ProviderScope(
       child: SuperDuper(),
@@ -23,7 +22,7 @@ void main() {
 }
 
 Future<List<Permission>> getPermissions() async {
-  var perms = <Permission>[];
+  var perms = <Permission>[Permission.notification];
   var deviceInfo = DeviceInfoPlugin();
   if (Platform.isAndroid) {
     if ((await deviceInfo.androidInfo).version.sdkInt < 31) {

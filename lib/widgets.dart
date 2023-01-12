@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:superduper/styles.dart';
 
 class CategoryBoxes extends StatefulWidget {
   final Function(bool isSelected)? onPressed;
@@ -61,6 +62,7 @@ class _CategoryBoxesState extends State<CategoryBoxes> {
 class DiscoverCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
+  final String? metric;
   final Color? gradientStartColor;
   final Color? gradientEndColor;
   final double? height;
@@ -82,6 +84,7 @@ class DiscoverCard extends StatelessWidget {
       this.vectorTop,
       this.onTap,
       this.tag,
+      this.metric,
       this.selected = true})
       : super(key: key);
 
@@ -116,37 +119,47 @@ class DiscoverCard extends StatelessWidget {
             child: Stack(
               children: [
                 Padding(
-                  padding: EdgeInsets.only(left: 24, top: 24, bottom: 24),
+                  padding:
+                      EdgeInsets.only(left: 24, top: 20, bottom: 20, right: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
+                      Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Hero(
-                            tag: tag ?? '',
-                            child: Material(
-                              color: Colors.transparent,
-                              child: Text(
-                                title!,
-                                style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Hero(
+                                tag: tag ?? '',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: Text(
+                                    title!,
+                                    style: Styles.body,
+                                  ),
+                                ),
                               ),
-                            ),
+                              SizedBox(
+                                height: 5,
+                              ),
+                              subtitle != null
+                                  ? Text(
+                                      subtitle!,
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w300,
+                                          color: Colors.white),
+                                    )
+                                  : Container()
+                            ],
                           ),
-                          SizedBox(
-                            height: 5,
-                          ),
-                          subtitle != null
+                          Spacer(),
+                          metric != null
                               ? Text(
-                                  subtitle!,
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w300,
-                                      color: Colors.white),
+                                  metric!,
+                                  style: Styles.body,
                                 )
                               : Container(),
                         ],

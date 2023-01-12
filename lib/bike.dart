@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -26,6 +27,7 @@ class BikeState with _$BikeState {
     required bool light,
     required int assist,
     required String name,
+    @Default(false) bool modeLock,
     @Default(false) bool selected,
   }) = _BikeState;
 
@@ -55,9 +57,17 @@ class BikeState with _$BikeState {
 @riverpod
 class Bike extends _$Bike {
   Timer? _updateDebounce;
+  Timer? _updateTimer;
 
   @override
   BikeState build(String id) {
+    ref.onDispose(() {
+      _updateTimer?.cancel();
+      _updateDebounce?.cancel();
+    });
+    _updateTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      updateStateData();
+    });
     return BikeState.defaultState(id);
   }
 
@@ -75,20 +85,27 @@ class Bike extends _$Bike {
       if (data == null || data.isEmpty) {
         return;
       }
-      state = state.updateFromData(data);
+      var newState = state.updateFromData(data);
+      if (state.modeLock && state.mode != newState.mode) {
+        writeStateData(newState.copyWith(mode: state.mode));
+      } else {
+        state = newState;
+      }
     });
   }
 
-  void writeStateData(BikeState newState) {
+  void writeStateData(BikeState newState, {saveToBike = true}) {
     var status = ref.read(connectionStatusProvider);
-    if (status != DeviceConnectionState.connected) {
-      return;
+    if (saveToBike) {
+      if (status != DeviceConnectionState.connected) {
+        return;
+      }
+      ref
+          .read(bluetoothRepositoryProvider)
+          .write(newState.id, data: newState.toWriteData());
     }
-    ref
-        .read(bluetoothRepositoryProvider)
-        .write(newState.id, data: newState.toWriteData());
-    state = newState;
     updateStateData();
+    state = newState;
   }
 
   void toggleLight() async {
@@ -104,6 +121,12 @@ class Bike extends _$Bike {
   void toggleAssist() async {
     // await updateStateData();
     writeStateData(state.copyWith(assist: (state.assist + 1) % 5));
+  }
+
+  void toggleModeLock() async {
+    // await updateStateData();
+    writeStateData(state.copyWith(modeLock: !state.modeLock),
+        saveToBike: false);
   }
 }
 
@@ -127,82 +150,98 @@ class BikePageState extends ConsumerState<BikePage> {
         bikeControl.updateStateData();
       }
     });
-    return Scaffold(
-        backgroundColor: const Color(0xff121421),
-        body: SafeArea(
-            child: Column(
-          children: [
-            ListView(
-                shrinkWrap: true,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  InkWell(
-                    onTap: () {
-                      showModalBottomSheet<void>(
-                          isScrollControlled: true,
-                          context: context,
-                          builder: (BuildContext context) {
-                            return const BikeSelectWidget();
-                          });
-                    },
-                    child: Row(
-                      children: [
-                        Text(widget.bike.name, style: Styles.header),
-                        SizedBox(
-                          width: 10,
-                        ),
-                        Icon(
-                          Icons.unfold_more,
-                          color: Colors.white,
-                          size: 30,
-                        )
-                      ],
+    return WillStartForegroundTask(
+      onWillStart: () async {
+        return bike.modeLock;
+      },
+      androidNotificationOptions: AndroidNotificationOptions(
+          channelId: 'notification_channel_id',
+          channelName: 'ModeLock Notification',
+          priority: NotificationPriority.LOW,
+          channelImportance: NotificationChannelImportance.LOW,
+          iconData: null),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: const ForegroundTaskOptions(),
+      notificationTitle: 'SuperDuper ModeLock On',
+      notificationText: 'Tap to return to the app',
+      child: Scaffold(
+          backgroundColor: const Color(0xff121421),
+          body: SafeArea(
+              child: Column(
+            children: [
+              ListView(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        showModalBottomSheet<void>(
+                            isScrollControlled: true,
+                            context: context,
+                            builder: (BuildContext context) {
+                              return const BikeSelectWidget();
+                            });
+                      },
+                      child: Row(
+                        children: [
+                          Text(widget.bike.name, style: Styles.header),
+                          SizedBox(
+                            width: 10,
+                          ),
+                          Icon(
+                            Icons.unfold_more,
+                            color: Colors.white,
+                            size: 30,
+                          )
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    connectionStatus.name,
-                    style: Styles.body,
-                  ),
-                  LightControlWidget(
-                    bike: bike,
-                  ),
-                  ModeControlWidget(bike: bike),
-                  AssistControlWidget(bike: bike),
-                ]),
-            Expanded(
-              child: Container(),
-            ),
-            Builder(builder: (c) {
-              var text = 'Connecting...';
-              var disabled = true;
-              if (connectionStatus == DeviceConnectionState.connected) {
-                text = 'Connected';
-                disabled = true;
-              } else if (connectionStatus ==
-                  DeviceConnectionState.disconnected) {
-                text = 'Connect';
-                disabled = false;
-              } else if (connectionStatus ==
-                  DeviceConnectionState.disconnecting) {
-                text = 'Disconnecting...';
-              }
-              var style = Styles.body;
-              if (disabled) {
-                style = style.copyWith(color: Colors.grey);
-              }
-              return InkWell(
-                  onTap: disabled
-                      ? null
-                      : () {
-                          connectionHandler.connect(bike.id);
-                        },
-                  child: Text(text, style: style));
-            }),
-            SizedBox(
-              height: 20,
-            )
-          ],
-        )));
+                    Text(
+                      connectionStatus.name,
+                      style: Styles.body,
+                    ),
+                    LightControlWidget(
+                      bike: bike,
+                    ),
+                    ModeControlWidget(bike: bike),
+                    ModeLockControlWidget(bike: bike),
+                    AssistControlWidget(bike: bike),
+                  ]),
+              Expanded(
+                child: Container(),
+              ),
+              Builder(builder: (c) {
+                var text = 'Connecting...';
+                var disabled = true;
+                if (connectionStatus == DeviceConnectionState.connected) {
+                  text = 'Connected';
+                  disabled = true;
+                } else if (connectionStatus ==
+                    DeviceConnectionState.disconnected) {
+                  text = 'Connect';
+                  disabled = false;
+                } else if (connectionStatus ==
+                    DeviceConnectionState.disconnecting) {
+                  text = 'Disconnecting...';
+                }
+                var style = Styles.body;
+                if (disabled) {
+                  style = style.copyWith(color: Colors.grey);
+                }
+                return InkWell(
+                    onTap: disabled
+                        ? null
+                        : () {
+                            connectionHandler.connect(bike.id);
+                          },
+                    child: Text(text, style: style));
+              }),
+              SizedBox(
+                height: 20,
+              )
+            ],
+          ))),
+    );
   }
 }
 
@@ -217,7 +256,7 @@ class LightControlWidget extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
         title: "Light",
-        subtitle: bike.light ? "On" : "Off",
+        metric: bike.light ? "On" : "Off",
         selected: bike.light,
         onTap: () {
           bikeControl.toggleLight();
@@ -238,10 +277,31 @@ class ModeControlWidget extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
         title: "Mode",
-        subtitle: bike.mode.toString(),
+        metric: bike.mode.toString(),
         selected: bike.mode == 0 ? false : true,
         onTap: () {
           bikeControl.toggleMode();
+        },
+      ),
+    );
+  }
+}
+
+class ModeLockControlWidget extends ConsumerWidget {
+  const ModeLockControlWidget({super.key, required this.bike});
+  final BikeState bike;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    return Padding(
+      padding: const EdgeInsets.only(top: 20.0),
+      child: DiscoverCard(
+        title: "Mode Lock™",
+        metric: bike.modeLock ? "On" : "Off",
+        selected: bike.modeLock,
+        onTap: () {
+          bikeControl.toggleModeLock();
         },
       ),
     );
@@ -259,7 +319,7 @@ class AssistControlWidget extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
         title: "Assist",
-        subtitle: bike.assist.toString(),
+        metric: bike.assist.toString(),
         selected: bike.assist == 0 ? false : true,
         onTap: () {
           bikeControl.toggleAssist();
