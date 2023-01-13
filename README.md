@@ -1,6 +1,8 @@
 # superduper
 
-This app help keep your bike on mode 4 (off-road) and speed 4 (4/4). It is a background process that periodically changes the bike into 4/4 mode. Obviously for off-road use only.
+Google Play Store: https://play.google.com/store/apps/details?id=io.kbl.superduper
+
+This app is an alternative the official Super ebike app. Control your bike with no account or external server needed. Additionally, it has ModeLock, which will keep your bike on whatever mode you set it at, even through bike restarts.
 
 ## Getting Started
 

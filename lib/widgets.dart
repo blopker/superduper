@@ -128,34 +128,36 @@ class DiscoverCard extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Hero(
-                                tag: tag ?? '',
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: Text(
-                                    title!,
-                                    style: Styles.body,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Hero(
+                                  tag: tag ?? '',
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: Text(
+                                      title!,
+                                      style: Styles.body,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(
-                                height: 5,
-                              ),
-                              subtitle != null
-                                  ? Text(
-                                      subtitle!,
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w300,
-                                          color: Colors.white),
-                                    )
-                                  : Container()
-                            ],
+                                SizedBox(
+                                  height: 5,
+                                ),
+                                subtitle != null
+                                    ? Text(
+                                        subtitle!,
+                                        overflow: TextOverflow.fade,
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w300,
+                                            color: Colors.white),
+                                      )
+                                    : Container()
+                              ],
+                            ),
                           ),
-                          Spacer(),
                           metric != null
                               ? Text(
                                   metric!,

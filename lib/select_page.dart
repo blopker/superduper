@@ -111,13 +111,13 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 style: Styles.section,
               )
             ]),
-            SizedBox(
-              height: 20,
-            ),
             if (foundBikes.isEmpty)
-              Text(
-                scanText,
-                style: Styles.section,
+              Padding(
+                padding: const EdgeInsets.only(top: 20.0),
+                child: Text(
+                  scanText,
+                  style: Styles.section,
+                ),
               ),
             ListView.builder(
               shrinkWrap: true,

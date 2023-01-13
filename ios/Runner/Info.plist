@@ -49,5 +49,7 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Our app uses bluetooth to find, connect and transfer data between different devices</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Our app only uses this information to connect to your bike</string>
 </dict>
 </plist>
