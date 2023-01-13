@@ -38,7 +38,7 @@ class SavedBikeList extends _$SavedBikeList {
 
   Future<void> save() async {
     var map = {'list': (state.map((e) => e.toJson())).toList()};
-    // print('save $map');
+    // debugPrint('save $map');
     await ref.read(prefProvider).setJson(prefKey, map);
   }
 

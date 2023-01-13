@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -26,7 +27,7 @@ class ConnectionHandler {
   Ref ref;
 
   ConnectionHandler(this.ref) {
-    print("CREATED CH");
+    debugPrint("CREATED CH");
     ref.onDispose(dispose);
     _deviceSub = ref
         .read(bluetoothRepositoryProvider)
@@ -34,7 +35,7 @@ class ConnectionHandler {
         .connectedDeviceStream
         .listen((event) {
       if (event.deviceId == connectedId) {
-        print('deviceSub: $event');
+        debugPrint('deviceSub: $event');
         var connNotify = ref.read(connectionStatusProvider.notifier);
         connNotify.state = event.connectionState;
       }
@@ -54,7 +55,7 @@ class ConnectionHandler {
     connNotify.state = DeviceConnectionState.connecting;
     if (connectedId == id &&
         connNotify.state == DeviceConnectionState.connected) {
-      print('already connected');
+      debugPrint('already connected');
       return;
     }
     connectedId = id;
@@ -62,7 +63,7 @@ class ConnectionHandler {
     _connectionSub =
         ref.read(bluetoothRepositoryProvider).connect(id).listen((event) {
       connNotify.state = event.connectionState;
-      print("conectionSub: $event");
+      debugPrint("conectionSub: $event");
     });
   }
 
@@ -111,7 +112,7 @@ class BluetoothRepository {
         return ble
             .scanForDevices(withServices: [], scanMode: ScanMode.lowLatency);
       } catch (e) {
-        print(e);
+        debugPrint(e.toString());
       }
     }
     return null;
@@ -133,11 +134,11 @@ class BluetoothRepository {
         serviceId: serviceId ?? UUID_METRICS_SERVICE,
         characteristicId: characteristicId ?? UUID_CHARACTERISTIC_REGISTER,
         deviceId: deviceId);
-    print('Writing $data to $deviceId');
+    debugPrint('Writing $data to $deviceId');
     try {
       await ble.writeCharacteristicWithResponse(char, value: data);
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
     }
   }
 
@@ -150,7 +151,7 @@ class BluetoothRepository {
     try {
       return await ble.readCharacteristic(char);
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
     }
     return null;
   }

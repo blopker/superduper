@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:superduper/background.dart' as bg;
 import 'package:superduper/bike.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
@@ -13,7 +12,6 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // bg.init();
   runApp(
     const ProviderScope(
       child: SuperDuper(),
@@ -89,7 +87,7 @@ class HomePage extends ConsumerWidget {
                     }
                     if (snapshot.data!.values
                         .any((element) => element.isDenied)) {
-                      print(snapshot.data);
+                      debugPrint(snapshot.data?.toString());
                       return PermissionPage();
                     }
                     return page;
@@ -197,7 +195,7 @@ class NoBikePage extends ConsumerWidget {
 //   }
 
 //   void _toggleListen() async {
-//     print(await FlutterForegroundTask.getAllData());
+//     debugPrint(await FlutterForegroundTask.getAllData());
 //     setState(() {
 //       listening = !listening;
 //     });
@@ -213,12 +211,12 @@ class NoBikePage extends ConsumerWidget {
 //       var stream = flutterReactiveBle
 //           .scanForDevices(withServices: [], scanMode: ScanMode.lowLatency);
 //       scanSub = stream.listen((device) async {
-//         // print(device.name);
+//         // debugPrint(device.name);
 //         if (device.name == 'SUPER73') {
 //           if (!devices.contains(device.id)) {
 //             setState(() {
 //               devices.add(device.id);
-//               print('save data');
+//               debugPrint('save data');
 //             });
 //             await setDevices(devices);
 //           }
@@ -343,7 +341,7 @@ class NoBikePage extends ConsumerWidget {
 // class _DataDumperState extends State<DataDumper> {
 //   StreamSubscription<ConnectionStateUpdate>? deviceSub;
 //   Future<bool> _connect(String device) async {
-//     print('connecting to $device');
+//     debugPrint('connecting to $device');
 //     if (deviceSub != null) {
 //       return true;
 //     }
@@ -355,7 +353,7 @@ class NoBikePage extends ConsumerWidget {
 //       prescanDuration: const Duration(seconds: 5),
 //     )
 //         .listen((connectionState) async {
-//       print(connectionState);
+//       debugPrint(connectionState);
 //       if (connectionState.connectionState == DeviceConnectionState.connected) {
 //         connected = true;
 //       }
@@ -374,40 +372,40 @@ class NoBikePage extends ConsumerWidget {
 //       return;
 //     }
 //     FlutterReactiveBle().characteristicValueStream.listen((event) {
-//       print(event);
+//       debugPrint(event);
 //     });
 //     var services = await FlutterReactiveBle().discoverServices(widget.deviceID);
-//     print(services);
+//     debugPrint(services);
 //     var qc = QualifiedCharacteristic(
 //         characteristicId: Uuid.parse('2a26'),
 //         serviceId: Uuid.parse('180a'),
 //         deviceId: device);
 //     var res = await FlutterReactiveBle().readCharacteristic(qc);
-//     print(res);
+//     debugPrint(res);
 //     qc = QualifiedCharacteristic(
 //         characteristicId: Uuid.parse('2a27'),
 //         serviceId: Uuid.parse('180a'),
 //         deviceId: device);
 //     res = await FlutterReactiveBle().readCharacteristic(qc);
-//     print(res);
+//     debugPrint(res);
 //     qc = QualifiedCharacteristic(
 //         characteristicId: Uuid.parse('2a28'),
 //         serviceId: Uuid.parse('180a'),
 //         deviceId: device);
 //     res = await FlutterReactiveBle().readCharacteristic(qc);
-//     print(res);
+//     debugPrint(res);
 //     qc = QualifiedCharacteristic(
 //         characteristicId: Uuid.parse('2a29'),
 //         serviceId: Uuid.parse('180a'),
 //         deviceId: device);
 //     res = await FlutterReactiveBle().readCharacteristic(qc);
-//     print(res);
+//     debugPrint(res);
 //     qc = QualifiedCharacteristic(
 //         characteristicId: Uuid.parse('2a29'),
 //         serviceId: Uuid.parse('180a'),
 //         deviceId: device);
 //     res = await FlutterReactiveBle().readCharacteristic(qc);
-//     print(res);
+//     debugPrint(res);
 //   }
 
 //   @override

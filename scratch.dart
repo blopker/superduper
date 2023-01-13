@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:superduper/utils.dart';
 import 'package:unique_name_generator/unique_name_generator.dart';
 
@@ -31,16 +32,16 @@ String toStr(List<int> data) {
 }
 
 void main(List<String> args) {
-  print('Software Revision');
-  print(a.map((e) => String.fromCharCode(e)).join());
-  print('boop');
-  print(b.map((e) => String.fromCharCode(e)).join());
-  print('Firmware Revision');
-  print(c.map((e) => String.fromCharCode(e)).join());
-  print('Manufacturer Name');
-  print(d.map((e) => String.fromCharCode(e)).join());
-  print(asd);
-  print(toStr(asd));
+  debugPrint('Software Revision');
+  debugPrint(a.map((e) => String.fromCharCode(e)).join());
+  debugPrint('boop');
+  debugPrint(b.map((e) => String.fromCharCode(e)).join());
+  debugPrint('Firmware Revision');
+  debugPrint(c.map((e) => String.fromCharCode(e)).join());
+  debugPrint('Manufacturer Name');
+  debugPrint(d.map((e) => String.fromCharCode(e)).join());
+  debugPrint(asd.toString());
+  debugPrint(toStr(asd));
   //https://www.comodule.com/
   //nordic bluetooth
 
@@ -51,5 +52,5 @@ void main(List<String> args) {
   );
 
   List<String> names = List.generate(10, (index) => ung.generate(seed: 1));
-  print(names);
+  debugPrint(names.toString());
 }
