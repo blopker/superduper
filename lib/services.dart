@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names
+
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:superduper/utils.dart';
 

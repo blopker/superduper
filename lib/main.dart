@@ -83,12 +83,12 @@ class HomePage extends ConsumerWidget {
                       AsyncSnapshot<Map<Permission, PermissionStatus>>
                           snapshot) {
                     if (!snapshot.hasData) {
-                      return LoadingPage();
+                      return const LoadingPage();
                     }
                     if (snapshot.data!.values
                         .any((element) => element.isDenied)) {
                       debugPrint(snapshot.data?.toString());
-                      return PermissionPage();
+                      return const PermissionPage();
                     }
                     return page;
                   },
@@ -101,7 +101,7 @@ class LoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: CircularProgressIndicator(),
     );
   }
@@ -112,7 +112,7 @@ class PermissionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
         child: Text(
       'Please enable bluetooth and location permissions.',
       style: Styles.body,
@@ -132,12 +132,12 @@ class NoBikePage extends ConsumerWidget {
                   isScrollControlled: true,
                   context: context,
                   builder: (BuildContext context) {
-                    return BikeSelectWidget();
+                    return const BikeSelectWidget();
                   });
             },
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: const [
                 Text('Select Bike', style: Styles.header),
                 SizedBox(
                   width: 10,

@@ -25,27 +25,30 @@ class _CategoryBoxesState extends State<CategoryBoxes> {
           });
         },
         child: Padding(
-          padding: EdgeInsets.only(right: 10, left: 10),
+          padding: const EdgeInsets.only(right: 10, left: 10),
           child: Container(
             height: 48,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: isSelected ? Color(0xff4A80F0) : Color(0xff1C2031),
+              color: isSelected
+                  ? const Color(0xff4A80F0)
+                  : const Color(0xff1C2031),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                          color: Color(0xff4A80F0).withOpacity(0.3),
-                          offset: Offset(0, 4),
+                          color: const Color(0xff4A80F0).withOpacity(0.3),
+                          offset: const Offset(0, 4),
                           blurRadius: 20),
                     ]
                   : [],
             ),
             child: Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                 child: Text(
                   widget.text!,
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 17,
                       fontWeight: FontWeight.normal),
@@ -106,71 +109,67 @@ class DiscoverCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(26),
             gradient: LinearGradient(
               colors: [
-                startColor ?? Color(0xff441DFC),
-                endColor ?? Color(0xff4E81EB),
+                startColor ?? const Color(0xff441DFC),
+                endColor ?? const Color(0xff4E81EB),
               ],
               begin: Alignment.bottomLeft,
               end: Alignment.topRight,
             ),
           ),
-          child: Container(
-            // height: 176,
-            // width: 305,
-            child: Stack(
-              children: [
-                Padding(
-                  padding:
-                      EdgeInsets.only(left: 24, top: 20, bottom: 20, right: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Hero(
-                                  tag: tag ?? '',
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: Text(
-                                      title!,
-                                      style: Styles.body,
-                                    ),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                    left: 24, top: 20, bottom: 20, right: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Hero(
+                                tag: tag ?? '',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: Text(
+                                    title!,
+                                    style: Styles.body,
                                   ),
                                 ),
-                                SizedBox(
-                                  height: 5,
-                                ),
-                                subtitle != null
-                                    ? Text(
-                                        subtitle!,
-                                        overflow: TextOverflow.fade,
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w300,
-                                            color: Colors.white),
-                                      )
-                                    : Container()
-                              ],
-                            ),
+                              ),
+                              const SizedBox(
+                                height: 5,
+                              ),
+                              subtitle != null
+                                  ? Text(
+                                      subtitle!,
+                                      overflow: TextOverflow.fade,
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w300,
+                                          color: Colors.white),
+                                    )
+                                  : Container()
+                            ],
                           ),
-                          metric != null
-                              ? Text(
-                                  metric!,
-                                  style: Styles.body,
-                                )
-                              : Container(),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        metric != null
+                            ? Text(
+                                metric!,
+                                style: Styles.body,
+                              )
+                            : Container(),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

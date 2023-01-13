@@ -65,7 +65,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _updateTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       updateStateData();
     });
     return BikeState.defaultState(id);
@@ -81,7 +81,7 @@ class Bike extends _$Bike {
       var data = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id);
-      print('state update $data');
+      debugPrint('state update $data');
       if (data == null || data.isEmpty) {
         return;
       }
@@ -185,10 +185,10 @@ class BikePageState extends ConsumerState<BikePage> {
                       child: Row(
                         children: [
                           Text(widget.bike.name, style: Styles.header),
-                          SizedBox(
+                          const SizedBox(
                             width: 10,
                           ),
-                          Icon(
+                          const Icon(
                             Icons.unfold_more,
                             color: Colors.white,
                             size: 30,
@@ -236,7 +236,7 @@ class BikePageState extends ConsumerState<BikePage> {
                           },
                     child: Text(text, style: style));
               }),
-              SizedBox(
+              const SizedBox(
                 height: 20,
               )
             ],
