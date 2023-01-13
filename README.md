@@ -16,7 +16,10 @@ This app is an alternative the official Super ebike app. Control your bike with 
 
 ## Developers
 ### Releases
-1. Update version, save.
+1. Update version, save. Don't commit.
 1. Run `make tag`
 1. Run `make build`
 1. Upload aab to https://play.google.com/console/u/0/developers/6048825475784314007/app/4973912181639360195/tracks/internal-testing
+1. Upload ipa to the Transporter app
+1. Release Android on Play store
+1. Release iOS on https://appstoreconnect.apple.com/apps/1665290602/appstore/ios/version/inflight
