@@ -173,7 +173,7 @@ class NoBikePage extends ConsumerWidget {
                   isScrollControlled: true,
                   context: context,
                   builder: (BuildContext context) {
-                    return const HelpWidget();
+                    return const BikeSelectWidget();
                   });
             },
             child: Row(
