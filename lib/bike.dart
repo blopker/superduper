@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -196,9 +197,30 @@ class BikePageState extends ConsumerState<BikePage> {
                         ],
                       ),
                     ),
-                    Text(
-                      connectionStatus.name,
-                      style: Styles.body,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            connectionStatus.name,
+                            style: Styles.body,
+                          ),
+                        ),
+                        GestureDetector(
+                          child: const Icon(
+                            Icons.help,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          onTap: () {
+                            showModalBottomSheet<void>(
+                                isScrollControlled: true,
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return const HelpWidget();
+                                });
+                          },
+                        )
+                      ],
                     ),
                     LightControlWidget(
                       bike: bike,
@@ -326,5 +348,44 @@ class AssistControlWidget extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+const helpText = """
+# Help (work in progress)
+Welcome to the help section! Here you can find information about each function.
+
+## Light
+Toggles your bike's lights on and off, if your bike has them.
+
+## Mode
+Changes the legal category your bike will operate at.
+
+US:
+- 0: Class 1 - PAS Only, 20 mph
+- 1: Class 2 - PAS & Throttle, 20 mph
+- 2: Class 3 - PAS Only, 28 mph
+- 3: OFF-ROAD - PAS & Throttle, no limit
+
+EU:
+- 0: EPAC - PAS, 25 km/h
+- 1: 250W - PAS, 35 km/h
+- 2: 850W - PAS, 45 km/h
+- 3: OFF-ROAD - PAS/Throttle, no limit
+""";
+
+class HelpWidget extends StatelessWidget {
+  const HelpWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+        color: Colors.white60,
+        child: const Padding(
+          padding: EdgeInsets.only(top: 40.0, left: 20, right: 20, bottom: 20),
+          child: MarkdownBody(
+            data: helpText,
+          ),
+        ));
   }
 }

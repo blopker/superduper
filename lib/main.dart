@@ -19,7 +19,7 @@ void main() {
   );
 }
 
-Future<List<Permission>> getPermissions() async {
+Future<Map<Permission, PermissionStatus>> getPermissions() async {
   var perms = <Permission>[Permission.notification];
   var deviceInfo = DeviceInfoPlugin();
   if (Platform.isAndroid) {
@@ -40,7 +40,7 @@ Future<List<Permission>> getPermissions() async {
       Permission.bluetoothScan,
     ]);
   }
-  return perms;
+  return await perms.request();
 }
 
 class SuperDuper extends StatelessWidget {
@@ -50,11 +50,35 @@ class SuperDuper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: true,
       title: 'SuperDuper',
       theme: ThemeData(
         primarySwatch: Colors.brown,
       ),
-      home: const HomePage(),
+      home: Stack(children: [
+        const HomePage(),
+        // Align(
+        //   alignment: Alignment.bottomLeft,
+        //   child: GestureDetector(
+        //     onTap: () {
+        //       print('hi');
+        //       Navigator.push(
+        //         context,
+        //         MaterialPageRoute<void>(
+        //           builder: (BuildContext context) => const DebugPage(),
+        //         ),
+        //       );
+        //     },
+        //     child: Container(
+        //       padding: const EdgeInsets.only(top: 55, right: 50),
+        //       child: const Banner(
+        //         message: "DEBUG",
+        //         location: BannerLocation.bottomStart,
+        //       ),
+        //     ),
+        //   ),
+        // ),
+      ]),
     );
   }
 }
@@ -66,7 +90,7 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     var bike = ref.watch(currentBikeProvider);
     ref.watch(connectionHandlerProvider);
-    var permFuture = getPermissions().then((value) => value.request());
+    var permFuture = getPermissions();
     Widget page = const NoBikePage();
     if (bike != null) {
       ref.watch(bikeProvider(bike.id));
@@ -82,6 +106,9 @@ class HomePage extends ConsumerWidget {
                   builder: (BuildContext context,
                       AsyncSnapshot<Map<Permission, PermissionStatus>>
                           snapshot) {
+                    if (snapshot.hasError) {
+                      return ErrorPage(error: snapshot.error.toString());
+                    }
                     if (!snapshot.hasData) {
                       return const LoadingPage();
                     }
@@ -93,6 +120,20 @@ class HomePage extends ConsumerWidget {
                     return page;
                   },
                 ))));
+  }
+}
+
+class ErrorPage extends StatelessWidget {
+  const ErrorPage({super.key, required this.error});
+  final String error;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        error,
+        style: Styles.body,
+      ),
+    );
   }
 }
 
@@ -132,7 +173,7 @@ class NoBikePage extends ConsumerWidget {
                   isScrollControlled: true,
                   context: context,
                   builder: (BuildContext context) {
-                    return const BikeSelectWidget();
+                    return const HelpWidget();
                   });
             },
             child: Row(
@@ -149,6 +190,15 @@ class NoBikePage extends ConsumerWidget {
                 )
               ],
             )));
+  }
+}
+
+class DebugPage extends StatelessWidget {
+  const DebugPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(child: Text('hi'));
   }
 }
 

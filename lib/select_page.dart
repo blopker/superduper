@@ -70,21 +70,21 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
             const SizedBox(
               height: 40,
             ),
-            Text(
+            const Text(
               'Select Bike',
               style: Styles.header,
             ),
-            Row(children: [
+            Row(children: const [
               Text(
                 'My Bikes',
                 style: Styles.section,
               )
             ]),
-            SizedBox(
+            const SizedBox(
               height: 20,
             ),
             if (bikeList.isEmpty)
-              Text(
+              const Text(
                 'No saved bikes.',
                 style: Styles.section,
               ),
@@ -102,10 +102,10 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                     subtitle: bikeList[i].id,
                   );
                 }),
-            SizedBox(
+            const SizedBox(
               height: 20,
             ),
-            Row(children: [
+            Row(children: const [
               Text(
                 'Found Bikes',
                 style: Styles.section,
@@ -139,14 +139,14 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 );
               },
             ),
-            SizedBox(
+            const SizedBox(
               height: 20,
             ),
             Row(
               children: [
                 Expanded(
                   child: InkWell(
-                    child: Text(
+                    child: const Text(
                       'Clear',
                       style: Styles.body,
                     ),
@@ -156,7 +156,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   ),
                 ),
                 InkWell(
-                  child: Text(
+                  child: const Text(
                     'Close',
                     style: Styles.body,
                   ),

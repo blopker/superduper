@@ -40,7 +40,8 @@ class ConnectionHandler {
         connNotify.state = event.connectionState;
       }
     });
-    reconnectTimer = Timer.periodic(Duration(seconds: 10), (t) => reconect());
+    reconnectTimer =
+        Timer.periodic(const Duration(seconds: 10), (t) => reconect());
   }
 
   void dispose() {
