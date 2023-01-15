@@ -40,45 +40,24 @@ Future<Map<Permission, PermissionStatus>> getPermissions() async {
       Permission.bluetoothScan,
     ]);
   }
-  return await perms.request();
+  for (var p in perms) {
+    if (await p.isDenied) {
+      return await perms.request();
+    }
+  }
+  return {};
 }
 
 class SuperDuper extends StatelessWidget {
   const SuperDuper({super.key});
-
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: true,
       title: 'SuperDuper',
       theme: ThemeData(
         primarySwatch: Colors.brown,
       ),
-      home: Stack(children: [
-        const HomePage(),
-        // Align(
-        //   alignment: Alignment.bottomLeft,
-        //   child: GestureDetector(
-        //     onTap: () {
-        //       print('hi');
-        //       Navigator.push(
-        //         context,
-        //         MaterialPageRoute<void>(
-        //           builder: (BuildContext context) => const DebugPage(),
-        //         ),
-        //       );
-        //     },
-        //     child: Container(
-        //       padding: const EdgeInsets.only(top: 55, right: 50),
-        //       child: const Banner(
-        //         message: "DEBUG",
-        //         location: BannerLocation.bottomStart,
-        //       ),
-        //     ),
-        //   ),
-        // ),
-      ]),
+      home: const HomePage(),
     );
   }
 }
