@@ -16,7 +16,7 @@ This app is an alternative the official Super ebike app. Control your bike with 
 
 ## FAQ
 ### I'm having an issue
-I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video.
+I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
 
 ### What up with the bike names?
 The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes.
