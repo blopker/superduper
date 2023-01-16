@@ -40,12 +40,7 @@ Future<Map<Permission, PermissionStatus>> getPermissions() async {
       Permission.bluetoothScan,
     ]);
   }
-  for (var p in perms) {
-    if (await p.isDenied) {
-      return await perms.request();
-    }
-  }
-  return {};
+  return perms.request();
 }
 
 class SuperDuper extends StatelessWidget {
@@ -62,14 +57,26 @@ class SuperDuper extends StatelessWidget {
   }
 }
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  late Future<Map<Permission, PermissionStatus>> permFuture;
+
+  @override
+  void initState() {
+    permFuture = getPermissions();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     var bike = ref.watch(currentBikeProvider);
     ref.watch(connectionHandlerProvider);
-    var permFuture = getPermissions();
     Widget page = const NoBikePage();
     if (bike != null) {
       ref.watch(bikeProvider(bike.id));
@@ -91,8 +98,9 @@ class HomePage extends ConsumerWidget {
                     if (!snapshot.hasData) {
                       return const LoadingPage();
                     }
-                    if (snapshot.data!.values
-                        .any((element) => element.isDenied)) {
+                    var denied = snapshot.data!.values
+                        .any((element) => element.isDenied);
+                    if (denied) {
                       debugPrint(snapshot.data?.toString());
                       return const PermissionPage();
                     }
@@ -129,7 +137,6 @@ class LoadingPage extends StatelessWidget {
 
 class PermissionPage extends StatelessWidget {
   const PermissionPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     return const Center(
