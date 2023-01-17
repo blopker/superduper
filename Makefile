@@ -14,6 +14,10 @@ build-ios:
 tag:
 	bash tag.sh
 
+upgrade:
+	flutter pub upgrade
+	cd ios && pod update
+
 release: tag build-android build-ios
 
 .PHONY: build
