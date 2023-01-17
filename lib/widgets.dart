@@ -116,60 +116,53 @@ class DiscoverCard extends StatelessWidget {
               end: Alignment.topRight,
             ),
           ),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(
-                    left: 24, top: 20, bottom: 20, right: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Hero(
-                                tag: tag ?? '',
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: Text(
-                                    title!,
-                                    style: Styles.body,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 5,
-                              ),
-                              subtitle != null
-                                  ? Text(
-                                      subtitle!,
-                                      overflow: TextOverflow.fade,
-                                      style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w300,
-                                          color: Colors.white),
-                                    )
-                                  : Container()
-                            ],
+          child: Padding(
+            padding:
+                const EdgeInsets.only(left: 24, top: 20, bottom: 20, right: 24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Hero(
+                        tag: tag ?? '',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Text(
+                            title!,
+                            style: Styles.body,
                           ),
                         ),
-                        metric != null
-                            ? Text(
-                                metric!,
-                                style: Styles.body,
-                              )
-                            : Container(),
-                      ],
-                    ),
-                  ],
+                      ),
+                      if (subtitle != null)
+                        Column(
+                          children: [
+                            const SizedBox(
+                              height: 5,
+                            ),
+                            Text(
+                              subtitle!,
+                              overflow: TextOverflow.fade,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w300,
+                                  color: Colors.white),
+                            ),
+                          ],
+                        )
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                metric != null
+                    ? Text(
+                        metric!,
+                        style: Styles.body,
+                      )
+                    : Container(),
+              ],
+            ),
           ),
         ),
       ),

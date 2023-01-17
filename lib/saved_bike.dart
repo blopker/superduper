@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/preferences.dart';
 import 'package:superduper/bike.dart';
+import 'package:superduper/repository.dart';
 part 'saved_bike.g.dart';
 
 @riverpod
@@ -69,6 +70,8 @@ class SavedBikeList extends _$SavedBikeList {
       }).toList();
       save();
     });
+    var connectionHandler = ref.read(connectionHandlerProvider);
+    connectionHandler.connect(id);
     return state.firstWhere((element) => element.selected);
   }
 

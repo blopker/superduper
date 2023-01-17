@@ -80,26 +80,29 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 style: Styles.section,
               )
             ]),
-            const SizedBox(
-              height: 20,
-            ),
             if (bikeList.isEmpty)
-              const Text(
-                'No saved bikes.',
-                style: Styles.section,
+              const Padding(
+                padding: EdgeInsets.only(top: 20.0),
+                child: Text(
+                  'No saved bikes.',
+                  style: Styles.section,
+                ),
               ),
             ListView.builder(
                 shrinkWrap: true,
                 itemCount: bikeList.length,
                 itemBuilder: (ctx, i) {
-                  return DiscoverCard(
-                    selected: bikeList[i].selected,
-                    onTap: () {
-                      bikeNotifier.selectBike(bikeList[i].id);
-                      Navigator.pop(context);
-                    },
-                    title: bikeList[i].name,
-                    subtitle: bikeList[i].id,
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 20.0),
+                    child: DiscoverCard(
+                      selected: bikeList[i].selected,
+                      onTap: () {
+                        bikeNotifier.selectBike(bikeList[i].id);
+                        Navigator.pop(context);
+                      },
+                      title: bikeList[i].name,
+                      subtitle: bikeList[i].id,
+                    ),
                   );
                 }),
             const SizedBox(
