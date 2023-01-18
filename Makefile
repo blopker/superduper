@@ -4,6 +4,7 @@ watch:
 build: build-android build-ios
 build-android:
 	flutter build appbundle
+	flutter build apk
 	open build/app/outputs/bundle/release/
 
 build-ios:
@@ -18,6 +19,6 @@ upgrade:
 	flutter pub upgrade
 	cd ios && pod update
 
-release: tag build-android build-ios
+release: tag build
 
 .PHONY: build
