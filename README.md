@@ -21,6 +21,9 @@ I'm sorry! Please start by making sure you have the newest app from the app stor
 ### What up with the bike names?
 The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes.
 
+### What are the supported devices?
+Right now the app requires Android 11+ and iOS 12+. 
+
 ## Developers
 ### Releases
 1. Update version, save. Don't commit.
