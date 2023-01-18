@@ -1,4 +1,4 @@
-# superduper
+![SuperDuper](https://raw.githubusercontent.com/blopker/superduper/main/superduper_android_feature.jpg)
 
 Google Play Store: https://play.google.com/store/apps/details?id=io.kbl.superduper
 
