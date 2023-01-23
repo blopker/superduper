@@ -1,6 +1,8 @@
 ![SuperDuper](https://raw.githubusercontent.com/blopker/superduper/main/assets/superduper_android_feature.jpg)
 
-Google Play Store: https://play.google.com/store/apps/details?id=io.kbl.superduper
+[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Google Play" width="200"/>](https://play.google.com/store/apps/details?id=io.kbl.superduper)
+
+[<img src="https://explore.tivo.com/content/dam/tivo/explore/how-to/app-store-badge.png" alt="Apple Store" width="200"/>](https://testflight.apple.com/join/Tl0UibRY)
 
 This app is an alternative the official Super ebike app. Control your bike with no account or external server needed. Additionally, it has ModeLock, which will keep your bike on whatever mode you set it at, even through bike restarts.
 
