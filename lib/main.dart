@@ -8,10 +8,12 @@ import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/repository.dart';
+import 'package:superduper/native.dart' as native;
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  native.init();
   runApp(
     const ProviderScope(
       child: SuperDuper(),

@@ -9,6 +9,8 @@ import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
 import 'package:superduper/bike.dart';
 
+import 'native.dart';
+
 class BikeSelectWidget extends ConsumerStatefulWidget {
   const BikeSelectWidget({super.key});
 
@@ -23,6 +25,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   BleStatus? bleStatus;
   @override
   void initState() {
+    getBatteryLevel().then((value) => print(value));
     bleStatusStream = ref.read(bluetoothStatusStreamProvider).listen((event) {
       setState(() {
         bleStatus = event;
