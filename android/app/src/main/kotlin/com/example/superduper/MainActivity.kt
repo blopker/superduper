@@ -42,59 +42,6 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
 //    setContentView(R.layout.activity_main)
         return
-        // To skip filters based on names and supported feature flags (UUIDs),
-        // omit calls to setNamePattern() and addServiceUuid()
-        // respectively, as shown in the following  Bluetooth example.
-        val deviceFilter: BluetoothDeviceFilter = BluetoothDeviceFilter.Builder()
-            .setNamePattern(Pattern.compile("SUPER73")).build()
-
-        // The argument provided in setSingleDevice() determines whether a single
-        // device name or a list of them appears.
-        val pairingRequest: AssociationRequest = AssociationRequest.Builder()
-            .addDeviceFilter(deviceFilter)
-            .setSingleDevice(true)
-            .build()
-
-        // When the app tries to pair with a Bluetooth device, show the
-        // corresponding dialog box to the user.
-        deviceManager.associate(
-            pairingRequest,
-            executor,
-            object : CompanionDeviceManager.Callback() {
-                // Called when a device is found. Launch the IntentSender so the user
-                // can select the device they want to pair with.
-                override fun onAssociationPending(intentSender: IntentSender) {
-                    startIntentSenderForResult(
-                        intentSender,
-                        SELECT_DEVICE_REQUEST_CODE,
-                        null,
-                        0,
-                        0,
-                        0
-                    )
-                }
-
-                override fun onDeviceFound(intentSender: IntentSender) {
-                    fprint("on device found")
-                    fprint(intentSender.toString())
-                    super.onDeviceFound(intentSender)
-                }
-
-                override fun onAssociationCreated(associationInfo: AssociationInfo) {
-                    // AssociationInfo object is created and get association id and the
-                    // macAddress.
-                    var associationId: Int = associationInfo.id
-                    var macAddress: MacAddress? = associationInfo.deviceMacAddress
-                    // fprint("onAssociationCreated")
-                    // fprint(associationId.toString())
-                    // fprint(macAddress.toString())
-                }
-
-                override fun onFailure(errorMessage: CharSequence?) {
-                    // Handle the failure.
-                }
-            }
-        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -133,6 +80,59 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+    }
+
+    private fun associateDevice(id: String) {
+        // To skip filters based on names and supported feature flags (UUIDs),
+        // omit calls to setNamePattern() and addServiceUuid()
+        // respectively, as shown in the following  Bluetooth example.
+        val deviceFilter: BluetoothDeviceFilter = BluetoothDeviceFilter.Builder()
+            .setAddress(id).build()
+
+        // The argument provided in setSingleDevice() determines whether a single
+        // device name or a list of them appears.
+        val pairingRequest: AssociationRequest = AssociationRequest.Builder()
+            .addDeviceFilter(deviceFilter)
+            .setSingleDevice(true)
+            .build()
+
+        // When the app tries to pair with a Bluetooth device, show the
+        // corresponding dialog box to the user.
+        deviceManager.associate(
+            pairingRequest,
+            executor,
+            object : CompanionDeviceManager.Callback() {
+                // Called when a device is found. Launch the IntentSender so the user
+                // can select the device they want to pair with.
+                override fun onAssociationPending(intentSender: IntentSender) {
+                    startIntentSenderForResult(
+                        intentSender,
+                        SELECT_DEVICE_REQUEST_CODE,
+                        null,
+                        0,
+                        0,
+                        0
+                    )
+                }
+
+                override fun onAssociationCreated(associationInfo: AssociationInfo) {
+                    // AssociationInfo object is created and get association id and the
+                    // macAddress.
+                    var associationId: Int = associationInfo.id
+                    var macAddress: MacAddress? = associationInfo.deviceMacAddress
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        deviceManager.startObservingDevicePresence(associationInfo.deviceMacAddress.toString())
+                    }
+                    // fprint("onAssociationCreated")
+                    // fprint(associationId.toString())
+                    // fprint(macAddress.toString())
+                }
+
+                override fun onFailure(errorMessage: CharSequence?) {
+                    // Handle the failure.
+                }
+            }
+        )
     }
 
     private fun getBatteryLevel(): Int {
