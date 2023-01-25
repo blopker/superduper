@@ -26,6 +26,15 @@ The bike names are randomly generated from your bike's unique ID, to make it eas
 ### What are the supported devices?
 Right now the app requires Android 11+ and iOS 12+. 
 
+### What bikes are supported?
+Right now only the R/RX models are supported. More models may be supported in the future once more data is aquired. Open a ticket if you have a model that doesn't work (especially if you live in the Bay Area).
+
+### Can this app make the bike go even faster?
+Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself.
+
+### Do I have to keep bluetooth and Superduper on at all times?
+The way ModeLock works, is that the app maintains a connection to the bike to monitor the bike's mode setting. If the app detects the mode has changed, like through a restart, the app will automatically put the mode back to what you set it at. Therefore, the app needs to be running and bluetooth needs to be on at all times.
+
 ## Developers
 ### Releases
 1. Update version, save. Don't commit.
