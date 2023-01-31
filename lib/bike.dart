@@ -14,6 +14,8 @@ import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
+import 'package:unique_name_generator/unique_name_generator.dart';
+import 'package:url_launcher/url_launcher.dart';
 part 'bike.freezed.dart';
 part 'bike.g.dart';
 
@@ -358,9 +360,11 @@ class AssistControlWidget extends ConsumerWidget {
 }
 
 const helpText = """
-# Help (work in progress)
-Welcome to the help section! Here you can find information about each function.
+# Useful Links
+### [Source Code/FAQ](https://github.com/blopker/superduper/)
+### [Bug Reports](https://github.com/blopker/superduper/issues)
 
+# Bike Functions
 ## Light
 Toggles your bike's lights on and off, if your bike has them.
 
@@ -387,11 +391,54 @@ class HelpWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
         color: Colors.white60,
-        child: const Padding(
-          padding: EdgeInsets.only(top: 40.0, left: 20, right: 20, bottom: 20),
-          child: MarkdownBody(
-            data: helpText,
-          ),
+        child: Column(
+          children: [
+            const SizedBox(
+              height: 40,
+            ),
+            Row(
+              children: [
+                IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      size: 35,
+                    )),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      'Help',
+                      style: Styles.header.copyWith(color: Colors.black),
+                    ),
+                  ),
+                )
+              ],
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+            ListView(
+              shrinkWrap: true,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                  child: MarkdownBody(
+                    onTapLink: (text, href, title) {
+                      if (href != null) {
+                        launchUrl(Uri.parse(href),
+                            mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    data: helpText,
+                  ),
+                )
+              ],
+            ),
+          ],
         ));
   }
 }

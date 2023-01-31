@@ -1,39 +1,28 @@
 name: superduper
 description: An alternative app for Super bikes
 publish_to: 'none'
-
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
 version: 0.0.19+19
 
 environment:
-  sdk: '>=2.18.6 <3.0.0'
+  sdk: '>=2.18.6 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_reactive_ble: ^5.0.3
-  permission_handler: ^10.2.0
+  cupertino_icons: ^1.0.2
+  device_info_plus: ^8.0.0
   flutter_foreground_task: ^3.10.0
-  shared_preferences: ^2.0.15
+  flutter_markdown: ^0.6.13
+  flutter_reactive_ble: ^5.0.3
   flutter_riverpod: ^2.1.1
+  freezed_annotation: ^2.2.0
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+  json_annotation: ^4.7.0
+  permission_handler: ^10.2.0
   riverpod_annotation: ^1.0.6
   unique_name_generator: ^1.0.0
-  cupertino_icons: ^1.0.2
-  freezed_annotation: ^2.2.0
-  json_annotation: ^4.7.0
-  device_info_plus: ^8.0.0
-  flutter_markdown: ^0.6.13
+  url_launcher: ^6.1.8
 
 dev_dependencies:
   flutter_test:

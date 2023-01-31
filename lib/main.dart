@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -8,10 +10,14 @@ import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/repository.dart';
+import 'package:superduper/debug.dart';
+import 'package:superduper/preferences.dart' as perf;
 import 'package:device_info_plus/device_info_plus.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+  await perf.init();
   runApp(
     const ProviderScope(
       child: SuperDuper(),
@@ -153,7 +159,10 @@ class NoBikePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Center(
-        child: InkWell(
+        child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        InkWell(
             onTap: () {
               showModalBottomSheet<void>(
                   isScrollControlled: true,
@@ -173,17 +182,21 @@ class NoBikePage extends ConsumerWidget {
                   Icons.unfold_more,
                   color: Colors.white,
                   size: 30,
-                )
+                ),
               ],
-            )));
-  }
-}
-
-class DebugPage extends StatelessWidget {
-  const DebugPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(child: Text('hi'));
+            )),
+        if (kDebugMode)
+          ElevatedButton(
+              onPressed: () {
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (BuildContext context) => const DebugPage(),
+                  ),
+                );
+              },
+              child: const Text('DEBUG'))
+      ],
+    ));
   }
 }
