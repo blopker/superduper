@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/bike.dart';
@@ -21,7 +20,7 @@ void main() {
 }
 
 Future<Map<Permission, PermissionStatus>> getPermissions() async {
-  var perms = <Permission>[Permission.notification];
+  var perms = <Permission>[];
   var deviceInfo = DeviceInfoPlugin();
   if (Platform.isAndroid) {
     if ((await deviceInfo.androidInfo).version.sdkInt < 31) {
