@@ -69,7 +69,7 @@ class ConnectionHandler {
   }
 
   void reconect() {
-    print('reconnecting...');
+    // print('reconnecting...');
     var conn = ref.read(connectionStatusProvider);
     if (shouldReconect &&
         connectedId != null &&

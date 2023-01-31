@@ -14,7 +14,6 @@ import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
-import 'package:unique_name_generator/unique_name_generator.dart';
 import 'package:url_launcher/url_launcher.dart';
 part 'bike.freezed.dart';
 part 'bike.g.dart';
