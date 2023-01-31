@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/names.dart';
 import 'package:superduper/repository.dart';
@@ -48,6 +50,10 @@ class BikeState with _$BikeState {
         light: data[lightIdx] == 1,
         mode: data[modeIdx],
         assist: data[assistIdx]);
+  }
+
+  get viewMode {
+    return (mode + 1).toString();
   }
 
   List<int> toWriteData() {
@@ -110,22 +116,18 @@ class Bike extends _$Bike {
   }
 
   void toggleLight() async {
-    // await updateStateData();
     writeStateData(state.copyWith(light: !state.light));
   }
 
   void toggleMode() async {
-    // await updateStateData();
     writeStateData(state.copyWith(mode: (state.mode + 1) % 4));
   }
 
   void toggleAssist() async {
-    // await updateStateData();
     writeStateData(state.copyWith(assist: (state.assist + 1) % 5));
   }
 
   void toggleModeLock() async {
-    // await updateStateData();
     writeStateData(state.copyWith(modeLock: !state.modeLock),
         saveToBike: false);
   }
@@ -299,7 +301,7 @@ class ModeControlWidget extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
         title: "Mode",
-        metric: bike.mode.toString(),
+        metric: bike.viewMode,
         selected: bike.mode == 0 ? false : true,
         onTap: () {
           bikeControl.toggleMode();
@@ -322,7 +324,11 @@ class ModeLockControlWidget extends ConsumerWidget {
         title: "Mode Lock™",
         metric: bike.modeLock ? "On" : "Off",
         selected: bike.modeLock,
-        onTap: () {
+        onTap: () async {
+          await Permission.notification.request();
+          if (Platform.isAndroid) {
+            await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+          }
           bikeControl.toggleModeLock();
         },
       ),
@@ -362,16 +368,16 @@ Toggles your bike's lights on and off, if your bike has them.
 Changes the legal category your bike will operate at.
 
 US:
-- 0: Class 1 - PAS Only, 20 mph
-- 1: Class 2 - PAS & Throttle, 20 mph
-- 2: Class 3 - PAS Only, 28 mph
-- 3: OFF-ROAD - PAS & Throttle, no limit
+- 1: Class 1 - PAS Only, 20 mph
+- 2: Class 2 - PAS & Throttle, 20 mph
+- 3: Class 3 - PAS Only, 28 mph
+- 4: OFF-ROAD - PAS & Throttle, no limit
 
 EU:
-- 0: EPAC - PAS, 25 km/h
-- 1: 250W - PAS, 35 km/h
-- 2: 850W - PAS, 45 km/h
-- 3: OFF-ROAD - PAS/Throttle, no limit
+- 1: EPAC - PAS, 25 km/h
+- 2: 250W - PAS, 35 km/h
+- 3: 850W - PAS, 45 km/h
+- 4: OFF-ROAD - PAS/Throttle, no limit
 """;
 
 class HelpWidget extends StatelessWidget {

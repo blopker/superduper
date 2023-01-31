@@ -69,6 +69,7 @@ class ConnectionHandler {
   }
 
   void reconect() {
+    print('reconnecting...');
     var conn = ref.read(connectionStatusProvider);
     if (shouldReconect &&
         connectedId != null &&
@@ -100,11 +101,8 @@ class BluetoothRepository {
   final currentStateId = [3, 0];
 
   Stream<ConnectionStateUpdate> connect(String deviceId) {
-    return ble.connectToAdvertisingDevice(
-        id: deviceId,
-        withServices: [],
-        prescanDuration: const Duration(seconds: 1),
-        connectionTimeout: const Duration(seconds: 5));
+    return ble.connectToDevice(
+        id: deviceId, connectionTimeout: const Duration(seconds: 5));
   }
 
   Stream<DiscoveredDevice>? scan() {
