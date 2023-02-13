@@ -6,54 +6,34 @@ part of 'saved_bike.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-// ignore_for_file: avoid_private_typedef_functions, non_constant_identifier_names, subtype_of_sealed_class, invalid_use_of_internal_member, unused_element, constant_identifier_names, unnecessary_raw_strings, library_private_types_in_public_api
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
-String _$SavedBikeListHash() => r'018e5515aa1dba5c93b9269f118431af8c79d988';
+String _$savedBikeListHash() => r'018e5515aa1dba5c93b9269f118431af8c79d988';
 
 /// See also [SavedBikeList].
+@ProviderFor(SavedBikeList)
 final savedBikeListProvider =
-    AutoDisposeNotifierProvider<SavedBikeList, List<BikeState>>(
+    AutoDisposeNotifierProvider<SavedBikeList, List<BikeState>>.internal(
   SavedBikeList.new,
   name: r'savedBikeListProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
       ? null
-      : _$SavedBikeListHash,
+      : _$savedBikeListHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
 );
-typedef SavedBikeListRef = AutoDisposeNotifierProviderRef<List<BikeState>>;
 
-abstract class _$SavedBikeList extends AutoDisposeNotifier<List<BikeState>> {
-  @override
-  List<BikeState> build();
-}
-
-String _$currentBikeHash() => r'bad59d11275966e00842fba5f284912296ed3906';
+typedef _$SavedBikeList = AutoDisposeNotifier<List<BikeState>>;
+String _$currentBikeHash() => r'5e401c4c413ca54684ab281472d709fb4e3dd5a4';
 
 /// See also [currentBike].
-final currentBikeProvider = AutoDisposeProvider<BikeState?>(
+@ProviderFor(currentBike)
+final currentBikeProvider = AutoDisposeProvider<BikeState?>.internal(
   currentBike,
   name: r'currentBikeProvider',
   debugGetCreateSourceHash:
       const bool.fromEnvironment('dart.vm.product') ? null : _$currentBikeHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
 );
+
 typedef CurrentBikeRef = AutoDisposeProviderRef<BikeState?>;
+// ignore_for_file: unnecessary_raw_strings, subtype_of_sealed_class, invalid_use_of_internal_member, do_not_use_environment, prefer_const_constructors, public_member_api_docs, avoid_private_typedef_functions

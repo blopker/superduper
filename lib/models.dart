@@ -46,17 +46,48 @@ class BikeState with _$BikeState {
     const lightIdx = 4;
     const modeIdx = 5;
     const assistIdx = 2;
+    final region = _guessRegion(data[modeIdx]);
+    final newmode = _modeFromRead(data[modeIdx]);
     return copyWith(
         light: data[lightIdx] == 1,
-        mode: data[modeIdx],
-        assist: data[assistIdx]);
+        mode: newmode,
+        assist: data[assistIdx],
+        region: region);
   }
 
-  get viewMode {
+  BikeRegion _guessRegion(int mode) {
+    if (region != null) {
+      return region!;
+    }
+    if (mode > 3) {
+      return BikeRegion.eu;
+    }
+    return BikeRegion.us;
+  }
+
+  int _modeToWrite() {
+    if (region == BikeRegion.eu) {
+      return mode + 4;
+    }
+    return mode;
+  }
+
+  int _modeFromRead(int newmode) {
+    if (newmode > 3) {
+      return newmode - 4;
+    }
+    return newmode;
+  }
+
+  String get viewMode {
     return (mode + 1).toString();
   }
 
+  int get nextMode {
+    return (mode + 1) % 4;
+  }
+
   List<int> toWriteData() {
-    return [0, 209, light ? 1 : 0, assist, mode, 0, 0, 0, 0, 0];
+    return [0, 209, light ? 1 : 0, assist, _modeToWrite(), 0, 0, 0, 0, 0];
   }
 }

@@ -86,7 +86,7 @@ class Bike extends _$Bike {
   }
 
   void toggleMode() async {
-    writeStateData(state.copyWith(mode: (state.mode + 1) % 4));
+    writeStateData(state.copyWith(mode: state.nextMode));
   }
 
   void toggleAssist() async {
@@ -272,7 +272,7 @@ class ModeControlWidget extends ConsumerWidget {
       child: DiscoverCard(
         title: "Mode",
         metric: bike.viewMode,
-        selected: bike.mode == 0 ? false : true,
+        selected: bike.viewMode == '1' ? false : true,
         onTap: () {
           bikeControl.toggleMode();
         },

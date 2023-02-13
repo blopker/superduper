@@ -6,7 +6,7 @@ part of 'bike.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-// ignore_for_file: avoid_private_typedef_functions, non_constant_identifier_names, subtype_of_sealed_class, invalid_use_of_internal_member, unused_element, constant_identifier_names, unnecessary_raw_strings, library_private_types_in_public_api
+String _$bikeHash() => r'e2bd2ec353b89f09bf5b98e937816950fabd680a';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -29,18 +29,69 @@ class _SystemHash {
   }
 }
 
-String _$BikeHash() => r'477d724d56e1b2531fb5e7b3438060b4e849966e';
+abstract class _$Bike extends BuildlessAutoDisposeNotifier<BikeState> {
+  late final String id;
+
+  BikeState build(
+    String id,
+  );
+}
+
+/// See also [Bike].
+@ProviderFor(Bike)
+const bikeProvider = BikeFamily();
+
+/// See also [Bike].
+class BikeFamily extends Family<BikeState> {
+  /// See also [Bike].
+  const BikeFamily();
+
+  /// See also [Bike].
+  BikeProvider call(
+    String id,
+  ) {
+    return BikeProvider(
+      id,
+    );
+  }
+
+  @override
+  BikeProvider getProviderOverride(
+    covariant BikeProvider provider,
+  ) {
+    return call(
+      provider.id,
+    );
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'bikeProvider';
+}
 
 /// See also [Bike].
 class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {
+  /// See also [Bike].
   BikeProvider(
     this.id,
-  ) : super(
+  ) : super.internal(
           () => Bike()..id = id,
           from: bikeProvider,
           name: r'bikeProvider',
           debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product') ? null : _$BikeHash,
+              const bool.fromEnvironment('dart.vm.product') ? null : _$bikeHash,
+          dependencies: BikeFamily._dependencies,
+          allTransitiveDependencies: BikeFamily._allTransitiveDependencies,
         );
 
   final String id;
@@ -60,53 +111,11 @@ class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {
 
   @override
   BikeState runNotifierBuild(
-    covariant _$Bike notifier,
+    covariant Bike notifier,
   ) {
     return notifier.build(
       id,
     );
   }
 }
-
-typedef BikeRef = AutoDisposeNotifierProviderRef<BikeState>;
-
-/// See also [Bike].
-final bikeProvider = BikeFamily();
-
-class BikeFamily extends Family<BikeState> {
-  BikeFamily();
-
-  BikeProvider call(
-    String id,
-  ) {
-    return BikeProvider(
-      id,
-    );
-  }
-
-  @override
-  AutoDisposeNotifierProviderImpl<Bike, BikeState> getProviderOverride(
-    covariant BikeProvider provider,
-  ) {
-    return call(
-      provider.id,
-    );
-  }
-
-  @override
-  List<ProviderOrFamily>? get allTransitiveDependencies => null;
-
-  @override
-  List<ProviderOrFamily>? get dependencies => null;
-
-  @override
-  String? get name => r'bikeProvider';
-}
-
-abstract class _$Bike extends BuildlessAutoDisposeNotifier<BikeState> {
-  late final String id;
-
-  BikeState build(
-    String id,
-  );
-}
+// ignore_for_file: unnecessary_raw_strings, subtype_of_sealed_class, invalid_use_of_internal_member, do_not_use_environment, prefer_const_constructors, public_member_api_docs, avoid_private_typedef_functions
