@@ -3,9 +3,7 @@ import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:superduper/bike.dart';
-import 'package:superduper/saved_bike.dart';
 import 'package:superduper/styles.dart';
-import 'package:superduper/models.dart';
 
 show(BuildContext context, BikeState bike) {
   showModalBottomSheet<void>(
@@ -40,7 +38,7 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
               'Edit Bike',
               style: Styles.header.copyWith(color: Colors.black),
             ),
-            const CompleteForm(),
+            CompleteForm(bike: widget.bike),
             const SizedBox(
               height: 20,
             ),
@@ -52,7 +50,8 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
 }
 
 class CompleteForm extends ConsumerStatefulWidget {
-  const CompleteForm({Key? key}) : super(key: key);
+  const CompleteForm({Key? key, required this.bike}) : super(key: key);
+  final BikeState bike;
 
   @override
   ConsumerState<CompleteForm> createState() {
@@ -72,7 +71,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
 
   @override
   Widget build(BuildContext context) {
-    var bike = ref.watch(currentBikeProvider);
+    var bikeNotifier = ref.watch(bikeProvider(widget.bike.id).notifier);
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -85,7 +84,10 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               debugPrint(_formKey.currentState!.value.toString());
             },
             autovalidateMode: AutovalidateMode.disabled,
-            initialValue: bike!.toJson(),
+            initialValue: {
+              'name': widget.bike.name,
+              'region': widget.bike.region,
+            },
             skipDisabled: true,
             child: Column(
               children: <Widget>[
@@ -136,7 +138,6 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                           false);
                     });
                   },
-                  valueTransformer: (val) => val?.toString(),
                 ),
               ],
             ),
@@ -149,6 +150,12 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                   onPressed: () {
                     if (_formKey.currentState?.saveAndValidate() ?? false) {
                       debugPrint(_formKey.currentState?.value.toString());
+                      bikeNotifier.writeStateData(
+                          widget.bike.copyWith(
+                              name: _formKey.currentState?.value['name'],
+                              region: _formKey.currentState?.value['region']),
+                          saveToBike: false);
+                      Navigator.pop(context);
                     } else {
                       debugPrint(_formKey.currentState?.value.toString());
                       debugPrint('validation failed');
@@ -165,6 +172,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                 child: OutlinedButton(
                   onPressed: () {
                     _formKey.currentState?.reset();
+                    Navigator.pop(context);
                   },
                   // color: Theme.of(context).colorScheme.secondary,
                   child: Text(

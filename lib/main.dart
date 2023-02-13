@@ -86,7 +86,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     Widget page = const NoBikePage();
     if (bike != null) {
       ref.watch(bikeProvider(bike.id));
-      page = BikePage(bike: bike);
+      page = BikePage(bikeID: bike.id);
     }
     return Scaffold(
         backgroundColor: const Color(0xff121421),

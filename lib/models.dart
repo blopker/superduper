@@ -7,10 +7,10 @@ part 'models.g.dart';
 enum BikeRegion {
   // R,RX
   @JsonValue(200)
-  us('us'),
+  us('US'),
   // S2
   @JsonValue(201)
-  eu('eu');
+  eu('EU');
 
   const BikeRegion(this.value);
   final String value;

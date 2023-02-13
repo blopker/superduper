@@ -13,8 +13,9 @@ import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
 import 'package:superduper/models.dart';
+import 'package:superduper/db.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:superduper/settings.dart' as settings;
+import 'package:superduper/edit_bike.dart' as edit;
 export 'package:superduper/models.dart';
 part 'bike.g.dart';
 
@@ -32,6 +33,10 @@ class Bike extends _$Bike {
     _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       updateStateData();
     });
+    var bike = ref.watch(dbProvider).getBike(id);
+    if (bike != null) {
+      return bike;
+    }
     return BikeState.defaultState(id);
   }
 
@@ -59,6 +64,9 @@ class Bike extends _$Bike {
   }
 
   void writeStateData(BikeState newState, {saveToBike = true}) {
+    if (state.id != newState.id) {
+      throw Exception('Bike id mismatch');
+    }
     var status = ref.read(connectionStatusProvider);
     if (saveToBike) {
       if (status != DeviceConnectionState.connected) {
@@ -68,8 +76,9 @@ class Bike extends _$Bike {
           .read(bluetoothRepositoryProvider)
           .write(newState.id, data: newState.toWriteData());
     }
-    updateStateData();
+    ref.read(dbProvider).setBike(newState);
     state = newState;
+    updateStateData();
   }
 
   void toggleLight() async {
@@ -91,8 +100,8 @@ class Bike extends _$Bike {
 }
 
 class BikePage extends ConsumerStatefulWidget {
-  const BikePage({super.key, required this.bike});
-  final BikeState bike;
+  const BikePage({super.key, required this.bikeID});
+  final String bikeID;
 
   @override
   BikePageState createState() => BikePageState();
@@ -101,8 +110,8 @@ class BikePage extends ConsumerStatefulWidget {
 class BikePageState extends ConsumerState<BikePage> {
   @override
   Widget build(BuildContext context) {
-    var bike = ref.watch(bikeProvider(widget.bike.id));
-    var bikeControl = ref.watch(bikeProvider(widget.bike.id).notifier);
+    var bike = ref.watch(bikeProvider(widget.bikeID));
+    var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
     var connectionHandler = ref.watch(connectionHandlerProvider);
     var connectionStatus = ref.watch(connectionStatusProvider);
     ref.listen(connectionStatusProvider, (previous, next) {
@@ -144,7 +153,7 @@ class BikePageState extends ConsumerState<BikePage> {
                       },
                       child: Row(
                         children: [
-                          Text(widget.bike.name, style: Styles.header),
+                          Text(bike.name, style: Styles.header),
                           const SizedBox(
                             width: 10,
                           ),
@@ -160,7 +169,7 @@ class BikePageState extends ConsumerState<BikePage> {
                       children: [
                         TextButton(
                           onPressed: () {
-                            settings.show(context, bike);
+                            edit.show(context, bike);
                           },
                           child: const Text(
                             'Edit',
