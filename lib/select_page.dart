@@ -31,7 +31,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     var ble = ref.read(bluetoothRepositoryProvider);
     var bikeList = ref.read(savedBikeListProvider.notifier);
     scanStream = ble.scan()?.listen((device) async {
-      if (device.name != 'SUPER73') {
+      if (device.name != 'SUPER${70 + 3}') {
         return;
       }
       if (bikeList.hasBike(device.id)) {
@@ -57,6 +57,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   @override
   Widget build(BuildContext context) {
     var bikeList = ref.watch(savedBikeListProvider);
+    var currentBike = ref.watch(currentBikeProvider);
     var bikeNotifier = ref.watch(savedBikeListProvider.notifier);
     var scanText = bleStatus == BleStatus.ready
         ? 'Searching...'
@@ -95,7 +96,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 20.0),
                     child: DiscoverCard(
-                      selected: bikeList[i].selected,
+                      selected: currentBike?.id == bikeList[i].id,
                       onTap: () {
                         bikeNotifier.selectBike(bikeList[i].id);
                         Navigator.pop(context);
@@ -130,7 +131,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 20.0),
                   child: DiscoverCard(
-                    selected: b.selected,
+                    selected: currentBike?.id == b.id,
                     onTap: () {
                       bikeNotifier.addBike(b);
                       bikeNotifier.selectBike(b.id);

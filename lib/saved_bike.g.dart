@@ -29,7 +29,7 @@ class _SystemHash {
   }
 }
 
-String _$SavedBikeListHash() => r'df80298598a2686c2e8d4d9f04566c6cacdad138';
+String _$SavedBikeListHash() => r'018e5515aa1dba5c93b9269f118431af8c79d988';
 
 /// See also [SavedBikeList].
 final savedBikeListProvider =
@@ -47,7 +47,7 @@ abstract class _$SavedBikeList extends AutoDisposeNotifier<List<BikeState>> {
   List<BikeState> build();
 }
 
-String _$currentBikeHash() => r'e6582f7a975d17b943fd5c8a0027a60b5a372188';
+String _$currentBikeHash() => r'bad59d11275966e00842fba5f284912296ed3906';
 
 /// See also [currentBike].
 final currentBikeProvider = AutoDisposeProvider<BikeState?>(

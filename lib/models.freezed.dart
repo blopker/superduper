@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'bike.dart';
+part of 'models.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -25,6 +25,7 @@ mixin _$BikeState {
   bool get light => throw _privateConstructorUsedError;
   int get assist => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
+  BikeRegion? get region => throw _privateConstructorUsedError;
   bool get modeLock => throw _privateConstructorUsedError;
   bool get selected => throw _privateConstructorUsedError;
 
@@ -45,6 +46,7 @@ abstract class $BikeStateCopyWith<$Res> {
       bool light,
       int assist,
       String name,
+      BikeRegion? region,
       bool modeLock,
       bool selected});
 }
@@ -67,6 +69,7 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? light = null,
     Object? assist = null,
     Object? name = null,
+    Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
   }) {
@@ -91,6 +94,10 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      region: freezed == region
+          ? _value.region
+          : region // ignore: cast_nullable_to_non_nullable
+              as BikeRegion?,
       modeLock: null == modeLock
           ? _value.modeLock
           : modeLock // ignore: cast_nullable_to_non_nullable
@@ -116,6 +123,7 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
       bool light,
       int assist,
       String name,
+      BikeRegion? region,
       bool modeLock,
       bool selected});
 }
@@ -136,6 +144,7 @@ class __$$_BikeStateCopyWithImpl<$Res>
     Object? light = null,
     Object? assist = null,
     Object? name = null,
+    Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
   }) {
@@ -160,6 +169,10 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      region: freezed == region
+          ? _value.region
+          : region // ignore: cast_nullable_to_non_nullable
+              as BikeRegion?,
       modeLock: null == modeLock
           ? _value.modeLock
           : modeLock // ignore: cast_nullable_to_non_nullable
@@ -181,6 +194,7 @@ class _$_BikeState extends _BikeState {
       required this.light,
       required this.assist,
       required this.name,
+      this.region,
       this.modeLock = false,
       this.selected = false})
       : assert(mode <= 3),
@@ -203,6 +217,8 @@ class _$_BikeState extends _BikeState {
   @override
   final String name;
   @override
+  final BikeRegion? region;
+  @override
   @JsonKey()
   final bool modeLock;
   @override
@@ -211,7 +227,7 @@ class _$_BikeState extends _BikeState {
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, modeLock: $modeLock, selected: $selected)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, region: $region, modeLock: $modeLock, selected: $selected)';
   }
 
   @override
@@ -224,6 +240,7 @@ class _$_BikeState extends _BikeState {
             (identical(other.light, light) || other.light == light) &&
             (identical(other.assist, assist) || other.assist == assist) &&
             (identical(other.name, name) || other.name == name) &&
+            (identical(other.region, region) || other.region == region) &&
             (identical(other.modeLock, modeLock) ||
                 other.modeLock == modeLock) &&
             (identical(other.selected, selected) ||
@@ -233,7 +250,7 @@ class _$_BikeState extends _BikeState {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-      runtimeType, id, mode, light, assist, name, modeLock, selected);
+      runtimeType, id, mode, light, assist, name, region, modeLock, selected);
 
   @JsonKey(ignore: true)
   @override
@@ -256,6 +273,7 @@ abstract class _BikeState extends BikeState {
       required final bool light,
       required final int assist,
       required final String name,
+      final BikeRegion? region,
       final bool modeLock,
       final bool selected}) = _$_BikeState;
   const _BikeState._() : super._();
@@ -273,6 +291,8 @@ abstract class _BikeState extends BikeState {
   int get assist;
   @override
   String get name;
+  @override
+  BikeRegion? get region;
   @override
   bool get modeLock;
   @override

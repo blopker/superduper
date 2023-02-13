@@ -11,7 +11,7 @@ import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/debug.dart';
-import 'package:superduper/preferences.dart' as perf;
+import 'package:superduper/db.dart' as perf;
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() async {
@@ -56,7 +56,7 @@ class SuperDuper extends StatelessWidget {
     return MaterialApp(
       title: 'SuperDuper',
       theme: ThemeData(
-        primarySwatch: Colors.brown,
+        colorSchemeSeed: Colors.black,
       ),
       home: const HomePage(),
     );

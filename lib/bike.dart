@@ -6,61 +6,17 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/names.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
+import 'package:superduper/models.dart';
 import 'package:url_launcher/url_launcher.dart';
-part 'bike.freezed.dart';
+import 'package:superduper/settings.dart' as settings;
+export 'package:superduper/models.dart';
 part 'bike.g.dart';
-
-@freezed
-class BikeState with _$BikeState {
-  const BikeState._();
-  @Assert('mode <= 3')
-  @Assert('mode >= 0')
-  @Assert('assist >= 0')
-  @Assert('assist <= 4')
-  const factory BikeState({
-    required String id,
-    required int mode,
-    required bool light,
-    required int assist,
-    required String name,
-    @Default(false) bool modeLock,
-    @Default(false) bool selected,
-  }) = _BikeState;
-
-  factory BikeState.fromJson(Map<String, Object?> json) =>
-      _$BikeStateFromJson(json);
-
-  factory BikeState.defaultState(String id) {
-    return BikeState(
-        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id));
-  }
-
-  BikeState updateFromData(List<int> data) {
-    const lightIdx = 4;
-    const modeIdx = 5;
-    const assistIdx = 2;
-    return copyWith(
-        light: data[lightIdx] == 1,
-        mode: data[modeIdx],
-        assist: data[assistIdx]);
-  }
-
-  get viewMode {
-    return (mode + 1).toString();
-  }
-
-  List<int> toWriteData() {
-    return [0, 209, light ? 1 : 0, assist, mode, 0, 0, 0, 0, 0];
-  }
-}
 
 @riverpod
 class Bike extends _$Bike {
@@ -202,12 +158,16 @@ class BikePageState extends ConsumerState<BikePage> {
                     ),
                     Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            connectionStatus.name,
+                        TextButton(
+                          onPressed: () {
+                            settings.show(context, bike);
+                          },
+                          child: const Text(
+                            'Edit',
                             style: Styles.body,
                           ),
                         ),
+                        Expanded(child: Container()),
                         GestureDetector(
                           child: const Icon(
                             Icons.help,

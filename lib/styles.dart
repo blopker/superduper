@@ -6,5 +6,7 @@ class Styles {
   static const body =
       TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold);
   static const section = TextStyle(
-      color: Color(0xff515979), fontWeight: FontWeight.w500, fontSize: 14);
+      color: Color.fromARGB(255, 155, 162, 190),
+      fontWeight: FontWeight.w500,
+      fontSize: 14);
 }

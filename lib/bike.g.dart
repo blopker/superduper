@@ -3,31 +3,6 @@
 part of 'bike.dart';
 
 // **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
-
-_$_BikeState _$$_BikeStateFromJson(Map<String, dynamic> json) => _$_BikeState(
-      id: json['id'] as String,
-      mode: json['mode'] as int,
-      light: json['light'] as bool,
-      assist: json['assist'] as int,
-      name: json['name'] as String,
-      modeLock: json['modeLock'] as bool? ?? false,
-      selected: json['selected'] as bool? ?? false,
-    );
-
-Map<String, dynamic> _$$_BikeStateToJson(_$_BikeState instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'mode': instance.mode,
-      'light': instance.light,
-      'assist': instance.assist,
-      'name': instance.name,
-      'modeLock': instance.modeLock,
-      'selected': instance.selected,
-    };
-
-// **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
@@ -54,7 +29,7 @@ class _SystemHash {
   }
 }
 
-String _$BikeHash() => r'cd1631cf22724bb22ebfd50c2f5a6e753085cf6a';
+String _$BikeHash() => r'477d724d56e1b2531fb5e7b3438060b4e849966e';
 
 /// See also [Bike].
 class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {

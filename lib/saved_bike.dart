@@ -1,93 +1,68 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/preferences.dart';
+import 'package:superduper/db.dart';
 import 'package:superduper/bike.dart';
 import 'package:superduper/repository.dart';
 part 'saved_bike.g.dart';
 
 @riverpod
 BikeState? currentBike(CurrentBikeRef ref) {
-  try {
-    return ref
-        .watch(savedBikeListProvider)
-        .firstWhere((element) => element.selected);
-  } catch (e) {
-    return null;
-  }
+  var db = ref.watch(dbProvider);
+  var sub = db.watchCurrentBike().listen((event) {
+    debugPrint('currentBike: $event');
+    ref.state = db.currentBike;
+  });
+  ref.onDispose(() {
+    sub.cancel();
+  });
+  return db.currentBike;
 }
 
 @riverpod
 class SavedBikeList extends _$SavedBikeList {
-  final prefKey = 'SavedBikeList';
-  ProviderSubscription? psub;
   @override
   List<BikeState> build() {
-    load();
-    return [];
-  }
-
-  Future<void> load() async {
-    var json = await ref.read(prefProvider).getJson(prefKey) ?? {'list': []};
-    var bikes =
-        (json['list'] as List).map((e) => BikeState.fromJson(e)).toList();
-    state = bikes;
-    var bike = getCurrentBike();
-    if (bike != null) {
-      selectBike(bike.id);
-    }
-  }
-
-  Future<void> save() async {
-    var map = {'list': (state.map((e) => e.toJson())).toList()};
-    // debugPrint('save $map');
-    await ref.read(prefProvider).setJson(prefKey, map);
+    var db = ref.watch(dbProvider);
+    var sub = db.bikesdb.watch().listen((event) {
+      state = db.bikes;
+    });
+    ref.onDispose(() {
+      sub.cancel();
+    });
+    return db.bikes;
   }
 
   void addBike(BikeState bike) {
-    if (state.any((element) => element.id == bike.id)) {
-      return;
-    }
-    state = [...state, bike];
-    save();
+    var db = ref.read(dbProvider);
+    db.setBike(bike);
+    state = db.bikes;
   }
 
   bool hasBike(String id) {
-    return state.any((element) => element.id == id);
+    var db = ref.watch(dbProvider);
+    return db.getBike(id) != null;
   }
 
   BikeState selectBike(String id) {
-    state = state.map((e) {
-      return e.copyWith(selected: e.id == id ? true : false);
-    }).toList();
-    save();
-    psub?.close();
-    psub = ref.listen<BikeState>(bikeProvider(id), (previous, next) {
-      state = state.map<BikeState>((e) {
-        if (e.id == next.id) {
-          return next.copyWith(selected: true);
-        }
-        return e;
-      }).toList();
-      save();
-    });
+    var db = ref.read(dbProvider);
+    var bike = db.getBike(id);
+    if (bike == null) {
+      throw Exception('Bike not found');
+    }
+    db.currentBike = bike;
     var connectionHandler = ref.read(connectionHandlerProvider);
     connectionHandler.connect(id);
-    return state.firstWhere((element) => element.selected);
+    return db.currentBike!;
   }
 
   BikeState? getCurrentBike() {
-    try {
-      return state.firstWhere((element) => element.selected);
-    } catch (e) {
-      return null;
-    }
+    return ref.read(dbProvider).currentBike;
   }
 
   void unselect() {
-    psub?.close();
-    state = state.map((e) {
-      return e.copyWith(selected: false);
-    }).toList();
-    save();
+    var db = ref.read(dbProvider);
+    db.currentBike = null;
+    var connectionHandler = ref.read(connectionHandlerProvider);
+    connectionHandler.disconect();
   }
 }

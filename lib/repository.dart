@@ -12,6 +12,10 @@ final connectionHandlerProvider = Provider<ConnectionHandler>((ref) {
   return ConnectionHandler(ref);
 });
 
+// final bikeRepositoryProvider = Provider<BikeRepository>((ref) {
+//   return BikeRepository(ref: ref);
+// });
+
 final connectionStatusProvider = StateProvider<DeviceConnectionState>((ref) {
   return DeviceConnectionState.disconnected;
 });
@@ -170,3 +174,41 @@ class BluetoothRepository {
     return ble.status;
   }
 }
+
+
+// class BikeRepository {
+//   BikeRepository({required this.ref});
+//   final Ref ref;
+
+//   bool checkConnection() {
+//     var btstatus = ref.read(bluetoothRepositoryProvider).status();
+//     if (btstatus != BleStatus.ready) {
+//       return false;
+//     }
+//     var connStatus = ref.read(connectionStatusProvider);
+//     if (connStatus != DeviceConnectionState.connected) {
+//       return false;
+//     }
+//     return true;
+//   }
+
+//   Future<BikeState?> get({required String id}) {
+//     if (checkConnection() == false) {
+//       return Future.value(null);
+//     }
+//     ref.read(bikeRepositoryProvider)
+//     return await ref.read(bluetoothRepositoryProvider).read(id);
+//   }
+
+//   Future<void> set({required String id, required BikeState state}) async {
+//     if (checkConnection() == false) {
+//       return Future.value(null);
+//     }
+//     await ref.read(bluetoothRepositoryProvider).write(id, data: state.toWriteData());
+//   }
+
+//   Stream<BikeState> subscribe({required String id}) {
+//     // TODO: implement subscribe
+//     throw UnimplementedError();
+//   }
+// }
