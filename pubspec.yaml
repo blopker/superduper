@@ -1,7 +1,7 @@
 name: superduper
-description: An alternative app for Super bikes
+description: An app for super bikes
 publish_to: 'none'
-version: 0.0.21+21
+version: 0.0.22+22
 
 environment:
   sdk: '>=2.18.6 <4.0.0'
