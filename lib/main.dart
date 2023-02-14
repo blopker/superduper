@@ -3,12 +3,12 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/bike.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
-import 'package:superduper/styles.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/debug.dart';
 import 'package:superduper/db.dart' as perf;
@@ -53,10 +53,29 @@ class SuperDuper extends StatelessWidget {
   const SuperDuper({super.key});
   @override
   Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.light,
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: Brightness.dark));
     return MaterialApp(
       title: 'SuperDuper',
       theme: ThemeData(
         colorSchemeSeed: Colors.black,
+        brightness: Brightness.dark,
+        textTheme: const TextTheme(
+          headlineSmall: TextStyle(
+              fontSize: 30.0, color: Colors.white, fontWeight: FontWeight.bold),
+          titleLarge: TextStyle(
+              fontSize: 26.0, color: Colors.white, fontWeight: FontWeight.bold),
+          titleMedium: TextStyle(
+              fontSize: 20.0, color: Colors.white, fontWeight: FontWeight.bold),
+          bodyMedium: TextStyle(
+              fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+          labelMedium: TextStyle(
+              color: Color.fromARGB(255, 155, 162, 190),
+              fontWeight: FontWeight.w500,
+              fontSize: 14),
+        ),
       ),
       home: const HomePage(),
     );
@@ -124,7 +143,7 @@ class ErrorPage extends StatelessWidget {
     return Center(
       child: Text(
         error,
-        style: Styles.body,
+        style: Theme.of(context).textTheme.bodyMedium,
       ),
     );
   }
@@ -145,10 +164,10 @@ class PermissionPage extends StatelessWidget {
   const PermissionPage({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
         child: Text(
       'Please enable bluetooth and location permissions.',
-      style: Styles.body,
+      style: Theme.of(context).textTheme.bodyMedium,
     ));
   }
 }
@@ -171,31 +190,47 @@ class NoBikePage extends ConsumerWidget {
                     return const BikeSelectWidget();
                   });
             },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('Select Bike', style: Styles.header),
-                SizedBox(
-                  width: 10,
+            child: Column(
+              children: [
+                Image(
+                  image: AssetImage('assets/superduper-nobg.png'),
+                  height: MediaQuery.of(context).size.shortestSide / 2,
                 ),
-                Icon(
-                  Icons.unfold_more,
-                  color: Colors.white,
-                  size: 30,
+                const SizedBox(
+                  height: 20,
                 ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Select Bike',
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    const Icon(
+                      Icons.unfold_more,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ],
+                ),
+                if (kDebugMode)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40.0),
+                    child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push<void>(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (BuildContext context) =>
+                                  const DebugPage(),
+                            ),
+                          );
+                        },
+                        child: const Text('DEBUG')),
+                  )
               ],
             )),
-        if (kDebugMode)
-          ElevatedButton(
-              onPressed: () {
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (BuildContext context) => const DebugPage(),
-                  ),
-                );
-              },
-              child: const Text('DEBUG'))
       ],
     ));
   }

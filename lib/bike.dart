@@ -3,18 +3,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
-import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
 import 'package:superduper/models.dart';
 import 'package:superduper/db.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:superduper/help.dart';
 import 'package:superduper/edit_bike.dart' as edit;
 export 'package:superduper/models.dart';
 part 'bike.g.dart';
@@ -153,7 +151,8 @@ class BikePageState extends ConsumerState<BikePage> {
                       },
                       child: Row(
                         children: [
-                          Text(bike.name, style: Styles.header),
+                          Text(bike.name,
+                              style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(
                             width: 10,
                           ),
@@ -171,9 +170,9 @@ class BikePageState extends ConsumerState<BikePage> {
                           onPressed: () {
                             edit.show(context, bike);
                           },
-                          child: const Text(
+                          child: Text(
                             'Edit',
-                            style: Styles.body,
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
                         Expanded(child: Container()),
@@ -218,9 +217,9 @@ class BikePageState extends ConsumerState<BikePage> {
                     DeviceConnectionState.disconnecting) {
                   text = 'Disconnecting...';
                 }
-                var style = Styles.body;
+                var style = Theme.of(context).textTheme.bodyMedium;
                 if (disabled) {
-                  style = style.copyWith(color: Colors.grey);
+                  style = style!.copyWith(color: Colors.grey);
                 }
                 return InkWell(
                     onTap: disabled
@@ -324,89 +323,5 @@ class AssistControlWidget extends ConsumerWidget {
         },
       ),
     );
-  }
-}
-
-const helpText = """
-# Useful Links
-### [Source Code/FAQ](https://github.com/blopker/superduper/)
-### [Bug Reports](https://github.com/blopker/superduper/issues)
-
-# Bike Functions
-## Light
-Toggles your bike's lights on and off, if your bike has them.
-
-## Mode
-Changes the legal category your bike will operate at.
-
-US:
-- 1: Class 1 - PAS Only, 20 mph
-- 2: Class 2 - PAS & Throttle, 20 mph
-- 3: Class 3 - PAS Only, 28 mph
-- 4: OFF-ROAD - PAS & Throttle, no limit
-
-EU:
-- 1: EPAC - PAS, 25 km/h
-- 2: 250W - PAS, 35 km/h
-- 3: 850W - PAS, 45 km/h
-- 4: OFF-ROAD - PAS/Throttle, no limit
-""";
-
-class HelpWidget extends StatelessWidget {
-  const HelpWidget({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-        color: Colors.white60,
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 40,
-            ),
-            Row(
-              children: [
-                IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      size: 35,
-                    )),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 3.0),
-                    child: Text(
-                      'Help',
-                      style: Styles.header.copyWith(color: Colors.black),
-                    ),
-                  ),
-                )
-              ],
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            ListView(
-              shrinkWrap: true,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-                  child: MarkdownBody(
-                    onTapLink: (text, href, title) {
-                      if (href != null) {
-                        launchUrl(Uri.parse(href),
-                            mode: LaunchMode.externalApplication);
-                      }
-                    },
-                    data: helpText,
-                  ),
-                )
-              ],
-            ),
-          ],
-        ));
   }
 }

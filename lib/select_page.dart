@@ -5,7 +5,6 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/saved_bike.dart';
-import 'package:superduper/styles.dart';
 import 'package:superduper/widgets.dart';
 import 'package:superduper/bike.dart';
 
@@ -71,22 +70,25 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
             const SizedBox(
               height: 40,
             ),
-            const Text(
+            Text(
               'Select Bike',
-              style: Styles.header,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            Row(children: const [
+            const SizedBox(
+              height: 40,
+            ),
+            Row(children: [
               Text(
                 'My Bikes',
-                style: Styles.section,
+                style: Theme.of(context).textTheme.labelMedium,
               )
             ]),
             if (bikeList.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 20.0),
+              Padding(
+                padding: const EdgeInsets.only(top: 20.0),
                 child: Text(
                   'No saved bikes.',
-                  style: Styles.section,
+                  style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
             ListView.builder(
@@ -107,12 +109,12 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   );
                 }),
             const SizedBox(
-              height: 20,
+              height: 40,
             ),
-            Row(children: const [
+            Row(children: [
               Text(
                 'Found Bikes',
-                style: Styles.section,
+                style: Theme.of(context).textTheme.labelMedium,
               )
             ]),
             if (foundBikes.isEmpty)
@@ -120,7 +122,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 padding: const EdgeInsets.only(top: 20.0),
                 child: Text(
                   scanText,
-                  style: Styles.section,
+                  style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
             ListView.builder(
@@ -144,15 +146,15 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
               },
             ),
             const SizedBox(
-              height: 20,
+              height: 40,
             ),
             Row(
               children: [
                 Expanded(
                   child: InkWell(
-                    child: const Text(
+                    child: Text(
                       'Clear',
-                      style: Styles.body,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     onTap: () {
                       ref.read(savedBikeListProvider.notifier).unselect();
@@ -160,9 +162,9 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   ),
                 ),
                 InkWell(
-                  child: const Text(
+                  child: Text(
                     'Close',
-                    style: Styles.body,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   onTap: () => Navigator.pop(context),
                 ),

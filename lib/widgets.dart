@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:superduper/styles.dart';
 
 class CategoryBoxes extends StatefulWidget {
   final Function(bool isSelected)? onPressed;
@@ -132,7 +131,7 @@ class DiscoverCard extends StatelessWidget {
                           color: Colors.transparent,
                           child: Text(
                             title!,
-                            style: Styles.body,
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
                       ),
@@ -158,7 +157,7 @@ class DiscoverCard extends StatelessWidget {
                 metric != null
                     ? Text(
                         metric!,
-                        style: Styles.body,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       )
                     : Container(),
               ],
