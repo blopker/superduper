@@ -21,7 +21,7 @@ This app is an alternative the official Super ebike app. Control your bike with 
 I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
 
 ### What up with the bike names?
-The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes.
+The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes. You can change the name in the bike's Edit page after you connect to the bike for the first time.
 
 ### What are the supported devices?
 Right now the app requires Android 11+ and iOS 12+. 
