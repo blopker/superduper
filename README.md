@@ -27,7 +27,7 @@ The bike names are randomly generated from your bike's unique ID, to make it eas
 Right now the app requires Android 11+ and iOS 12+. 
 
 ### What bikes are supported?
-Right now only the R/RX models are supported. More models may be supported in the future once more data is aquired. Open a ticket if you have a model that doesn't work (especially if you live in the Bay Area).
+So far, all bike models have worked. Open a ticket if your model is having issues!
 
 ### Can this app make the bike go even faster?
 Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself.
