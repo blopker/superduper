@@ -193,7 +193,7 @@ class NoBikePage extends ConsumerWidget {
             child: Column(
               children: [
                 Image(
-                  image: AssetImage('assets/superduper-nobg.png'),
+                  image: const AssetImage('assets/superduper-nobg.png'),
                   height: MediaQuery.of(context).size.shortestSide / 2,
                 ),
                 const SizedBox(
