@@ -8,6 +8,8 @@ const helpText = """
 ### [Bug Reports](https://github.com/blopker/superduper/issues)
 
 # Bike Functions
+Control your bike's functions by tapping the buttons on the screen. Long press to lock the setting so the app will always configure the bike as you set and not read that setting from the bike.
+
 ## Light
 Toggles your bike's lights on and off, if your bike has them.
 
@@ -25,6 +27,12 @@ EU:
 - 2: 250W - PAS, 35 km/h
 - 3: 850W - PAS, 45 km/h
 - 4: OFF-ROAD - PAS/Throttle, no limit
+
+## Assist
+Changes the amount of assist your bike will provide while pedaling. 0 is no assist, 4 is full assist.
+
+## Background Lock
+Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
 """;
 
 class HelpWidget extends StatelessWidget {
