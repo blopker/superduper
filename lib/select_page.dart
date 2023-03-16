@@ -17,14 +17,13 @@ class BikeSelectWidget extends ConsumerStatefulWidget {
 
 class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   late StreamSubscription<DiscoveredDevice>? scanStream;
-  late StreamSubscription<BleStatus> bleStatusStream;
   final List<BikeState> foundBikes = [];
   BleStatus? bleStatus;
   @override
   void initState() {
-    bleStatusStream = ref.read(bluetoothStatusStreamProvider).listen((event) {
+    ref.listenManual(bluetoothStatusStreamProvider, (_, event) {
       setState(() {
-        bleStatus = event;
+        bleStatus = event.value;
       });
     });
     var ble = ref.read(bluetoothRepositoryProvider);
@@ -50,7 +49,6 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   void dispose() {
     super.dispose();
     scanStream?.cancel();
-    bleStatusStream.cancel();
   }
 
   @override

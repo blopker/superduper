@@ -52,9 +52,27 @@ class Bike extends _$Bike {
       if (data == null || data.isEmpty) {
         return;
       }
+
       var newState = state.updateFromData(data);
-      if (state.modeLock && state.mode != newState.mode) {
-        writeStateData(newState.copyWith(mode: state.mode));
+      var locked = false;
+
+      if (state.lightLocked && state.light != newState.light) {
+        newState = newState.copyWith(light: state.light);
+        locked = true;
+      }
+
+      if (state.modeLocked && state.mode != newState.mode) {
+        newState = newState.copyWith(mode: state.mode);
+        locked = true;
+      }
+
+      if (state.assistLocked && state.assist != newState.assist) {
+        newState = newState.copyWith(assist: state.assist);
+        locked = true;
+      }
+
+      if (locked) {
+        writeStateData(newState);
       } else {
         state = newState;
       }
@@ -91,7 +109,22 @@ class Bike extends _$Bike {
     writeStateData(state.copyWith(assist: (state.assist + 1) % 5));
   }
 
-  void toggleModeLock() async {
+  void toggleLightLocked() async {
+    writeStateData(state.copyWith(lightLocked: !state.lightLocked),
+        saveToBike: false);
+  }
+
+  void toggleModeLocked() async {
+    writeStateData(state.copyWith(modeLocked: !state.modeLocked),
+        saveToBike: false);
+  }
+
+  void toggleAssistLocked() async {
+    writeStateData(state.copyWith(assistLocked: !state.assistLocked),
+        saveToBike: false);
+  }
+
+  void toggleBackgroundLock() async {
     writeStateData(state.copyWith(modeLock: !state.modeLock),
         saveToBike: false);
   }
@@ -123,13 +156,13 @@ class BikePageState extends ConsumerState<BikePage> {
       },
       androidNotificationOptions: AndroidNotificationOptions(
           channelId: 'notification_channel_id',
-          channelName: 'ModeLock Notification',
+          channelName: 'Background Lock Notification',
           priority: NotificationPriority.LOW,
           channelImportance: NotificationChannelImportance.LOW,
           iconData: null),
       iosNotificationOptions: const IOSNotificationOptions(),
       foregroundTaskOptions: const ForegroundTaskOptions(),
-      notificationTitle: 'SuperDuper ModeLock On',
+      notificationTitle: 'SuperDuper Background Lock On',
       notificationText: 'Tap to return to the app',
       child: Scaffold(
           backgroundColor: const Color(0xff121421),
@@ -197,8 +230,17 @@ class BikePageState extends ConsumerState<BikePage> {
                       bike: bike,
                     ),
                     ModeControlWidget(bike: bike),
-                    ModeLockControlWidget(bike: bike),
                     AssistControlWidget(bike: bike),
+                    BackgroundLockControlWidget(bike: bike),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    Center(
+                      child: Text(
+                        "Long press control to lock",
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    )
                   ]),
               Expanded(
                 child: Container(),
@@ -248,13 +290,16 @@ class LightControlWidget extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
-        title: "Light",
-        metric: bike.light ? "On" : "Off",
-        selected: bike.light,
-        onTap: () {
-          bikeControl.toggleLight();
-        },
-      ),
+          title: "Light",
+          locked: bike.lightLocked,
+          metric: bike.light ? "On" : "Off",
+          selected: bike.light,
+          onTap: () {
+            bikeControl.toggleLight();
+          },
+          onLongPress: () {
+            bikeControl.toggleLightLocked();
+          }),
     );
   }
 }
@@ -270,18 +315,22 @@ class ModeControlWidget extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
         title: "Mode",
+        locked: bike.modeLocked,
         metric: bike.viewMode,
         selected: bike.viewMode == '1' ? false : true,
         onTap: () {
           bikeControl.toggleMode();
+        },
+        onLongPress: () {
+          bikeControl.toggleModeLocked();
         },
       ),
     );
   }
 }
 
-class ModeLockControlWidget extends ConsumerWidget {
-  const ModeLockControlWidget({super.key, required this.bike});
+class BackgroundLockControlWidget extends ConsumerWidget {
+  const BackgroundLockControlWidget({super.key, required this.bike});
   final BikeState bike;
 
   @override
@@ -290,7 +339,7 @@ class ModeLockControlWidget extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
-        title: "Mode Lock™",
+        title: "Background Lock",
         metric: bike.modeLock ? "On" : "Off",
         selected: bike.modeLock,
         onTap: () async {
@@ -298,7 +347,7 @@ class ModeLockControlWidget extends ConsumerWidget {
           if (Platform.isAndroid) {
             await FlutterForegroundTask.requestIgnoreBatteryOptimization();
           }
-          bikeControl.toggleModeLock();
+          bikeControl.toggleBackgroundLock();
         },
       ),
     );
@@ -315,13 +364,16 @@ class AssistControlWidget extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: DiscoverCard(
-        title: "Assist",
-        metric: bike.assist.toString(),
-        selected: bike.assist == 0 ? false : true,
-        onTap: () {
-          bikeControl.toggleAssist();
-        },
-      ),
+          title: "Assist",
+          locked: bike.assistLocked,
+          metric: bike.assist.toString(),
+          selected: bike.assist == 0 ? false : true,
+          onTap: () {
+            bikeControl.toggleAssist();
+          },
+          onLongPress: () {
+            bikeControl.toggleAssistLocked();
+          }),
     );
   }
 }

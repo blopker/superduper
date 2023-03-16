@@ -6,7 +6,7 @@ part of 'bike.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$bikeHash() => r'e2bd2ec353b89f09bf5b98e937816950fabd680a';
+String _$bikeHash() => r'9485889187cac89d9865b82f0d128957fd031efa';
 
 /// Copied from Dart SDK
 class _SystemHash {

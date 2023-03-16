@@ -9,7 +9,7 @@ PODS:
     - FlutterMacOS
   - permission_handler_apple (9.0.4):
     - Flutter
-  - Protobuf (3.22.0)
+  - Protobuf (3.22.1)
   - reactive_ble_mobile (0.0.1):
     - Flutter
     - Protobuf (~> 3.5)
@@ -60,7 +60,7 @@ SPEC CHECKSUMS:
   flutter_foreground_task: 21ef182ab0a29a3005cc72cd70e5f45cb7f7f817
   path_provider_foundation: c68054786f1b4f3343858c1e1d0caaded73f0be9
   permission_handler_apple: 44366e37eaf29454a1e7b1b7d736c2cceaeb17ce
-  Protobuf: 5e6cbc143d02fe08585d86b0098f8b755d2caaab
+  Protobuf: d7f7c8329edf5eb8af65547a8ba3e9c1cee927d5
   reactive_ble_mobile: 9ce6723d37ccf701dbffd202d487f23f5de03b4c
   shared_preferences_foundation: 986fc17f3d3251412d18b0265f9c64113a8c2472
   SwiftProtobuf: afced68785854575756db965e9da52bbf3dc45e7
@@ -68,4 +68,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: ef19549a9bc3046e7bb7d2fab4d021637c0c58a3
 
-COCOAPODS: 1.11.3
+COCOAPODS: 1.12.0
