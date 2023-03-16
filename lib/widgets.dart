@@ -69,15 +69,18 @@ class DiscoverCard extends StatelessWidget {
   final Color? gradientEndColor;
   final double? height;
   final double? width;
+  final bool locked;
   final Widget? vectorBottom;
   final Widget? vectorTop;
-  final Function? onTap;
+  final Function()? onTap;
+  final Function()? onLongPress;
   final String? tag;
   final bool selected;
   const DiscoverCard(
       {Key? key,
       this.title,
       this.subtitle,
+      this.locked = false,
       this.gradientStartColor,
       this.gradientEndColor,
       this.height,
@@ -85,6 +88,7 @@ class DiscoverCard extends StatelessWidget {
       this.vectorBottom,
       this.vectorTop,
       this.onTap,
+      this.onLongPress,
       this.tag,
       this.metric,
       this.selected = true})
@@ -101,7 +105,8 @@ class DiscoverCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => onTap!(),
+        onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(26),
         child: Ink(
           decoration: BoxDecoration(
@@ -129,9 +134,19 @@ class DiscoverCard extends StatelessWidget {
                         tag: tag ?? '',
                         child: Material(
                           color: Colors.transparent,
-                          child: Text(
-                            title!,
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          child: Row(
+                            children: [
+                              Text(
+                                title!,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              if (locked)
+                                const Icon(Icons.lock,
+                                    color: Colors.white, size: 16)
+                            ],
                           ),
                         ),
                       ),

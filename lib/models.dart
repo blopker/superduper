@@ -26,8 +26,11 @@ class BikeState with _$BikeState {
   const factory BikeState({
     required String id,
     required int mode,
+    @Default(false) bool modeLocked,
     required bool light,
+    @Default(false) bool lightLocked,
     required int assist,
+    @Default(false) bool assistLocked,
     required String name,
     BikeRegion? region,
     @Default(false) bool modeLock,

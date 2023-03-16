@@ -22,8 +22,11 @@ BikeState _$BikeStateFromJson(Map<String, dynamic> json) {
 mixin _$BikeState {
   String get id => throw _privateConstructorUsedError;
   int get mode => throw _privateConstructorUsedError;
+  bool get modeLocked => throw _privateConstructorUsedError;
   bool get light => throw _privateConstructorUsedError;
+  bool get lightLocked => throw _privateConstructorUsedError;
   int get assist => throw _privateConstructorUsedError;
+  bool get assistLocked => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   BikeRegion? get region => throw _privateConstructorUsedError;
   bool get modeLock => throw _privateConstructorUsedError;
@@ -43,8 +46,11 @@ abstract class $BikeStateCopyWith<$Res> {
   $Res call(
       {String id,
       int mode,
+      bool modeLocked,
       bool light,
+      bool lightLocked,
       int assist,
+      bool assistLocked,
       String name,
       BikeRegion? region,
       bool modeLock,
@@ -66,8 +72,11 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
   $Res call({
     Object? id = null,
     Object? mode = null,
+    Object? modeLocked = null,
     Object? light = null,
+    Object? lightLocked = null,
     Object? assist = null,
+    Object? assistLocked = null,
     Object? name = null,
     Object? region = freezed,
     Object? modeLock = null,
@@ -82,14 +91,26 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.mode
           : mode // ignore: cast_nullable_to_non_nullable
               as int,
+      modeLocked: null == modeLocked
+          ? _value.modeLocked
+          : modeLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
       light: null == light
           ? _value.light
           : light // ignore: cast_nullable_to_non_nullable
+              as bool,
+      lightLocked: null == lightLocked
+          ? _value.lightLocked
+          : lightLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       assist: null == assist
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
+      assistLocked: null == assistLocked
+          ? _value.assistLocked
+          : assistLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
       name: null == name
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
@@ -120,8 +141,11 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
   $Res call(
       {String id,
       int mode,
+      bool modeLocked,
       bool light,
+      bool lightLocked,
       int assist,
+      bool assistLocked,
       String name,
       BikeRegion? region,
       bool modeLock,
@@ -141,8 +165,11 @@ class __$$_BikeStateCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? mode = null,
+    Object? modeLocked = null,
     Object? light = null,
+    Object? lightLocked = null,
     Object? assist = null,
+    Object? assistLocked = null,
     Object? name = null,
     Object? region = freezed,
     Object? modeLock = null,
@@ -157,14 +184,26 @@ class __$$_BikeStateCopyWithImpl<$Res>
           ? _value.mode
           : mode // ignore: cast_nullable_to_non_nullable
               as int,
+      modeLocked: null == modeLocked
+          ? _value.modeLocked
+          : modeLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
       light: null == light
           ? _value.light
           : light // ignore: cast_nullable_to_non_nullable
+              as bool,
+      lightLocked: null == lightLocked
+          ? _value.lightLocked
+          : lightLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       assist: null == assist
           ? _value.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
+      assistLocked: null == assistLocked
+          ? _value.assistLocked
+          : assistLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
       name: null == name
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
@@ -191,8 +230,11 @@ class _$_BikeState extends _BikeState {
   const _$_BikeState(
       {required this.id,
       required this.mode,
+      this.modeLocked = false,
       required this.light,
+      this.lightLocked = false,
       required this.assist,
+      this.assistLocked = false,
       required this.name,
       this.region,
       this.modeLock = false,
@@ -211,9 +253,18 @@ class _$_BikeState extends _BikeState {
   @override
   final int mode;
   @override
+  @JsonKey()
+  final bool modeLocked;
+  @override
   final bool light;
   @override
+  @JsonKey()
+  final bool lightLocked;
+  @override
   final int assist;
+  @override
+  @JsonKey()
+  final bool assistLocked;
   @override
   final String name;
   @override
@@ -227,7 +278,7 @@ class _$_BikeState extends _BikeState {
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist, name: $name, region: $region, modeLock: $modeLock, selected: $selected)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected)';
   }
 
   @override
@@ -237,8 +288,14 @@ class _$_BikeState extends _BikeState {
             other is _$_BikeState &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.mode, mode) || other.mode == mode) &&
+            (identical(other.modeLocked, modeLocked) ||
+                other.modeLocked == modeLocked) &&
             (identical(other.light, light) || other.light == light) &&
+            (identical(other.lightLocked, lightLocked) ||
+                other.lightLocked == lightLocked) &&
             (identical(other.assist, assist) || other.assist == assist) &&
+            (identical(other.assistLocked, assistLocked) ||
+                other.assistLocked == assistLocked) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.region, region) || other.region == region) &&
             (identical(other.modeLock, modeLock) ||
@@ -249,8 +306,8 @@ class _$_BikeState extends _BikeState {
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, mode, light, assist, name, region, modeLock, selected);
+  int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
+      lightLocked, assist, assistLocked, name, region, modeLock, selected);
 
   @JsonKey(ignore: true)
   @override
@@ -270,8 +327,11 @@ abstract class _BikeState extends BikeState {
   const factory _BikeState(
       {required final String id,
       required final int mode,
+      final bool modeLocked,
       required final bool light,
+      final bool lightLocked,
       required final int assist,
+      final bool assistLocked,
       required final String name,
       final BikeRegion? region,
       final bool modeLock,
@@ -286,9 +346,15 @@ abstract class _BikeState extends BikeState {
   @override
   int get mode;
   @override
+  bool get modeLocked;
+  @override
   bool get light;
   @override
+  bool get lightLocked;
+  @override
   int get assist;
+  @override
+  bool get assistLocked;
   @override
   String get name;
   @override
