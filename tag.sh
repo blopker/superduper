@@ -7,5 +7,5 @@ git push --all
 git push --tags
 
 # URL encode
-CLEANVER=$(curl -s -w '%{url_effective}\n' -G / --data-urlencode "=$VER" | cut -c 3-)
+CLEANVER=$(jq -rn --arg x "$VER" '$x|@uri')
 echo "Release notes: https://github.com/blopker/superduper/releases/new?tag=$CLEANVER&title=Release%20$CLEANVER"
