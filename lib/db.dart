@@ -51,7 +51,7 @@ class Database {
     return bikesdb.keys.map((e) => getBike(e)).whereType<BikeState>().toList();
   }
 
-  setBike(BikeState bike) {
+  addBike(BikeState bike) {
     bikesdb.put(bike.id, jsonEncode(bike.toJson()));
   }
 
@@ -73,9 +73,12 @@ class Database {
   set currentBike(BikeState? bike) {
     if (bike == null) {
       settingsdb.put(Settings.currentBike.value, null);
-    } else {
-      settingsdb.put(Settings.currentBike.value, bike.id);
+      return;
     }
+    if (!bikesdb.containsKey(bike.id)) {
+      addBike(bike);
+    }
+    settingsdb.put(Settings.currentBike.value, bike.id);
   }
 
   Stream<BikeState?> watchCurrentBike() {

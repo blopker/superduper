@@ -98,7 +98,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                     child: DiscoverCard(
                       selected: currentBike?.id == bikeList[i].id,
                       onTap: () {
-                        bikeNotifier.selectBike(bikeList[i].id);
+                        bikeNotifier.selectBike(bikeList[i]);
                         Navigator.pop(context);
                       },
                       title: bikeList[i].name,
@@ -133,8 +133,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   child: DiscoverCard(
                     selected: currentBike?.id == b.id,
                     onTap: () {
-                      bikeNotifier.addBike(b);
-                      bikeNotifier.selectBike(b.id);
+                      bikeNotifier.selectBike(b);
                       Navigator.pop(context);
                     },
                     title: b.name,

@@ -6,10 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/services.dart';
 
+import 'db.dart';
+import 'models.dart';
+
 part 'repository.g.dart';
 
 final connectionHandlerProvider = Provider<ConnectionHandler>((ref) {
-  return ConnectionHandler(ref);
+  var db = ref.watch(dbProvider);
+  return ConnectionHandler(ref, db);
 });
 
 // final bikeRepositoryProvider = Provider<BikeRepository>((ref) {
@@ -21,19 +25,20 @@ final connectionStatusProvider = StateProvider<DeviceConnectionState>((ref) {
 });
 
 class ConnectionHandler {
-  StreamSubscription<ConnectionStateUpdate>? _deviceSub;
+  StreamSubscription<ConnectionStateUpdate>? _btStateSub;
   StreamSubscription<ConnectionStateUpdate>? _connectionSub;
+  StreamSubscription<BikeState?>? _currentSub;
+  Database db;
 
   Timer? connectTimer;
   Timer? reconnectTimer;
   String? connectedId;
-  bool shouldReconect = false;
   Ref ref;
 
-  ConnectionHandler(this.ref) {
-    debugPrint("CREATED CH");
+  ConnectionHandler(this.ref, this.db) {
+    debugPrint("CREATED ConnectionHandler");
     ref.onDispose(dispose);
-    _deviceSub = ref
+    _btStateSub = ref
         .read(bluetoothRepositoryProvider)
         .ble
         .connectedDeviceStream
@@ -44,26 +49,39 @@ class ConnectionHandler {
         connNotify.state = event.connectionState;
       }
     });
+    _currentSub = db.watchCurrentBike().listen((event) {
+      if (connectedId == event?.id) {
+        return;
+      }
+      disconect();
+      connectedId = db.currentBike?.id;
+      connect();
+    });
+    connectedId = db.currentBike?.id;
+    Future.delayed(const Duration(seconds: 1), () => connect());
     reconnectTimer =
         Timer.periodic(const Duration(seconds: 10), (t) => reconect());
   }
 
   void dispose() {
-    _deviceSub?.cancel();
+    debugPrint("DISPOSE ConnectionHandler");
+    _btStateSub?.cancel();
+    _currentSub?.cancel();
     connectTimer?.cancel();
     reconnectTimer?.cancel();
   }
 
-  void connect(String id) {
-    shouldReconect = true;
+  void connect() {
+    if (connectedId == null) {
+      return;
+    }
+    final id = connectedId!;
     var connNotify = ref.read(connectionStatusProvider.notifier);
-    connNotify.state = DeviceConnectionState.connecting;
-    if (connectedId == id &&
-        connNotify.state == DeviceConnectionState.connected) {
+    if (connNotify.state == DeviceConnectionState.connected) {
       debugPrint('already connected');
       return;
     }
-    connectedId = id;
+    connNotify.state = DeviceConnectionState.connecting;
     _connectionSub?.cancel();
     _connectionSub =
         ref.read(bluetoothRepositoryProvider).connect(id).listen((event) {
@@ -75,15 +93,12 @@ class ConnectionHandler {
   void reconect() {
     // print('reconnecting...');
     var conn = ref.read(connectionStatusProvider);
-    if (shouldReconect &&
-        connectedId != null &&
-        conn == DeviceConnectionState.disconnected) {
-      connect(connectedId!);
+    if (connectedId != null && conn == DeviceConnectionState.disconnected) {
+      connect();
     }
   }
 
   void disconect() {
-    shouldReconect = false;
     connectedId = null;
     _connectionSub?.cancel();
     var connNotify = ref.read(connectionStatusProvider.notifier);
@@ -174,41 +189,3 @@ class BluetoothRepository {
     return ble.status;
   }
 }
-
-
-// class BikeRepository {
-//   BikeRepository({required this.ref});
-//   final Ref ref;
-
-//   bool checkConnection() {
-//     var btstatus = ref.read(bluetoothRepositoryProvider).status();
-//     if (btstatus != BleStatus.ready) {
-//       return false;
-//     }
-//     var connStatus = ref.read(connectionStatusProvider);
-//     if (connStatus != DeviceConnectionState.connected) {
-//       return false;
-//     }
-//     return true;
-//   }
-
-//   Future<BikeState?> get({required String id}) {
-//     if (checkConnection() == false) {
-//       return Future.value(null);
-//     }
-//     ref.read(bikeRepositoryProvider)
-//     return await ref.read(bluetoothRepositoryProvider).read(id);
-//   }
-
-//   Future<void> set({required String id, required BikeState state}) async {
-//     if (checkConnection() == false) {
-//       return Future.value(null);
-//     }
-//     await ref.read(bluetoothRepositoryProvider).write(id, data: state.toWriteData());
-//   }
-
-//   Stream<BikeState> subscribe({required String id}) {
-//     // TODO: implement subscribe
-//     throw UnimplementedError();
-//   }
-// }

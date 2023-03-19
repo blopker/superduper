@@ -9,7 +9,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/bike.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
-import 'package:superduper/repository.dart';
 import 'package:superduper/debug.dart';
 import 'package:superduper/db.dart' as perf;
 import 'package:device_info_plus/device_info_plus.dart';
@@ -101,7 +100,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     var bike = ref.watch(currentBikeProvider);
-    ref.watch(connectionHandlerProvider);
     Widget page = const NoBikePage();
     if (bike != null) {
       ref.watch(bikeProvider(bike.id));

@@ -92,7 +92,7 @@ class Bike extends _$Bike {
           .read(bluetoothRepositoryProvider)
           .write(newState.id, data: newState.toWriteData());
     }
-    ref.read(dbProvider).setBike(newState);
+    ref.read(dbProvider).addBike(newState);
     state = newState;
     updateStateData();
   }
@@ -267,7 +267,7 @@ class BikePageState extends ConsumerState<BikePage> {
                     onTap: disabled
                         ? null
                         : () {
-                            connectionHandler.connect(bike.id);
+                            connectionHandler.connect();
                           },
                     child: Text(text, style: style));
               }),
