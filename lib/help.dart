@@ -31,8 +31,8 @@ EU:
 ## Assist
 Changes the amount of assist your bike will provide while pedaling. 0 is no assist, 4 is full assist.
 
-## Background Lock
-Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
+## Background Lock (Android Only)
+**Uses extra battery.** Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
 """;
 
 class HelpWidget extends StatelessWidget {

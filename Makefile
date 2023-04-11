@@ -21,4 +21,8 @@ upgrade:
 
 release: tag build
 
+clean:
+	flutter clean
+	rm -rf build
+
 .PHONY: build

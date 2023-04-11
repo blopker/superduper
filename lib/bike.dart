@@ -31,7 +31,7 @@ class Bike extends _$Bike {
     _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       updateStateData();
     });
-    var bike = ref.watch(dbProvider).getBike(id);
+    var bike = ref.watch(databaseProvider).getBike(id);
     if (bike != null) {
       return bike;
     }
@@ -92,7 +92,7 @@ class Bike extends _$Bike {
           .read(bluetoothRepositoryProvider)
           .write(newState.id, data: newState.toWriteData());
     }
-    ref.read(dbProvider).addBike(newState);
+    ref.read(databaseProvider).addBike(newState);
     state = newState;
     updateStateData();
   }
@@ -231,7 +231,8 @@ class BikePageState extends ConsumerState<BikePage> {
                     ),
                     ModeControlWidget(bike: bike),
                     AssistControlWidget(bike: bike),
-                    BackgroundLockControlWidget(bike: bike),
+                    if (Platform.isAndroid)
+                      BackgroundLockControlWidget(bike: bike),
                     const SizedBox(
                       height: 10,
                     ),

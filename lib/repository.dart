@@ -11,18 +11,25 @@ import 'models.dart';
 
 part 'repository.g.dart';
 
-final connectionHandlerProvider = Provider<ConnectionHandler>((ref) {
-  var db = ref.watch(dbProvider);
-  return ConnectionHandler(ref, db);
-});
+@riverpod
+ConnectionHandler connectionHandler(ConnectionHandlerRef ref) =>
+    ConnectionHandler(ref, ref.watch(databaseProvider));
 
-// final bikeRepositoryProvider = Provider<BikeRepository>((ref) {
-//   return BikeRepository(ref: ref);
-// });
+@riverpod
+class ConnectionStatus extends _$ConnectionStatus {
+  @override
+  DeviceConnectionState build() {
+    return DeviceConnectionState.disconnected;
+  }
 
-final connectionStatusProvider = StateProvider<DeviceConnectionState>((ref) {
-  return DeviceConnectionState.disconnected;
-});
+  set(DeviceConnectionState state) {
+    state = state;
+  }
+
+  get() {
+    return state;
+  }
+}
 
 class ConnectionHandler {
   StreamSubscription<ConnectionStateUpdate>? _btStateSub;
@@ -46,7 +53,7 @@ class ConnectionHandler {
       if (event.deviceId == connectedId) {
         debugPrint('deviceSub: $event');
         var connNotify = ref.read(connectionStatusProvider.notifier);
-        connNotify.state = event.connectionState;
+        connNotify.set(event.connectionState);
       }
     });
     _currentSub = db.watchCurrentBike().listen((event) {
@@ -77,15 +84,15 @@ class ConnectionHandler {
     }
     final id = connectedId!;
     var connNotify = ref.read(connectionStatusProvider.notifier);
-    if (connNotify.state == DeviceConnectionState.connected) {
+    if (connNotify.get() == DeviceConnectionState.connected) {
       debugPrint('already connected');
       return;
     }
-    connNotify.state = DeviceConnectionState.connecting;
+    connNotify.set(DeviceConnectionState.connecting);
     _connectionSub?.cancel();
     _connectionSub =
         ref.read(bluetoothRepositoryProvider).connect(id).listen((event) {
-      connNotify.state = event.connectionState;
+      connNotify.set(event.connectionState);
       debugPrint("conectionSub: $event");
     });
   }
@@ -102,7 +109,7 @@ class ConnectionHandler {
     connectedId = null;
     _connectionSub?.cancel();
     var connNotify = ref.read(connectionStatusProvider.notifier);
-    connNotify.state = DeviceConnectionState.disconnected;
+    connNotify.set(DeviceConnectionState.disconnected);
   }
 }
 

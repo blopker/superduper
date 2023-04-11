@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+part 'db.g.dart';
 
 enum DBKey {
   bikes('bikes'),
@@ -19,9 +22,10 @@ enum Settings {
   final String value;
 }
 
-final dbProvider = Provider((ref) {
+@Riverpod(keepAlive: true)
+Database database(DatabaseRef ref) {
   return Database(ref);
-});
+}
 
 class Database {
   Database(this.ref);

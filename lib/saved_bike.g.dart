@@ -6,7 +6,7 @@ part of 'saved_bike.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$currentBikeHash() => r'5e401c4c413ca54684ab281472d709fb4e3dd5a4';
+String _$currentBikeHash() => r'47d93bef4d349bc5026dc3903499136509807f11';
 
 /// See also [currentBike].
 @ProviderFor(currentBike)
@@ -20,7 +20,7 @@ final currentBikeProvider = AutoDisposeProvider<BikeState?>.internal(
 );
 
 typedef CurrentBikeRef = AutoDisposeProviderRef<BikeState?>;
-String _$savedBikeListHash() => r'018e5515aa1dba5c93b9269f118431af8c79d988';
+String _$savedBikeListHash() => r'd0c9ae062100d0d96e4aab5d3afd9215cce907dc';
 
 /// See also [SavedBikeList].
 @ProviderFor(SavedBikeList)
