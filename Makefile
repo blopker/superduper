@@ -21,6 +21,9 @@ upgrade:
 
 release: tag build
 
+icons:
+	flutter pub run flutter_launcher_icons
+
 clean:
 	flutter clean
 	rm -rf build
