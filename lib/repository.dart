@@ -22,8 +22,8 @@ class ConnectionStatus extends _$ConnectionStatus {
     return DeviceConnectionState.disconnected;
   }
 
-  set(DeviceConnectionState state) {
-    state = state;
+  set(DeviceConnectionState newState) {
+    state = newState;
   }
 
   get() {
@@ -52,8 +52,7 @@ class ConnectionHandler {
         .listen((event) {
       if (event.deviceId == connectedId) {
         debugPrint('deviceSub: $event');
-        var connNotify = ref.read(connectionStatusProvider.notifier);
-        connNotify.set(event.connectionState);
+        ref.read(connectionStatusProvider.notifier).set(event.connectionState);
       }
     });
     _currentSub = db.watchCurrentBike().listen((event) {

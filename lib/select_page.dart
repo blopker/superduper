@@ -72,40 +72,45 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
               'Select Bike',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(
-              height: 40,
-            ),
-            Row(children: [
-              Text(
-                'My Bikes',
-                style: Theme.of(context).textTheme.labelMedium,
-              )
-            ]),
-            if (bikeList.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Text(
-                  'No saved bikes.',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ),
-            ListView.builder(
-                shrinkWrap: true,
-                itemCount: bikeList.length,
-                itemBuilder: (ctx, i) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 20.0),
-                    child: DiscoverCard(
-                      selected: currentBike?.id == bikeList[i].id,
-                      onTap: () {
-                        bikeNotifier.selectBike(bikeList[i]);
-                        Navigator.pop(context);
-                      },
-                      title: bikeList[i].name,
-                      subtitle: bikeList[i].id,
+            if (bikeList.isNotEmpty)
+              Column(
+                children: [
+                  const SizedBox(
+                    height: 40,
+                  ),
+                  Row(children: [
+                    Text(
+                      'My Bikes',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    )
+                  ]),
+                  if (bikeList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: Text(
+                        'No saved bikes.',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                     ),
-                  );
-                }),
+                  ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: bikeList.length,
+                      itemBuilder: (ctx, i) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 20.0),
+                          child: DiscoverCard(
+                            selected: currentBike?.id == bikeList[i].id,
+                            onTap: () {
+                              bikeNotifier.selectBike(bikeList[i]);
+                              Navigator.pop(context);
+                            },
+                            title: bikeList[i].name,
+                            subtitle: bikeList[i].id,
+                          ),
+                        );
+                      }),
+                ],
+              ),
             const SizedBox(
               height: 40,
             ),

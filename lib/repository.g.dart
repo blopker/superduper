@@ -56,7 +56,7 @@ final bluetoothStatusStreamProvider =
 );
 
 typedef BluetoothStatusStreamRef = AutoDisposeStreamProviderRef<BleStatus>;
-String _$connectionStatusHash() => r'4c578c1b7ea22eb0df078a5c06a0410b5a4f741f';
+String _$connectionStatusHash() => r'84cf0380fa442818a867c928f5a0bf132f1b9c28';
 
 /// See also [ConnectionStatus].
 @ProviderFor(ConnectionStatus)
