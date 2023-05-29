@@ -69,7 +69,6 @@ class DiscoverCard extends StatelessWidget {
   final Color? gradientEndColor;
   final double? height;
   final double? width;
-  final bool locked;
   final Widget? vectorBottom;
   final Widget? vectorTop;
   final Function()? onTap;
@@ -80,7 +79,6 @@ class DiscoverCard extends StatelessWidget {
       {Key? key,
       this.title,
       this.subtitle,
-      this.locked = false,
       this.gradientStartColor,
       this.gradientEndColor,
       this.height,
@@ -107,7 +105,6 @@ class DiscoverCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(26),
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
@@ -143,9 +140,6 @@ class DiscoverCard extends StatelessWidget {
                               const SizedBox(
                                 width: 10,
                               ),
-                              if (locked)
-                                const Icon(Icons.lock,
-                                    color: Colors.white, size: 16)
                             ],
                           ),
                         ),

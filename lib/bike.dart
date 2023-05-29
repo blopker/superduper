@@ -221,8 +221,9 @@ class BikePageState extends ConsumerState<BikePage> {
                   child: Column(
                     children: [
                       Text(
-                        "Long press control to lock",
+                        "Background Lock tries to keep your settings locked even when the app is closed. It may cause battery drain.",
                         style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
                       InkWell(
@@ -284,6 +285,23 @@ class ConnectionWidget extends ConsumerWidget {
   }
 }
 
+class LockWidget extends StatelessWidget {
+  const LockWidget({super.key, required this.locked, required this.onTap});
+  final bool locked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, right: 10),
+      child: IconButton(
+          iconSize: 30,
+          onPressed: onTap,
+          icon: Icon(locked ? Icons.lock : Icons.lock_open)),
+    );
+  }
+}
+
 class LightControlWidget extends ConsumerWidget {
   const LightControlWidget({super.key, required this.bike});
   final BikeState bike;
@@ -293,17 +311,25 @@ class LightControlWidget extends ConsumerWidget {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
-      child: DiscoverCard(
-          title: "Light",
-          locked: bike.lightLocked,
-          metric: bike.light ? "On" : "Off",
-          selected: bike.light,
-          onTap: () {
-            bikeControl.toggleLight();
-          },
-          onLongPress: () {
-            bikeControl.toggleLightLocked();
-          }),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: DiscoverCard(
+              title: "Light",
+              metric: bike.light ? "On" : "Off",
+              selected: bike.light,
+              onTap: () {
+                bikeControl.toggleLight();
+              },
+            ),
+          ),
+          LockWidget(
+            locked: bike.lightLocked,
+            onTap: bikeControl.toggleLightLocked,
+          )
+        ],
+      ),
     );
   }
 }
@@ -317,17 +343,21 @@ class ModeControlWidget extends ConsumerWidget {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
-      child: DiscoverCard(
-        title: "Mode",
-        locked: bike.modeLocked,
-        metric: bike.viewMode,
-        selected: bike.viewMode == '1' ? false : true,
-        onTap: () {
-          bikeControl.toggleMode();
-        },
-        onLongPress: () {
-          bikeControl.toggleModeLocked();
-        },
+      child: Row(
+        children: [
+          Expanded(
+            child: DiscoverCard(
+              title: "Mode",
+              metric: bike.viewMode,
+              selected: bike.viewMode == '1' ? false : true,
+              onTap: () {
+                bikeControl.toggleMode();
+              },
+            ),
+          ),
+          LockWidget(
+              locked: bike.modeLocked, onTap: bikeControl.toggleModeLocked)
+        ],
       ),
     );
   }
@@ -367,17 +397,22 @@ class AssistControlWidget extends ConsumerWidget {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
-      child: DiscoverCard(
-          title: "Assist",
-          locked: bike.assistLocked,
-          metric: bike.assist.toString(),
-          selected: bike.assist == 0 ? false : true,
-          onTap: () {
-            bikeControl.toggleAssist();
-          },
-          onLongPress: () {
-            bikeControl.toggleAssistLocked();
-          }),
+      child: Row(
+        children: [
+          Expanded(
+            child: DiscoverCard(
+              title: "Assist",
+              metric: bike.assist.toString(),
+              selected: bike.assist == 0 ? false : true,
+              onTap: () {
+                bikeControl.toggleAssist();
+              },
+            ),
+          ),
+          LockWidget(
+              locked: bike.assistLocked, onTap: bikeControl.toggleAssistLocked)
+        ],
+      ),
     );
   }
 }
