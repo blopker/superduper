@@ -33,12 +33,25 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
             const SizedBox(
               height: 40,
             ),
-            Text(
-              'Edit ${widget.bike.name}',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge!
-                  .copyWith(color: Colors.white),
+            Row(
+              children: [
+                Text(
+                  'Edit Bike',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium!
+                      .copyWith(color: Colors.white),
+                ),
+                const Spacer(),
+                IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      size: 30,
+                    ))
+              ],
             ),
             CompleteForm(bike: widget.bike),
             const SizedBox(
@@ -65,6 +78,44 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
   final _formKey = GlobalKey<FormBuilderState>();
 
   var genderOptions = ['Male', 'Female', 'Other'];
+
+  Future<bool?> _showMyDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Bike'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                  'This will delete ${widget.bike.name} from your list.',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                Text('Continue?',
+                    style: Theme.of(context).textTheme.titleSmall),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,19 +173,26 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               Expanded(
                 child: InkWell(
                   child: Text(
-                    'Close',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    'Delete',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium!
+                        .copyWith(color: Colors.red),
                   ),
-                  onTap: () {
-                    _formKey.currentState?.reset();
-                    Navigator.pop(context);
+                  onTap: () async {
+                    if (await _showMyDialog() ?? false) {
+                      bikeNotifier.deleteStateData(widget.bike);
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
                   },
                 ),
               ),
               InkWell(
                 child: Text(
                   'Save',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 onTap: () {
                   if (_formKey.currentState?.saveAndValidate() ?? false) {

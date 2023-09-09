@@ -1,7 +1,11 @@
 watch:
-	flutter pub run build_runner watch --delete-conflicting-outputs
+	dart run build_runner watch --delete-conflicting-outputs
 
-build: build-android build-ios
+build: build-runner build-android build-ios
+
+build-runner:
+	dart run build_runner build --delete-conflicting-outputs
+
 build-android:
 	flutter build appbundle
 	flutter build apk
@@ -16,13 +20,13 @@ tag:
 	bash tag.sh
 
 upgrade:
-	flutter pub upgrade
+	flutter pub upgrade --precompile --major-versions
 	cd ios && pod update
 
 release: tag build
 
 icons:
-	flutter pub run flutter_launcher_icons
+	dart run flutter_launcher_icons
 
 clean:
 	flutter clean

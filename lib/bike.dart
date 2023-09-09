@@ -7,15 +7,16 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:superduper/db.dart';
+import 'package:superduper/edit_bike.dart' as edit;
+import 'package:superduper/help.dart';
+import 'package:superduper/models.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 import 'package:superduper/widgets.dart';
-import 'package:superduper/models.dart';
-import 'package:superduper/help.dart';
-import 'package:superduper/db.dart';
-import 'package:superduper/edit_bike.dart' as edit;
 
 export 'package:superduper/models.dart';
+
 part 'bike.g.dart';
 
 @riverpod
@@ -120,6 +121,10 @@ class Bike extends _$Bike {
   void toggleBackgroundLock() async {
     writeStateData(state.copyWith(modeLock: !state.modeLock),
         saveToBike: false);
+  }
+
+  void deleteStateData(BikeState bike) {
+    ref.read(databaseProvider).deleteBike(bike);
   }
 }
 

@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:superduper/models.dart';
 
 part 'db.g.dart';
 
@@ -89,6 +89,11 @@ class Database {
     return settingsdb.watch(key: Settings.currentBike.value).map((event) {
       return currentBike;
     });
+  }
+
+  void deleteBike(BikeState bike) {
+    currentBike = null;
+    bikesdb.delete(bike.id);
   }
 }
 

@@ -6,7 +6,7 @@ part of 'bike.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$bikeHash() => r'f119b1da3aa0d006f8387bb9d94f6e130e0991cd';
+String _$bikeHash() => r'9267e4513a7935871ec5a1caff5a8f28b6fe7693';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -83,8 +83,8 @@ class BikeFamily extends Family<BikeState> {
 class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {
   /// See also [Bike].
   BikeProvider(
-    this.id,
-  ) : super.internal(
+    String id,
+  ) : this._internal(
           () => Bike()..id = id,
           from: bikeProvider,
           name: r'bikeProvider',
@@ -92,9 +92,50 @@ class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {
               const bool.fromEnvironment('dart.vm.product') ? null : _$bikeHash,
           dependencies: BikeFamily._dependencies,
           allTransitiveDependencies: BikeFamily._allTransitiveDependencies,
+          id: id,
         );
 
+  BikeProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.id,
+  }) : super.internal();
+
   final String id;
+
+  @override
+  BikeState runNotifierBuild(
+    covariant Bike notifier,
+  ) {
+    return notifier.build(
+      id,
+    );
+  }
+
+  @override
+  Override overrideWith(Bike Function() create) {
+    return ProviderOverride(
+      origin: this,
+      override: BikeProvider._internal(
+        () => create()..id = id,
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        id: id,
+      ),
+    );
+  }
+
+  @override
+  AutoDisposeNotifierProviderElement<Bike, BikeState> createElement() {
+    return _BikeProviderElement(this);
+  }
 
   @override
   bool operator ==(Object other) {
@@ -108,14 +149,19 @@ class BikeProvider extends AutoDisposeNotifierProviderImpl<Bike, BikeState> {
 
     return _SystemHash.finish(hash);
   }
+}
+
+mixin BikeRef on AutoDisposeNotifierProviderRef<BikeState> {
+  /// The parameter `id` of this provider.
+  String get id;
+}
+
+class _BikeProviderElement
+    extends AutoDisposeNotifierProviderElement<Bike, BikeState> with BikeRef {
+  _BikeProviderElement(super.provider);
 
   @override
-  BikeState runNotifierBuild(
-    covariant Bike notifier,
-  ) {
-    return notifier.build(
-      id,
-    );
-  }
+  String get id => (origin as BikeProvider).id;
 }
-// ignore_for_file: unnecessary_raw_strings, subtype_of_sealed_class, invalid_use_of_internal_member, do_not_use_environment, prefer_const_constructors, public_member_api_docs, avoid_private_typedef_functions
+// ignore_for_file: type=lint
+// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member
