@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:superduper/bike.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/widgets.dart';
-import 'package:superduper/bike.dart';
 
 class BikeSelectWidget extends ConsumerStatefulWidget {
   const BikeSelectWidget({super.key});
