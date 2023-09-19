@@ -34,10 +34,6 @@ Make sure only one app is connected to the bike at a time. If you have the offic
 
 You can also try restarting the bike and your phone.
 
-### I'm having an issue or have a feature request
-
-I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
-
 ### How does Background Lock work and how is it different from the setting lock?
 
 The setting lock feature tells Superduper to ignore whatever the bike is set to and use the settings you have set in the app. This is useful for when the bike starts up and settings reset, like lights and mode. However, the app only enforces the setting lock when the app is open. If you close the app, the bike will go back to whatever settings it was set to. To use it, long press the setting button you want to lock.
@@ -59,6 +55,10 @@ So far, all bike models have worked. Open a ticket if your model is having issue
 ### Can this app make the bike go even faster?
 
 Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself.
+
+### I'm having another issue or have a feature request
+
+I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
 
 ## Developers
 
