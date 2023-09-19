@@ -7,6 +7,7 @@ import 'package:superduper/bike.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BikeSelectWidget extends ConsumerStatefulWidget {
   const BikeSelectWidget({super.key});
@@ -151,11 +152,34 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
               height: 40,
             ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                InkWell(
+                  child: Text(
+                    'Not connecting?',
+                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          color: Colors.grey,
+                        ),
+                  ),
+                  onTap: () async {
+                    final Uri url =
+                        Uri.parse('https://github.com/blopker/superduper#faq');
+                    if (!await launchUrl(url)) {
+                      throw Exception('Could not launch $url');
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 40,
+            ),
+            Row(
               children: [
                 Expanded(
                   child: InkWell(
                     child: Text(
-                      'Clear',
+                      'Disconnect',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     onTap: () {
