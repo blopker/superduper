@@ -43,7 +43,7 @@ flutter:
   assets:
     - assets/superduper-nobg.png
 
-flutter_icons:
+flutter_launcher_icons:
   android: "launcher_icon"
   adaptive_icon_background: "#DBECF0"
   adaptive_icon_foreground: "assets/superduper_android.png"
