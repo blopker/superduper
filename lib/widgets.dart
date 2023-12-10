@@ -4,7 +4,7 @@ class CategoryBoxes extends StatefulWidget {
   final Function(bool isSelected)? onPressed;
   final String? text;
 
-  const CategoryBoxes({Key? key, this.onPressed, this.text}) : super(key: key);
+  const CategoryBoxes({super.key, this.onPressed, this.text});
 
   @override
   State<CategoryBoxes> createState() => _CategoryBoxesState();
@@ -76,7 +76,7 @@ class DiscoverCard extends StatelessWidget {
   final String? tag;
   final bool selected;
   const DiscoverCard(
-      {Key? key,
+      {super.key,
       this.title,
       this.subtitle,
       this.gradientStartColor,
@@ -89,8 +89,7 @@ class DiscoverCard extends StatelessWidget {
       this.onLongPress,
       this.tag,
       this.metric,
-      this.selected = true})
-      : super(key: key);
+      this.selected = true});
 
   @override
   Widget build(BuildContext context) {

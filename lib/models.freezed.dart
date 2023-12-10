@@ -132,10 +132,11 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
 }
 
 /// @nodoc
-abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
-  factory _$$_BikeStateCopyWith(
-          _$_BikeState value, $Res Function(_$_BikeState) then) =
-      __$$_BikeStateCopyWithImpl<$Res>;
+abstract class _$$BikeStateImplCopyWith<$Res>
+    implements $BikeStateCopyWith<$Res> {
+  factory _$$BikeStateImplCopyWith(
+          _$BikeStateImpl value, $Res Function(_$BikeStateImpl) then) =
+      __$$BikeStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -153,11 +154,11 @@ abstract class _$$_BikeStateCopyWith<$Res> implements $BikeStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$_BikeStateCopyWithImpl<$Res>
-    extends _$BikeStateCopyWithImpl<$Res, _$_BikeState>
-    implements _$$_BikeStateCopyWith<$Res> {
-  __$$_BikeStateCopyWithImpl(
-      _$_BikeState _value, $Res Function(_$_BikeState) _then)
+class __$$BikeStateImplCopyWithImpl<$Res>
+    extends _$BikeStateCopyWithImpl<$Res, _$BikeStateImpl>
+    implements _$$BikeStateImplCopyWith<$Res> {
+  __$$BikeStateImplCopyWithImpl(
+      _$BikeStateImpl _value, $Res Function(_$BikeStateImpl) _then)
       : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -175,7 +176,7 @@ class __$$_BikeStateCopyWithImpl<$Res>
     Object? modeLock = null,
     Object? selected = null,
   }) {
-    return _then(_$_BikeState(
+    return _then(_$BikeStateImpl(
       id: null == id
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
@@ -226,8 +227,8 @@ class __$$_BikeStateCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$_BikeState extends _BikeState {
-  const _$_BikeState(
+class _$BikeStateImpl extends _BikeState {
+  const _$BikeStateImpl(
       {required this.id,
       required this.mode,
       this.modeLocked = false,
@@ -245,8 +246,8 @@ class _$_BikeState extends _BikeState {
         assert(assist <= 4),
         super._();
 
-  factory _$_BikeState.fromJson(Map<String, dynamic> json) =>
-      _$$_BikeStateFromJson(json);
+  factory _$BikeStateImpl.fromJson(Map<String, dynamic> json) =>
+      _$$BikeStateImplFromJson(json);
 
   @override
   final String id;
@@ -285,7 +286,7 @@ class _$_BikeState extends _BikeState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_BikeState &&
+            other is _$BikeStateImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.mode, mode) || other.mode == mode) &&
             (identical(other.modeLocked, modeLocked) ||
@@ -312,12 +313,12 @@ class _$_BikeState extends _BikeState {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$_BikeStateCopyWith<_$_BikeState> get copyWith =>
-      __$$_BikeStateCopyWithImpl<_$_BikeState>(this, _$identity);
+  _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
+      __$$BikeStateImplCopyWithImpl<_$BikeStateImpl>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$_BikeStateToJson(
+    return _$$BikeStateImplToJson(
       this,
     );
   }
@@ -335,11 +336,11 @@ abstract class _BikeState extends BikeState {
       required final String name,
       final BikeRegion? region,
       final bool modeLock,
-      final bool selected}) = _$_BikeState;
+      final bool selected}) = _$BikeStateImpl;
   const _BikeState._() : super._();
 
   factory _BikeState.fromJson(Map<String, dynamic> json) =
-      _$_BikeState.fromJson;
+      _$BikeStateImpl.fromJson;
 
   @override
   String get id;
@@ -365,6 +366,6 @@ abstract class _BikeState extends BikeState {
   bool get selected;
   @override
   @JsonKey(ignore: true)
-  _$$_BikeStateCopyWith<_$_BikeState> get copyWith =>
+  _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

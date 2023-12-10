@@ -65,7 +65,7 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
 }
 
 class CompleteForm extends ConsumerStatefulWidget {
-  const CompleteForm({Key? key, required this.bike}) : super(key: key);
+  const CompleteForm({super.key, required this.bike});
   final BikeState bike;
 
   @override
