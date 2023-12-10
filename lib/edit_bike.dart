@@ -3,6 +3,7 @@ import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:superduper/bike.dart';
+import 'package:superduper/colors.dart';
 
 show(BuildContext context, BikeState bike) {
   showModalBottomSheet<void>(
@@ -76,8 +77,15 @@ class CompleteForm extends ConsumerStatefulWidget {
 
 class _CompleteFormState extends ConsumerState<CompleteForm> {
   final _formKey = GlobalKey<FormBuilderState>();
+  late int _selectedColorIndex;
 
   var genderOptions = ['Male', 'Female', 'Other'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColorIndex = widget.bike.color;
+  }
 
   Future<bool?> _showMyDialog() async {
     return showDialog<bool>(
@@ -120,6 +128,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
   @override
   Widget build(BuildContext context) {
     var bikeNotifier = ref.watch(bikeProvider(widget.bike.id).notifier);
+    final colors = getColorList();
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -134,6 +143,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
             initialValue: {
               'name': widget.bike.name,
               'region': widget.bike.region,
+              'color': widget.bike.color,
             },
             child: Column(
               children: <Widget>[
@@ -162,11 +172,42 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                           ))
                       .toList(),
                 ),
+                const SizedBox(height: 40),
+                InkWell(
+                  onTap: () async {
+                    var colorIndex =
+                        await _showColorPicker(context, _selectedColorIndex);
+                    setState(() {
+                      _selectedColorIndex = colorIndex;
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(26),
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(colors[_selectedColorIndex].start),
+                          Color(colors[_selectedColorIndex].end),
+                        ],
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                          left: 24, top: 10, bottom: 10, right: 24),
+                      child: Text(
+                        'Set Color',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           const SizedBox(
-            height: 40,
+            height: 30,
           ),
           Row(
             children: [
@@ -200,6 +241,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                     bikeNotifier.writeStateData(
                         widget.bike.copyWith(
                             name: _formKey.currentState?.value['name'],
+                            color: _selectedColorIndex,
                             region: _formKey.currentState?.value['region']),
                         saveToBike: false);
                     Navigator.pop(context);
@@ -215,4 +257,43 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
       ),
     );
   }
+}
+
+Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
+  final colors = getColorList();
+  final answer = await showModalBottomSheet<int>(
+    context: context,
+    builder: (BuildContext context) {
+      return Container(
+        child: ListView.builder(
+          itemCount: colors.length,
+          itemBuilder: (BuildContext context, int index) {
+            return ListTile(
+              title: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(colors[index].start),
+                      Color(colors[index].end),
+                    ],
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context, index); // return the color index
+              },
+            );
+          },
+        ),
+      );
+    },
+  );
+  if (answer != null) {
+    return answer;
+  }
+  return currentIndex;
 }

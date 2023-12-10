@@ -23,19 +23,20 @@ class BikeState with _$BikeState {
   @Assert('mode >= 0')
   @Assert('assist >= 0')
   @Assert('assist <= 4')
-  const factory BikeState({
-    required String id,
-    required int mode,
-    @Default(false) bool modeLocked,
-    required bool light,
-    @Default(false) bool lightLocked,
-    required int assist,
-    @Default(false) bool assistLocked,
-    required String name,
-    BikeRegion? region,
-    @Default(false) bool modeLock,
-    @Default(false) bool selected,
-  }) = _BikeState;
+  @Assert('color >= 0')
+  const factory BikeState(
+      {required String id,
+      required int mode,
+      @Default(false) bool modeLocked,
+      required bool light,
+      @Default(false) bool lightLocked,
+      required int assist,
+      @Default(false) bool assistLocked,
+      required String name,
+      BikeRegion? region,
+      @Default(false) bool modeLock,
+      @Default(false) bool selected,
+      @Default(0) int color}) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>
       _$BikeStateFromJson(json);

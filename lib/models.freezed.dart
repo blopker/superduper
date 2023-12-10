@@ -31,6 +31,7 @@ mixin _$BikeState {
   BikeRegion? get region => throw _privateConstructorUsedError;
   bool get modeLock => throw _privateConstructorUsedError;
   bool get selected => throw _privateConstructorUsedError;
+  int get color => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -54,7 +55,8 @@ abstract class $BikeStateCopyWith<$Res> {
       String name,
       BikeRegion? region,
       bool modeLock,
-      bool selected});
+      bool selected,
+      int color});
 }
 
 /// @nodoc
@@ -81,6 +83,7 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? color = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -127,6 +130,10 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      color: null == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -150,7 +157,8 @@ abstract class _$$BikeStateImplCopyWith<$Res>
       String name,
       BikeRegion? region,
       bool modeLock,
-      bool selected});
+      bool selected,
+      int color});
 }
 
 /// @nodoc
@@ -175,6 +183,7 @@ class __$$BikeStateImplCopyWithImpl<$Res>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? color = null,
   }) {
     return _then(_$BikeStateImpl(
       id: null == id
@@ -221,6 +230,10 @@ class __$$BikeStateImplCopyWithImpl<$Res>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      color: null == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -239,11 +252,13 @@ class _$BikeStateImpl extends _BikeState {
       required this.name,
       this.region,
       this.modeLock = false,
-      this.selected = false})
+      this.selected = false,
+      this.color = 0})
       : assert(mode <= 3),
         assert(mode >= 0),
         assert(assist >= 0),
         assert(assist <= 4),
+        assert(color >= 0),
         super._();
 
   factory _$BikeStateImpl.fromJson(Map<String, dynamic> json) =>
@@ -276,10 +291,13 @@ class _$BikeStateImpl extends _BikeState {
   @override
   @JsonKey()
   final bool selected;
+  @override
+  @JsonKey()
+  final int color;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected, color: $color)';
   }
 
   @override
@@ -302,13 +320,26 @@ class _$BikeStateImpl extends _BikeState {
             (identical(other.modeLock, modeLock) ||
                 other.modeLock == modeLock) &&
             (identical(other.selected, selected) ||
-                other.selected == selected));
+                other.selected == selected) &&
+            (identical(other.color, color) || other.color == color));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
-      lightLocked, assist, assistLocked, name, region, modeLock, selected);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      mode,
+      modeLocked,
+      light,
+      lightLocked,
+      assist,
+      assistLocked,
+      name,
+      region,
+      modeLock,
+      selected,
+      color);
 
   @JsonKey(ignore: true)
   @override
@@ -336,7 +367,8 @@ abstract class _BikeState extends BikeState {
       required final String name,
       final BikeRegion? region,
       final bool modeLock,
-      final bool selected}) = _$BikeStateImpl;
+      final bool selected,
+      final int color}) = _$BikeStateImpl;
   const _BikeState._() : super._();
 
   factory _BikeState.fromJson(Map<String, dynamic> json) =
@@ -364,6 +396,8 @@ abstract class _BikeState extends BikeState {
   bool get modeLock;
   @override
   bool get selected;
+  @override
+  int get color;
   @override
   @JsonKey(ignore: true)
   _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>

@@ -225,11 +225,6 @@ class BikePageState extends ConsumerState<BikePage> {
                 Center(
                   child: Column(
                     children: [
-                      Text(
-                        "Background Lock tries to keep your settings locked even when the app is closed. It may cause battery drain.",
-                        style: Theme.of(context).textTheme.bodySmall,
-                        textAlign: TextAlign.center,
-                      ),
                       const SizedBox(height: 10),
                       InkWell(
                         onTap: () {
@@ -321,6 +316,7 @@ class LightControlWidget extends ConsumerWidget {
         children: [
           Expanded(
             child: DiscoverCard(
+              colorIndex: bike.color,
               title: "Light",
               metric: bike.light ? "On" : "Off",
               selected: bike.light,
@@ -352,6 +348,7 @@ class ModeControlWidget extends ConsumerWidget {
         children: [
           Expanded(
             child: DiscoverCard(
+              colorIndex: bike.color,
               title: "Mode",
               metric: bike.viewMode,
               selected: bike.viewMode == '1' ? false : true,
@@ -375,20 +372,33 @@ class BackgroundLockControlWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
-    return Padding(
-      padding: const EdgeInsets.only(top: 20.0),
-      child: DiscoverCard(
-        title: "Background Lock",
-        metric: bike.modeLock ? "On" : "Off",
-        selected: bike.modeLock,
-        onTap: () async {
-          await Permission.notification.request();
-          if (Platform.isAndroid) {
-            await FlutterForegroundTask.requestIgnoreBatteryOptimization();
-          }
-          bikeControl.toggleBackgroundLock();
-        },
-      ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 20.0),
+          child: DiscoverCard(
+            title: "Background Lock",
+            metric: bike.modeLock ? "On" : "Off",
+            selected: bike.modeLock,
+            colorIndex: bike.color,
+            onTap: () async {
+              await Permission.notification.request();
+              if (Platform.isAndroid) {
+                await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+              }
+              bikeControl.toggleBackgroundLock();
+            },
+          ),
+        ),
+        const SizedBox(
+          height: 10,
+        ),
+        Text(
+          "Background Lock tries to keep your settings locked even when the app is closed. It may cause battery drain.",
+          style: Theme.of(context).textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }
@@ -406,6 +416,7 @@ class AssistControlWidget extends ConsumerWidget {
         children: [
           Expanded(
             child: DiscoverCard(
+              colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
               selected: bike.assist == 0 ? false : true,

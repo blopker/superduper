@@ -1,72 +1,11 @@
 import 'package:flutter/material.dart';
-
-class CategoryBoxes extends StatefulWidget {
-  final Function(bool isSelected)? onPressed;
-  final String? text;
-
-  const CategoryBoxes({super.key, this.onPressed, this.text});
-
-  @override
-  State<CategoryBoxes> createState() => _CategoryBoxesState();
-}
-
-class _CategoryBoxesState extends State<CategoryBoxes> {
-  bool isSelected = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            isSelected = !isSelected;
-            widget.onPressed!(isSelected);
-          });
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(right: 10, left: 10),
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: isSelected
-                  ? const Color(0xff4A80F0)
-                  : const Color(0xff1C2031),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                          color: const Color(0xff4A80F0).withOpacity(0.3),
-                          offset: const Offset(0, 4),
-                          blurRadius: 20),
-                    ]
-                  : [],
-            ),
-            child: Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                child: Text(
-                  widget.text!,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.normal),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+import 'package:superduper/colors.dart';
 
 class DiscoverCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
   final String? metric;
-  final Color? gradientStartColor;
-  final Color? gradientEndColor;
+  final int colorIndex;
   final double? height;
   final double? width;
   final Widget? vectorBottom;
@@ -79,8 +18,6 @@ class DiscoverCard extends StatelessWidget {
       {super.key,
       this.title,
       this.subtitle,
-      this.gradientStartColor,
-      this.gradientEndColor,
       this.height,
       this.width,
       this.vectorBottom,
@@ -89,15 +26,17 @@ class DiscoverCard extends StatelessWidget {
       this.onLongPress,
       this.tag,
       this.metric,
+      this.colorIndex = 0,
       this.selected = true});
 
   @override
   Widget build(BuildContext context) {
-    var startColor = gradientStartColor;
-    var endColor = gradientStartColor;
+    var defaultColors = getColor(colorIndex);
+    var startColor = Color(defaultColors.start);
+    var endColor = Color(defaultColors.end);
     if (!selected) {
-      startColor = Colors.grey[800];
-      endColor = Colors.grey[800];
+      startColor = Colors.grey[800]!;
+      endColor = Colors.grey[800]!;
     }
     return Material(
       color: Colors.transparent,
@@ -109,8 +48,8 @@ class DiscoverCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(26),
             gradient: LinearGradient(
               colors: [
-                startColor ?? const Color(0xff441DFC),
-                endColor ?? const Color(0xff4E81EB),
+                startColor,
+                endColor,
               ],
               begin: Alignment.bottomLeft,
               end: Alignment.topRight,
