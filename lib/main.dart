@@ -1,17 +1,17 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/bike.dart';
+import 'package:superduper/db.dart' as perf;
+import 'package:superduper/debug.dart';
 import 'package:superduper/saved_bike.dart';
 import 'package:superduper/select_page.dart';
-import 'package:superduper/debug.dart';
-import 'package:superduper/db.dart' as perf;
-import 'package:device_info_plus/device_info_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +57,7 @@ class SuperDuper extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarBrightness: Brightness.dark));
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'SuperDuper',
       theme: ThemeData(
         colorSchemeSeed: Colors.black,
