@@ -221,8 +221,8 @@ class BikePageState extends ConsumerState<BikePage> {
                             child: DiscoverCard(
                               colorIndex: bike.color,
                               title: "",
-                              titleIcon: Icons.battery_3_bar,
                               metric: "69.9 %",
+                              titleIcon: Icons.battery_3_bar,
                               selected: false,
                               onTap: () {},
                             ),
@@ -234,8 +234,8 @@ class BikePageState extends ConsumerState<BikePage> {
                             child: DiscoverCard(
                               colorIndex: bike.color,
                               title: "",
-                              titleIcon: Icons.speed,
                               metric: "60 km/h",
+                              titleIcon: Icons.speed,
                               selected: false,
                               onTap: () {},
                             ),
@@ -411,9 +411,9 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             title: "Background Lock",
             metric: bike.modeLock ? "On" : "Off",
+            titleIcon: Icons.phonelink_lock,
             selected: bike.modeLock,
             colorIndex: bike.color,
-            titleIcon: Icons.phonelink_lock,
             onTap: () async {
               await Permission.notification.request();
               if (Platform.isAndroid) {
@@ -452,8 +452,8 @@ class AssistControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
-              selected: bike.assist == 0 ? false : true,
               titleIcon: Icons.admin_panel_settings_outlined,
+              selected: bike.assist == 0 ? false : true,
               onTap: () {
                 bikeControl.toggleAssist();
               },
