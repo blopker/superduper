@@ -213,7 +213,37 @@ class BikePageState extends ConsumerState<BikePage> {
                     const ConnectionWidget()
                   ],
                 ),
-                LightControlWidget(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(right: 8.0, top: 20.0),
+                            child: DiscoverCard(
+                              colorIndex: bike.color,
+                              title: "",
+                              titleIcon: Icons.battery_3_bar,
+                              metric: "69.9 %",
+                              selected: false,
+                              onTap: () {},
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 8.0, top: 20.0),
+                            child: DiscoverCard(
+                              colorIndex: bike.color,
+                              title: "",
+                              titleIcon: Icons.speed,
+                              metric: "60 km/h",
+                              selected: false,
+                              onTap: () {},
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    LightControlWidget(
                   bike: bike,
                 ),
                 ModeControlWidget(bike: bike),
