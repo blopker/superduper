@@ -319,6 +319,7 @@ class LightControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Light",
               metric: bike.light ? "On" : "Off",
+              titleIcon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
               selected: bike.light,
               onTap: () {
                 bikeControl.toggleLight();
@@ -351,6 +352,7 @@ class ModeControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Mode",
               metric: bike.viewMode,
+              titleIcon: Icons.electric_bike,
               selected: bike.viewMode == '1' ? false : true,
               onTap: () {
                 bikeControl.toggleMode();
@@ -381,6 +383,7 @@ class BackgroundLockControlWidget extends ConsumerWidget {
             metric: bike.modeLock ? "On" : "Off",
             selected: bike.modeLock,
             colorIndex: bike.color,
+            titleIcon: Icons.phonelink_lock,
             onTap: () async {
               await Permission.notification.request();
               if (Platform.isAndroid) {
@@ -420,6 +423,7 @@ class AssistControlWidget extends ConsumerWidget {
               title: "Assist",
               metric: bike.assist.toString(),
               selected: bike.assist == 0 ? false : true,
+              titleIcon: Icons.admin_panel_settings_outlined,
               onTap: () {
                 bikeControl.toggleAssist();
               },
