@@ -221,10 +221,12 @@ class BikePageState extends ConsumerState<BikePage> {
                             child: DiscoverCard(
                               colorIndex: bike.color,
                               title: "",
-                              metric: "69.9 %",
+                              metric: bike.bikeBattery,
                               titleIcon: Icons.battery_3_bar,
                               selected: false,
-                              onTap: () {},
+                              onTap: () {
+
+                              },
                             ),
                           ),
                         ),
@@ -234,10 +236,12 @@ class BikePageState extends ConsumerState<BikePage> {
                             child: DiscoverCard(
                               colorIndex: bike.color,
                               title: "",
-                              metric: "60 km/h",
+                              metric: bike.bikeSpeed,
                               titleIcon: Icons.speed,
                               selected: false,
-                              onTap: () {},
+                              onTap: () {
+
+                              },
                             ),
                           ),
                         ),

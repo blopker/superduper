@@ -91,6 +91,20 @@ class BikeState with _$BikeState {
     return (mode + 1) % 4;
   }
 
+  // get bikeBattery can return percentage.
+  String get bikeBattery {
+    //todo: determine what bike model is being used and return the correct battery percentage
+    return '69 %';
+  }
+
+  // get bikeBattery can return percentage.
+  String get bikeSpeed {
+    //todo: get current bike speed
+    //todo: need to get selected bike metric (I wonder if we can extract this from the bike)
+    return '99 km/h';
+  }
+
+
   List<int> toWriteData() {
     return [0, 209, light ? 1 : 0, assist, _modeToWrite(), 0, 0, 0, 0, 0];
   }
