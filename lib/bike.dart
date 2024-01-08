@@ -221,8 +221,8 @@ class BikePageState extends ConsumerState<BikePage> {
                             child: DiscoverCard(
                               colorIndex: bike.color,
                               title: "",
-                              metric: bike.bikeBattery,
-                              titleIcon: Icons.battery_3_bar,
+                              metric: "${bike.bikeBattery} %",
+                              titleIcon: getBatteryIcon(bike.bikeBattery),
                               selected: false,
                               onTap: () {
 
@@ -285,6 +285,28 @@ class BikePageState extends ConsumerState<BikePage> {
                 ),
               ]))),
     );
+  }
+
+  IconData getBatteryIcon(int batteryPercentage) {
+    if (batteryPercentage >= 95) {
+      return Icons.battery_full;
+    } else if (batteryPercentage >= 85) {
+      return Icons.battery_6_bar;
+    } else if (batteryPercentage >= 75) {
+      return Icons.battery_5_bar;
+    } else if (batteryPercentage >= 65) {
+      return Icons.battery_4_bar;
+    } else if (batteryPercentage >= 45) {
+      return Icons.battery_3_bar;
+    } else if (batteryPercentage >= 30) {
+      return Icons.battery_2_bar;
+    } else if (batteryPercentage >= 10) {
+      return Icons.battery_1_bar;
+    } else if (batteryPercentage >= 0) {
+      return Icons.battery_0_bar;
+    } else {
+      return Icons.battery_alert;
+    }
   }
 }
 

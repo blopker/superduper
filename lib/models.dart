@@ -92,9 +92,9 @@ class BikeState with _$BikeState {
   }
 
   // get bikeBattery can return percentage.
-  String get bikeBattery {
+  int get bikeBattery {
     //todo: determine what bike model is being used and return the correct battery percentage
-    return '69 %';
+    return 69;
   }
 
   // get bikeBattery can return percentage.
