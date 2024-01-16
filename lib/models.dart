@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:superduper/names.dart';
+import 'package:superduper/repository.dart';
 
 part 'models.freezed.dart';
 part 'models.g.dart';
@@ -93,17 +94,39 @@ class BikeState with _$BikeState {
 
   // get bikeBattery can return percentage.
   String get bikeBattery {
-    //todo: determine what bike model is being used and return the correct battery percentage
-    return '69 %';
+
+    BluetoothRepository().readCurrentState(id, [2,3]).then((List<int>? currentState) {
+      if (currentState != null) {
+        int range = currentState[8];
+
+        // Convert the range to %
+        double batteryPercentage = range / 60.0 * 100;
+        batteryPercentage = double.parse(batteryPercentage.toStringAsFixed(1));
+
+        print('$batteryPercentage %');
+        return '$batteryPercentage %';
+      }
+    });
+    // Default value if reading fails or if the data is not as expected
+    return '0.0 %';
   }
 
   // get bikeBattery can return percentage.
   String get bikeSpeed {
-    //todo: get current bike speed
-    //todo: need to get selected bike metric (I wonder if we can extract this from the bike)
-    return '99 km/h';
-  }
+    BluetoothRepository().readCurrentState(id, [2,1]).then((List<int>? currentState) {
+      if (currentState != null) {
+        int speed = currentState[2] + (currentState[3] * 256);
 
+        // Convert the speed to km/h
+        double speedKmH = speed / 100.0;
+
+        print('$speedKmH km/h');
+        return '$speedKmH km/h';
+      }
+    });
+    // Default value if reading fails or if the data is not as expected
+    return '0.0 km/h';
+  }
 
   List<int> toWriteData() {
     return [0, 209, light ? 1 : 0, assist, _modeToWrite(), 0, 0, 0, 0, 0];

@@ -49,7 +49,7 @@ class Bike extends _$Bike {
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
       var data = await ref
           .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id);
+          .readCurrentState(state.id, [3, 0]);
       if (data == null || data.isEmpty) {
         return;
       }
@@ -130,6 +130,7 @@ class Bike extends _$Bike {
 
 class BikePage extends ConsumerStatefulWidget {
   const BikePage({super.key, required this.bikeID});
+
   final String bikeID;
 
   @override
@@ -213,41 +214,41 @@ class BikePageState extends ConsumerState<BikePage> {
                     const ConnectionWidget()
                   ],
                 ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(right: 8.0, top: 20.0),
-                            child: DiscoverCard(
-                              colorIndex: bike.color,
-                              title: "",
-                              metric: bike.bikeBattery,
-                              titleIcon: Icons.battery_3_bar,
-                              selected: false,
-                              onTap: () {
-
-                              },
-                            ),
-                          ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 8.0, top: 20.0),
+                        child: DiscoverCard(
+                          colorIndex: bike.color,
+                          title: "",
+                          metric: bike.bikeBattery,
+                          titleIcon: Icons.battery_3_bar,
+                          selected: false,
+                          onTap: () {
+                            print(bike.bikeBattery);
+                          },
                         ),
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 8.0, top: 20.0),
-                            child: DiscoverCard(
-                              colorIndex: bike.color,
-                              title: "",
-                              metric: bike.bikeSpeed,
-                              titleIcon: Icons.speed,
-                              selected: false,
-                              onTap: () {
-
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    LightControlWidget(
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 8.0, top: 20.0),
+                        child: DiscoverCard(
+                          colorIndex: bike.color,
+                          title: "",
+                          metric: bike.bikeSpeed,
+                          titleIcon: Icons.speed,
+                          selected: false,
+                          onTap: () {
+                            print(bike.bikeSpeed);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                LightControlWidget(
                   bike: bike,
                 ),
                 ModeControlWidget(bike: bike),
