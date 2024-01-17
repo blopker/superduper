@@ -50,10 +50,22 @@ class Bike extends _$Bike {
       var data = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id, [3, 0]);
+      var data2 = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, [2, 3]);
+      var data3 = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, [2, 1]);
       if (data == null || data.isEmpty) {
         return;
       }
-      var newState = state.updateFromData(data);
+      if (data2 == null || data2.isEmpty) {
+        return;
+      }
+      if (data3 == null || data3.isEmpty) {
+        return;
+      }
+      var newState = state.updateFromData(data, data2, data3);
       if (newState == state && !force) {
         return;
       }
@@ -222,11 +234,11 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: bike.bikeBattery,
+                          metric: bike.battery.toString(),
                           titleIcon: Icons.battery_3_bar,
                           selected: false,
                           onTap: () {
-                            print(bike.bikeBattery);
+                            print(bike.battery.toString());
                           },
                         ),
                       ),
@@ -237,11 +249,11 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: bike.bikeSpeed,
+                          metric: bike.speed.toString(),
                           titleIcon: Icons.speed,
                           selected: false,
                           onTap: () {
-                            print(bike.bikeSpeed);
+                            print(bike.speed.toString());
                           },
                         ),
                       ),

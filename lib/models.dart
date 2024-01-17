@@ -37,6 +37,8 @@ class BikeState with _$BikeState {
       BikeRegion? region,
       @Default(false) bool modeLock,
       @Default(false) bool selected,
+      required double speed,
+      required double battery,
       @Default(0) int color}) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>
@@ -44,20 +46,27 @@ class BikeState with _$BikeState {
 
   factory BikeState.defaultState(String id) {
     return BikeState(
-        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id));
+        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), speed: 0.0 , battery: 0.0);
   }
 
-  BikeState updateFromData(List<int> data) {
+  BikeState updateFromData(List<int> data, List<int> data2, List<int> data3) {
+    //data  SETTINGS	0x03	0x00
+    //data2 RIDE	0x02	0x03
+    //data3 MOTION	0x02
     const lightIdx = 4;
     const modeIdx = 5;
     const assistIdx = 2;
     final region = _guessRegion(data[modeIdx]);
     final newmode = _modeFromRead(data[modeIdx]);
+    final newBattery = calculateBattery(data2);
+    final newSpeed = calculateSpeed(data3);
     return copyWith(
         light: data[lightIdx] == 1,
         mode: newmode,
         assist: data[assistIdx],
-        region: region);
+        region: region,
+        battery: newBattery,
+        speed: newSpeed);
   }
 
   BikeRegion _guessRegion(int mode) {
@@ -91,7 +100,7 @@ class BikeState with _$BikeState {
   int get nextMode {
     return (mode + 1) % 4;
   }
-
+/*
   // get bikeBattery can return percentage.
   String get bikeBattery {
 
@@ -126,9 +135,30 @@ class BikeState with _$BikeState {
     });
     // Default value if reading fails or if the data is not as expected
     return '0.0 km/h';
-  }
+  }*/
 
   List<int> toWriteData() {
     return [0, 209, light ? 1 : 0, assist, _modeToWrite(), 0, 0, 0, 0, 0];
   }
+
+  calculateBattery(List<int> data2) {
+    int range = data2[8];
+
+    // Convert the range to %
+    double batteryPercentage = range / 60.0 * 100;
+    batteryPercentage = double.parse(batteryPercentage.toStringAsFixed(1));
+
+    //print('$batteryPercentage %');
+    return batteryPercentage;
+    }
+
+  calculateSpeed(List<int> data3) {
+    int speed = data3[2] + (data3[3] * 256);
+
+    // Convert the speed to km/h
+    double speedKmH = speed / 100.0;
+
+    //print('$speedKmH km/h');
+    return speedKmH;
+    }
 }
