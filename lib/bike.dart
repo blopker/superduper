@@ -30,7 +30,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       updateStateData();
     });
     var bike = ref.watch(databaseProvider).getBike(id);
@@ -46,30 +46,25 @@ class Bike extends _$Bike {
       return;
     }
     if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
-    _updateDebounce = Timer(const Duration(seconds: 2), () async {
-      var data = await ref
-          .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id, [3, 0]);
-      var data2 = await ref
+    _updateDebounce = Timer(const Duration(milliseconds: 1500), () async {
+      var RIDE = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id, [2, 3]);
-      var data3 = await ref
+      var MOTION = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id, [2, 1]);
-      if (data == null || data.isEmpty) {
+      var SETTINGS = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, [3, 0]);
+      if (SETTINGS == null || SETTINGS.isEmpty || RIDE == null || RIDE.isEmpty || MOTION == null || MOTION.isEmpty) {
         return;
       }
-      if (data2 == null || data2.isEmpty) {
-        return;
-      }
-      if (data3 == null || data3.isEmpty) {
-        return;
-      }
-      var newState = state.updateFromData(data, data2, data3);
+
+      var newState = state.updateFromData(SETTINGS, RIDE, MOTION);
       if (newState == state && !force) {
         return;
       }
-      debugPrint('state update $data');
+      debugPrint('state update $SETTINGS $RIDE $MOTION');
       if (state.lightLocked && state.light != newState.light) {
         newState = newState.copyWith(light: state.light);
       }
@@ -86,6 +81,7 @@ class Bike extends _$Bike {
   }
 
   void writeStateData(BikeState newState, {saveToBike = true}) {
+    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
@@ -148,6 +144,8 @@ class BikePage extends ConsumerStatefulWidget {
   @override
   BikePageState createState() => BikePageState();
 }
+bool displayInKmph = true;
+bool displayInPercentage = true;
 
 class BikePageState extends ConsumerState<BikePage> {
   @override
@@ -234,11 +232,13 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: bike.battery.toString() + " %",
-                          titleIcon: Icons.battery_3_bar,
+                          metric: displayInPercentage ? '${bike.battery} %' : '${_calculateVoltage(bike.battery)} V',
+                          titleIcon: _getBatteryIcon(bike.battery),
                           selected: false,
                           onTap: () {
-                            print(bike.battery.toString());
+                            setState(() {
+                              displayInPercentage = !displayInPercentage;
+                            });
                           },
                         ),
                       ),
@@ -249,11 +249,13 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: bike.speed.toString() + " km/h",
+                          metric: displayInKmph ? '${bike.speed} km/h' : '${_kmToMiles(bike.speed)} mph',
                           titleIcon: Icons.speed,
                           selected: false,
                           onTap: () {
-                            print(bike.speed.toString());
+                            setState(() {
+                              displayInKmph = !displayInKmph;
+                            });
                           },
                         ),
                       ),
@@ -298,6 +300,48 @@ class BikePageState extends ConsumerState<BikePage> {
                 ),
               ]))),
     );
+  }
+  double _kmToMiles(double km) {
+    // Conversion factor from km to miles
+    const double conversionFactor = 0.621371;
+    double miles = km * conversionFactor;
+    return double.parse(miles.toStringAsFixed(1));
+  }
+  double _calculateVoltage(double batteryPercentage) {
+    // Conversion factors for battery voltage
+    const double maxVoltage = 4.2;
+    const double minVoltage = 3.0;
+
+    //All super73 are current 48V batteries with 13 cells
+    const double cells = 13;
+
+    // Calculate voltage using linear interpolation
+    double voltage = (minVoltage + (maxVoltage - minVoltage) * (batteryPercentage / 100.0)) * cells;
+
+    // Round to two decimal places
+    return double.parse(voltage.toStringAsFixed(2));
+  }
+
+  IconData _getBatteryIcon(double batteryPercentage) {
+    if (batteryPercentage >= 95) {
+      return Icons.battery_full;
+    } else if (batteryPercentage >= 80) {
+      return Icons.battery_6_bar;
+    } else if (batteryPercentage >= 60) {
+      return Icons.battery_5_bar;
+    } else if (batteryPercentage >= 50) {
+      return Icons.battery_4_bar;
+    } else if (batteryPercentage >= 35) {
+      return Icons.battery_3_bar;
+    } else if (batteryPercentage >= 20) {
+      return Icons.battery_2_bar;
+    } else if (batteryPercentage >= 5) {
+      return Icons.battery_1_bar;
+    }else if (batteryPercentage >= 0) {
+      return Icons.battery_0_bar;
+    } else {
+      return Icons.battery_alert; // Default battery alert icon
+    }
   }
 }
 

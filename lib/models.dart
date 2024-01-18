@@ -49,21 +49,21 @@ class BikeState with _$BikeState {
         id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), speed: 0.0 , battery: 0.0);
   }
 
-  BikeState updateFromData(List<int> data, List<int> data2, List<int> data3) {
-    //data  SETTINGS	0x03	0x00
-    //data2 RIDE	0x02	0x03
-    //data3 MOTION	0x02
+  BikeState updateFromData(List<int> SETTINGS, List<int> RIDE, List<int> MOTION) {
+    //SETTINGS	0x03	0x00
+    //RIDE	    0x02	0x03
+    //MOTION	  0x02  0x01
     const lightIdx = 4;
     const modeIdx = 5;
     const assistIdx = 2;
-    final region = _guessRegion(data[modeIdx]);
-    final newmode = _modeFromRead(data[modeIdx]);
-    final newBattery = calculateBattery(data2);
-    final newSpeed = calculateSpeed(data3);
+    final region = _guessRegion(SETTINGS[modeIdx]);
+    final newmode = _modeFromRead(SETTINGS[modeIdx]);
+    final newBattery = calculateBattery(RIDE);
+    final newSpeed = calculateSpeed(MOTION);
     return copyWith(
-        light: data[lightIdx] == 1,
+        light: SETTINGS[lightIdx] == 1,
         mode: newmode,
-        assist: data[assistIdx],
+        assist: SETTINGS[assistIdx],
         region: region,
         battery: newBattery,
         speed: newSpeed);
@@ -100,42 +100,6 @@ class BikeState with _$BikeState {
   int get nextMode {
     return (mode + 1) % 4;
   }
-/*
-  // get bikeBattery can return percentage.
-  String get bikeBattery {
-
-    BluetoothRepository().readCurrentState(id, [2,3]).then((List<int>? currentState) {
-      if (currentState != null) {
-        int range = currentState[8];
-
-        // Convert the range to %
-        double batteryPercentage = range / 60.0 * 100;
-        batteryPercentage = double.parse(batteryPercentage.toStringAsFixed(1));
-
-        print('$batteryPercentage %');
-        return '$batteryPercentage %';
-      }
-    });
-    // Default value if reading fails or if the data is not as expected
-    return '0.0 %';
-  }
-
-  // get bikeBattery can return percentage.
-  String get bikeSpeed {
-    BluetoothRepository().readCurrentState(id, [2,1]).then((List<int>? currentState) {
-      if (currentState != null) {
-        int speed = currentState[2] + (currentState[3] * 256);
-
-        // Convert the speed to km/h
-        double speedKmH = speed / 100.0;
-
-        print('$speedKmH km/h');
-        return '$speedKmH km/h';
-      }
-    });
-    // Default value if reading fails or if the data is not as expected
-    return '0.0 km/h';
-  }*/
 
   List<int> toWriteData() {
     return [0, 209, light ? 1 : 0, assist, _modeToWrite(), 0, 0, 0, 0, 0];
