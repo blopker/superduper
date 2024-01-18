@@ -323,25 +323,17 @@ class BikePageState extends ConsumerState<BikePage> {
   }
 
   IconData _getBatteryIcon(double batteryPercentage) {
-    if (batteryPercentage >= 95) {
-      return Icons.battery_full;
-    } else if (batteryPercentage >= 80) {
-      return Icons.battery_6_bar;
-    } else if (batteryPercentage >= 60) {
-      return Icons.battery_5_bar;
-    } else if (batteryPercentage >= 50) {
-      return Icons.battery_4_bar;
-    } else if (batteryPercentage >= 35) {
-      return Icons.battery_3_bar;
-    } else if (batteryPercentage >= 20) {
-      return Icons.battery_2_bar;
-    } else if (batteryPercentage >= 5) {
-      return Icons.battery_1_bar;
-    }else if (batteryPercentage >= 0) {
-      return Icons.battery_0_bar;
-    } else {
-      return Icons.battery_alert; // Default battery alert icon
-    }
+    return switch (batteryPercentage) {
+      >= 95 => Icons.battery_full,
+      >= 80 => Icons.battery_6_bar,
+      >= 60 => Icons.battery_5_bar,
+      >= 50 => Icons.battery_4_bar,
+      >= 35 => Icons.battery_3_bar,
+      >= 20 => Icons.battery_2_bar,
+      >= 5 => Icons.battery_1_bar,
+      >= 0 => Icons.battery_0_bar,
+      _ => Icons.battery_alert,
+    };
   }
 }
 
