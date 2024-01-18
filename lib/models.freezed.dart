@@ -31,6 +31,8 @@ mixin _$BikeState {
   BikeRegion? get region => throw _privateConstructorUsedError;
   bool get modeLock => throw _privateConstructorUsedError;
   bool get selected => throw _privateConstructorUsedError;
+  double get speed => throw _privateConstructorUsedError;
+  double get battery => throw _privateConstructorUsedError;
   int get color => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -56,6 +58,8 @@ abstract class $BikeStateCopyWith<$Res> {
       BikeRegion? region,
       bool modeLock,
       bool selected,
+      double speed,
+      double battery,
       int color});
 }
 
@@ -83,6 +87,8 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? speed = null,
+    Object? battery = null,
     Object? color = null,
   }) {
     return _then(_value.copyWith(
@@ -130,6 +136,14 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      speed: null == speed
+          ? _value.speed
+          : speed // ignore: cast_nullable_to_non_nullable
+              as double,
+      battery: null == battery
+          ? _value.battery
+          : battery // ignore: cast_nullable_to_non_nullable
+              as double,
       color: null == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
@@ -158,6 +172,8 @@ abstract class _$$BikeStateImplCopyWith<$Res>
       BikeRegion? region,
       bool modeLock,
       bool selected,
+      double speed,
+      double battery,
       int color});
 }
 
@@ -183,6 +199,8 @@ class __$$BikeStateImplCopyWithImpl<$Res>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? speed = null,
+    Object? battery = null,
     Object? color = null,
   }) {
     return _then(_$BikeStateImpl(
@@ -230,6 +248,14 @@ class __$$BikeStateImplCopyWithImpl<$Res>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      speed: null == speed
+          ? _value.speed
+          : speed // ignore: cast_nullable_to_non_nullable
+              as double,
+      battery: null == battery
+          ? _value.battery
+          : battery // ignore: cast_nullable_to_non_nullable
+              as double,
       color: null == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
@@ -253,6 +279,8 @@ class _$BikeStateImpl extends _BikeState {
       this.region,
       this.modeLock = false,
       this.selected = false,
+      required this.speed,
+      required this.battery,
       this.color = 0})
       : assert(mode <= 3),
         assert(mode >= 0),
@@ -292,12 +320,16 @@ class _$BikeStateImpl extends _BikeState {
   @JsonKey()
   final bool selected;
   @override
+  final double speed;
+  @override
+  final double battery;
+  @override
   @JsonKey()
   final int color;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected, color: $color)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected, speed: $speed, battery: $battery, color: $color)';
   }
 
   @override
@@ -321,6 +353,8 @@ class _$BikeStateImpl extends _BikeState {
                 other.modeLock == modeLock) &&
             (identical(other.selected, selected) ||
                 other.selected == selected) &&
+            (identical(other.speed, speed) || other.speed == speed) &&
+            (identical(other.battery, battery) || other.battery == battery) &&
             (identical(other.color, color) || other.color == color));
   }
 
@@ -339,6 +373,8 @@ class _$BikeStateImpl extends _BikeState {
       region,
       modeLock,
       selected,
+      speed,
+      battery,
       color);
 
   @JsonKey(ignore: true)
@@ -368,6 +404,8 @@ abstract class _BikeState extends BikeState {
       final BikeRegion? region,
       final bool modeLock,
       final bool selected,
+      required final double speed,
+      required final double battery,
       final int color}) = _$BikeStateImpl;
   const _BikeState._() : super._();
 
@@ -396,6 +434,10 @@ abstract class _BikeState extends BikeState {
   bool get modeLock;
   @override
   bool get selected;
+  @override
+  double get speed;
+  @override
+  double get battery;
   @override
   int get color;
   @override
