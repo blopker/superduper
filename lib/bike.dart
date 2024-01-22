@@ -144,8 +144,6 @@ class BikePage extends ConsumerStatefulWidget {
   @override
   BikePageState createState() => BikePageState();
 }
-bool displayInKmph = true;
-bool displayInPercentage = true;
 
 class BikePageState extends ConsumerState<BikePage> {
   @override
@@ -232,13 +230,10 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: displayInPercentage ? '${bike.battery} %' : '${_calculateVoltage(bike.battery)} V',
+                          metric: '${bike.battery} %',
                           titleIcon: _getBatteryIcon(bike.battery),
                           selected: false,
                           onTap: () {
-                            setState(() {
-                              displayInPercentage = !displayInPercentage;
-                            });
                           },
                         ),
                       ),
@@ -249,13 +244,10 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: displayInKmph ? '${bike.speed} km/h' : '${_kmToMiles(bike.speed)} mph',
+                          metric: '${bike.speedKM} km/h',
                           titleIcon: Icons.speed,
                           selected: false,
                           onTap: () {
-                            setState(() {
-                              displayInKmph = !displayInKmph;
-                            });
                           },
                         ),
                       ),
@@ -301,26 +293,6 @@ class BikePageState extends ConsumerState<BikePage> {
               ]))),
     );
   }
-  double _kmToMiles(double km) {
-    // Conversion factor from km to miles
-    const double conversionFactor = 0.621371;
-    double miles = km * conversionFactor;
-    return double.parse(miles.toStringAsFixed(1));
-  }
-  double _calculateVoltage(double batteryPercentage) {
-    // Conversion factors for battery voltage
-    const double maxVoltage = 4.2;
-    const double minVoltage = 3.0;
-
-    //All super73 are current 48V batteries with 13 cells
-    const double cells = 13;
-
-    // Calculate voltage using linear interpolation
-    double voltage = (minVoltage + (maxVoltage - minVoltage) * (batteryPercentage / 100.0)) * cells;
-
-    // Round to two decimal places
-    return double.parse(voltage.toStringAsFixed(2));
-  }
 
   IconData _getBatteryIcon(double batteryPercentage) {
     return switch (batteryPercentage) {
@@ -335,6 +307,7 @@ class BikePageState extends ConsumerState<BikePage> {
       _ => Icons.battery_alert,
     };
   }
+
 }
 
 class ConnectionWidget extends ConsumerWidget {
