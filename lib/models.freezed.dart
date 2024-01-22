@@ -344,11 +344,11 @@ class _$BikeStateImpl extends _BikeState {
       this.region,
       this.modeLock = false,
       this.selected = false,
-      required this.speedKM,
-      required this.speedMI,
-      required this.range,
-      required this.battery,
-      required this.voltage,
+      this.speedKM = 0,
+      this.speedMI = 0,
+      this.range = 0,
+      this.battery = 0,
+      this.voltage = 0,
       this.color = 0,
       this.speedMetric = 'metric',
       this.batteryMetric = 'percent'})
@@ -402,14 +402,19 @@ class _$BikeStateImpl extends _BikeState {
   @JsonKey()
   final bool selected;
   @override
+  @JsonKey()
   final double speedKM;
   @override
+  @JsonKey()
   final double speedMI;
   @override
+  @JsonKey()
   final int range;
   @override
+  @JsonKey()
   final double battery;
   @override
+  @JsonKey()
   final double voltage;
   @override
   @JsonKey()
@@ -511,11 +516,11 @@ abstract class _BikeState extends BikeState {
       final BikeRegion? region,
       final bool modeLock,
       final bool selected,
-      required final double speedKM,
-      required final double speedMI,
-      required final int range,
-      required final double battery,
-      required final double voltage,
+      final double speedKM,
+      final double speedMI,
+      final int range,
+      final double battery,
+      final double voltage,
       final int color,
       final String speedMetric,
       final String batteryMetric}) = _$BikeStateImpl;
