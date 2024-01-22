@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:superduper/names.dart';
-import 'package:superduper/repository.dart';
 
 part 'models.freezed.dart';
 part 'models.g.dart';
@@ -35,6 +34,8 @@ class BikeState with _$BikeState {
   @Assert('battery <= 100')
   @Assert('voltage >= 0') //Your battery is dead
   @Assert('voltage <= 55') //Your battery is in danger of exploding
+  @Assert('speedMetric == "metric" || speedMetric == "imperial"')
+  @Assert('batteryMetric == "percent" || batteryMetric == "voltage"')
   const factory BikeState(
       {required String id,
       required int mode,
@@ -52,7 +53,9 @@ class BikeState with _$BikeState {
       required int range,
       required double battery,
       required double voltage,
-      @Default(0) int color}) = _BikeState;
+      @Default(0) int color,
+      @Default('metric') String speedMetric,
+      @Default('percent') String batteryMetric}) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>
       _$BikeStateFromJson(json);
@@ -66,16 +69,11 @@ class BikeState with _$BikeState {
     //SETTINGS	0x03	0x00
     //RIDE	    0x02	0x03
     //MOTION	  0x02  0x01
-    const lightIdx = 4;
-    const modeIdx = 5;
-    const assistIdx = 2;
-    final region = _guessRegion(SETTINGS[modeIdx]);
-    final newmode = _modeFromRead(SETTINGS[modeIdx]);
     return copyWith(
-      light: SETTINGS[lightIdx] == 1,
-      mode: newmode,
-      assist: SETTINGS[assistIdx],
-      region: region,
+      light: SETTINGS[4] == 1,
+      mode: _modeFromRead(SETTINGS[5]),
+      assist: SETTINGS[2],
+      region: _guessRegion(SETTINGS[5]),
       speedKM: _speedKM(MOTION),
       speedMI: _speedMI(MOTION),
       range: _currentRange(RIDE),

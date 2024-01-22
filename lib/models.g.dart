@@ -25,6 +25,8 @@ _$BikeStateImpl _$$BikeStateImplFromJson(Map<String, dynamic> json) =>
       battery: (json['battery'] as num).toDouble(),
       voltage: (json['voltage'] as num).toDouble(),
       color: json['color'] as int? ?? 0,
+      speedMetric: json['speedMetric'] as String? ?? 'metric',
+      batteryMetric: json['batteryMetric'] as String? ?? 'percent',
     );
 
 Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
@@ -46,6 +48,8 @@ Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
       'battery': instance.battery,
       'voltage': instance.voltage,
       'color': instance.color,
+      'speedMetric': instance.speedMetric,
+      'batteryMetric': instance.batteryMetric,
     };
 
 const _$BikeRegionEnumMap = {

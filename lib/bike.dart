@@ -134,6 +134,22 @@ class Bike extends _$Bike {
   void deleteStateData(BikeState bike) {
     ref.read(databaseProvider).deleteBike(bike);
   }
+
+  void toggleSpeedMetric() async {
+    if (state.speedMetric == 'metric') {
+      writeStateData(state.copyWith(speedMetric: 'imperial'), saveToBike: false);
+    } else {
+      writeStateData(state.copyWith(speedMetric: 'metric'), saveToBike: false);
+    }
+  }
+
+  void toggleBatteryMetric() async {
+    if (state.batteryMetric == 'percent') {
+      writeStateData(state.copyWith(batteryMetric: 'voltage'), saveToBike: false);
+    } else {
+      writeStateData(state.copyWith(batteryMetric: 'percent'), saveToBike: false);
+    }
+  }
 }
 
 class BikePage extends ConsumerStatefulWidget {
@@ -230,10 +246,13 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: '${bike.battery} %',
+                          metric: bike.batteryMetric == 'percent'
+                              ? '${bike.battery.toDouble()} %'
+                              : '${bike.voltage.toDouble()} V',
                           titleIcon: _getBatteryIcon(bike.battery),
                           selected: false,
                           onTap: () {
+                            bikeControl.toggleBatteryMetric();
                           },
                         ),
                       ),
@@ -244,10 +263,13 @@ class BikePageState extends ConsumerState<BikePage> {
                         child: DiscoverCard(
                           colorIndex: bike.color,
                           title: "",
-                          metric: '${bike.speedKM} km/h',
+                          metric: bike.speedMetric == 'metric'
+                              ? '${bike.speedKM} km/h'
+                              : '${bike.speedMI} mph',
                           titleIcon: Icons.speed,
                           selected: false,
                           onTap: () {
+                            bikeControl.toggleSpeedMetric();
                           },
                         ),
                       ),
