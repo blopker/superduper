@@ -223,7 +223,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                   onTap: () async {
                     if (await _showMyDialog() ?? false) {
                       bikeNotifier.deleteStateData(widget.bike);
-                      if (mounted) {
+                      if (context.mounted) {
                         Navigator.pop(context);
                       }
                     }
@@ -264,31 +264,29 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
   final answer = await showModalBottomSheet<int>(
     context: context,
     builder: (BuildContext context) {
-      return Container(
-        child: ListView.builder(
-          itemCount: colors.length,
-          itemBuilder: (BuildContext context, int index) {
-            return ListTile(
-              title: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26),
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(colors[index].start),
-                      Color(colors[index].end),
-                    ],
-                    begin: Alignment.bottomLeft,
-                    end: Alignment.topRight,
-                  ),
+      return ListView.builder(
+        itemCount: colors.length,
+        itemBuilder: (BuildContext context, int index) {
+          return ListTile(
+            title: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                gradient: LinearGradient(
+                  colors: [
+                    Color(colors[index].start),
+                    Color(colors[index].end),
+                  ],
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
                 ),
               ),
-              onTap: () {
-                Navigator.pop(context, index); // return the color index
-              },
-            );
-          },
-        ),
+            ),
+            onTap: () {
+              Navigator.pop(context, index); // return the color index
+            },
+          );
+        },
       );
     },
   );
