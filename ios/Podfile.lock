@@ -7,9 +7,9 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - permission_handler_apple (9.1.1):
+  - permission_handler_apple (9.3.0):
     - Flutter
-  - Protobuf (3.25.1)
+  - Protobuf (3.25.3)
   - reactive_ble_mobile (0.0.1):
     - Flutter
     - Protobuf (~> 3.5)
@@ -56,16 +56,16 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   device_info_plus: c6fb39579d0f423935b0c9ce7ee2f44b71b9fce6
-  Flutter: f04841e97a9d0b0a8025694d0796dd46242b2854
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_foreground_task: 21ef182ab0a29a3005cc72cd70e5f45cb7f7f817
-  path_provider_foundation: 29f094ae23ebbca9d3d0cec13889cd9060c0e943
-  permission_handler_apple: e76247795d700c14ea09e3a2d8855d41ee80a2e6
-  Protobuf: d94761c33f1239c0a43a0817ca1a5f7f7c900241
+  path_provider_foundation: 3784922295ac71e43754bd15e0653ccfd36a147c
+  permission_handler_apple: 036b856153a2b1f61f21030ff725f3e6fece2b78
+  Protobuf: 8e9074797a13c484a79959fdb819ef4ae6da7dbe
   reactive_ble_mobile: 9ce6723d37ccf701dbffd202d487f23f5de03b4c
-  shared_preferences_foundation: 5b919d13b803cadd15ed2dc053125c68730e5126
+  shared_preferences_foundation: b4c3b4cddf1c21f02770737f147a3f5da9d39695
   SwiftProtobuf: 407a385e97fd206c4fbe880cc84123989167e0d1
-  url_launcher_ios: bf5ce03e0e2088bad9cc378ea97fa0ed5b49673b
+  url_launcher_ios: bbd758c6e7f9fd7b5b1d4cde34d2b95fcce5e812
 
-PODFILE CHECKSUM: ef19549a9bc3046e7bb7d2fab4d021637c0c58a3
+PODFILE CHECKSUM: c4c93c5f6502fe2754f48404d3594bf779584011
 
-COCOAPODS: 1.14.3
+COCOAPODS: 1.15.2
