@@ -31,7 +31,14 @@ mixin _$BikeState {
   BikeRegion? get region => throw _privateConstructorUsedError;
   bool get modeLock => throw _privateConstructorUsedError;
   bool get selected => throw _privateConstructorUsedError;
+  double get speedKM => throw _privateConstructorUsedError;
+  double get speedMI => throw _privateConstructorUsedError;
+  int get range => throw _privateConstructorUsedError;
+  double get battery => throw _privateConstructorUsedError;
+  double get voltage => throw _privateConstructorUsedError;
   int get color => throw _privateConstructorUsedError;
+  String get speedMetric => throw _privateConstructorUsedError;
+  String get batteryMetric => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -56,7 +63,14 @@ abstract class $BikeStateCopyWith<$Res> {
       BikeRegion? region,
       bool modeLock,
       bool selected,
-      int color});
+      double speedKM,
+      double speedMI,
+      int range,
+      double battery,
+      double voltage,
+      int color,
+      String speedMetric,
+      String batteryMetric});
 }
 
 /// @nodoc
@@ -83,7 +97,14 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? speedKM = null,
+    Object? speedMI = null,
+    Object? range = null,
+    Object? battery = null,
+    Object? voltage = null,
     Object? color = null,
+    Object? speedMetric = null,
+    Object? batteryMetric = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -130,10 +151,38 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      speedKM: null == speedKM
+          ? _value.speedKM
+          : speedKM // ignore: cast_nullable_to_non_nullable
+              as double,
+      speedMI: null == speedMI
+          ? _value.speedMI
+          : speedMI // ignore: cast_nullable_to_non_nullable
+              as double,
+      range: null == range
+          ? _value.range
+          : range // ignore: cast_nullable_to_non_nullable
+              as int,
+      battery: null == battery
+          ? _value.battery
+          : battery // ignore: cast_nullable_to_non_nullable
+              as double,
+      voltage: null == voltage
+          ? _value.voltage
+          : voltage // ignore: cast_nullable_to_non_nullable
+              as double,
       color: null == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
+      speedMetric: null == speedMetric
+          ? _value.speedMetric
+          : speedMetric // ignore: cast_nullable_to_non_nullable
+              as String,
+      batteryMetric: null == batteryMetric
+          ? _value.batteryMetric
+          : batteryMetric // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -158,7 +207,14 @@ abstract class _$$BikeStateImplCopyWith<$Res>
       BikeRegion? region,
       bool modeLock,
       bool selected,
-      int color});
+      double speedKM,
+      double speedMI,
+      int range,
+      double battery,
+      double voltage,
+      int color,
+      String speedMetric,
+      String batteryMetric});
 }
 
 /// @nodoc
@@ -183,7 +239,14 @@ class __$$BikeStateImplCopyWithImpl<$Res>
     Object? region = freezed,
     Object? modeLock = null,
     Object? selected = null,
+    Object? speedKM = null,
+    Object? speedMI = null,
+    Object? range = null,
+    Object? battery = null,
+    Object? voltage = null,
     Object? color = null,
+    Object? speedMetric = null,
+    Object? batteryMetric = null,
   }) {
     return _then(_$BikeStateImpl(
       id: null == id
@@ -230,10 +293,38 @@ class __$$BikeStateImplCopyWithImpl<$Res>
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as bool,
+      speedKM: null == speedKM
+          ? _value.speedKM
+          : speedKM // ignore: cast_nullable_to_non_nullable
+              as double,
+      speedMI: null == speedMI
+          ? _value.speedMI
+          : speedMI // ignore: cast_nullable_to_non_nullable
+              as double,
+      range: null == range
+          ? _value.range
+          : range // ignore: cast_nullable_to_non_nullable
+              as int,
+      battery: null == battery
+          ? _value.battery
+          : battery // ignore: cast_nullable_to_non_nullable
+              as double,
+      voltage: null == voltage
+          ? _value.voltage
+          : voltage // ignore: cast_nullable_to_non_nullable
+              as double,
       color: null == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
+      speedMetric: null == speedMetric
+          ? _value.speedMetric
+          : speedMetric // ignore: cast_nullable_to_non_nullable
+              as String,
+      batteryMetric: null == batteryMetric
+          ? _value.batteryMetric
+          : batteryMetric // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -253,12 +344,31 @@ class _$BikeStateImpl extends _BikeState {
       this.region,
       this.modeLock = false,
       this.selected = false,
-      this.color = 0})
+      this.speedKM = 0,
+      this.speedMI = 0,
+      this.range = 0,
+      this.battery = 0,
+      this.voltage = 0,
+      this.color = 0,
+      this.speedMetric = 'metric',
+      this.batteryMetric = 'percent'})
       : assert(mode <= 3),
         assert(mode >= 0),
         assert(assist >= 0),
         assert(assist <= 4),
         assert(color >= 0),
+        assert(speedKM >= 0),
+        assert(speedKM <= 100),
+        assert(speedMI >= 0),
+        assert(speedMI <= 100),
+        assert(range >= 0),
+        assert(range <= 65),
+        assert(battery >= 0),
+        assert(battery <= 100),
+        assert(voltage >= 0),
+        assert(voltage <= 55),
+        assert(speedMetric == "metric" || speedMetric == "imperial"),
+        assert(batteryMetric == "percent" || batteryMetric == "voltage"),
         super._();
 
   factory _$BikeStateImpl.fromJson(Map<String, dynamic> json) =>
@@ -293,11 +403,32 @@ class _$BikeStateImpl extends _BikeState {
   final bool selected;
   @override
   @JsonKey()
+  final double speedKM;
+  @override
+  @JsonKey()
+  final double speedMI;
+  @override
+  @JsonKey()
+  final int range;
+  @override
+  @JsonKey()
+  final double battery;
+  @override
+  @JsonKey()
+  final double voltage;
+  @override
+  @JsonKey()
   final int color;
+  @override
+  @JsonKey()
+  final String speedMetric;
+  @override
+  @JsonKey()
+  final String batteryMetric;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected, color: $color)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, selected: $selected, speedKM: $speedKM, speedMI: $speedMI, range: $range, battery: $battery, voltage: $voltage, color: $color, speedMetric: $speedMetric, batteryMetric: $batteryMetric)';
   }
 
   @override
@@ -321,25 +452,42 @@ class _$BikeStateImpl extends _BikeState {
                 other.modeLock == modeLock) &&
             (identical(other.selected, selected) ||
                 other.selected == selected) &&
-            (identical(other.color, color) || other.color == color));
+            (identical(other.speedKM, speedKM) || other.speedKM == speedKM) &&
+            (identical(other.speedMI, speedMI) || other.speedMI == speedMI) &&
+            (identical(other.range, range) || other.range == range) &&
+            (identical(other.battery, battery) || other.battery == battery) &&
+            (identical(other.voltage, voltage) || other.voltage == voltage) &&
+            (identical(other.color, color) || other.color == color) &&
+            (identical(other.speedMetric, speedMetric) ||
+                other.speedMetric == speedMetric) &&
+            (identical(other.batteryMetric, batteryMetric) ||
+                other.batteryMetric == batteryMetric));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      mode,
-      modeLocked,
-      light,
-      lightLocked,
-      assist,
-      assistLocked,
-      name,
-      region,
-      modeLock,
-      selected,
-      color);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        mode,
+        modeLocked,
+        light,
+        lightLocked,
+        assist,
+        assistLocked,
+        name,
+        region,
+        modeLock,
+        selected,
+        speedKM,
+        speedMI,
+        range,
+        battery,
+        voltage,
+        color,
+        speedMetric,
+        batteryMetric
+      ]);
 
   @JsonKey(ignore: true)
   @override
@@ -368,7 +516,14 @@ abstract class _BikeState extends BikeState {
       final BikeRegion? region,
       final bool modeLock,
       final bool selected,
-      final int color}) = _$BikeStateImpl;
+      final double speedKM,
+      final double speedMI,
+      final int range,
+      final double battery,
+      final double voltage,
+      final int color,
+      final String speedMetric,
+      final String batteryMetric}) = _$BikeStateImpl;
   const _BikeState._() : super._();
 
   factory _BikeState.fromJson(Map<String, dynamic> json) =
@@ -397,7 +552,21 @@ abstract class _BikeState extends BikeState {
   @override
   bool get selected;
   @override
+  double get speedKM;
+  @override
+  double get speedMI;
+  @override
+  int get range;
+  @override
+  double get battery;
+  @override
+  double get voltage;
+  @override
   int get color;
+  @override
+  String get speedMetric;
+  @override
+  String get batteryMetric;
   @override
   @JsonKey(ignore: true)
   _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>

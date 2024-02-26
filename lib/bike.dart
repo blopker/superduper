@@ -30,7 +30,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       updateStateData();
     });
     var bike = ref.watch(databaseProvider).getBike(id);
@@ -46,18 +46,25 @@ class Bike extends _$Bike {
       return;
     }
     if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
-    _updateDebounce = Timer(const Duration(seconds: 2), () async {
-      var data = await ref
+    _updateDebounce = Timer(const Duration(milliseconds: 1500), () async {
+      var RIDE = await ref
           .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id);
-      if (data == null || data.isEmpty) {
+          .readCurrentState(state.id, [2, 3]);
+      var MOTION = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, [2, 1]);
+      var SETTINGS = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, [3, 0]);
+      if (SETTINGS == null || SETTINGS.isEmpty || RIDE == null || RIDE.isEmpty || MOTION == null || MOTION.isEmpty) {
         return;
       }
-      var newState = state.updateFromData(data);
+
+      var newState = state.updateFromData(SETTINGS, RIDE, MOTION);
       if (newState == state && !force) {
         return;
       }
-      debugPrint('state update $data');
+      debugPrint('state update $SETTINGS $RIDE $MOTION');
       if (state.lightLocked && state.light != newState.light) {
         newState = newState.copyWith(light: state.light);
       }
@@ -74,6 +81,7 @@ class Bike extends _$Bike {
   }
 
   void writeStateData(BikeState newState, {saveToBike = true}) {
+    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
@@ -126,10 +134,27 @@ class Bike extends _$Bike {
   void deleteStateData(BikeState bike) {
     ref.read(databaseProvider).deleteBike(bike);
   }
+
+  void toggleSpeedMetric() async {
+    if (state.speedMetric == 'metric') {
+      writeStateData(state.copyWith(speedMetric: 'imperial'), saveToBike: false);
+    } else {
+      writeStateData(state.copyWith(speedMetric: 'metric'), saveToBike: false);
+    }
+  }
+
+  void toggleBatteryMetric() async {
+    if (state.batteryMetric == 'percent') {
+      writeStateData(state.copyWith(batteryMetric: 'voltage'), saveToBike: false);
+    } else {
+      writeStateData(state.copyWith(batteryMetric: 'percent'), saveToBike: false);
+    }
+  }
 }
 
 class BikePage extends ConsumerStatefulWidget {
   const BikePage({super.key, required this.bikeID});
+
   final String bikeID;
 
   @override
@@ -213,6 +238,44 @@ class BikePageState extends ConsumerState<BikePage> {
                     const ConnectionWidget()
                   ],
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 8.0, top: 20.0),
+                        child: DiscoverCard(
+                          colorIndex: bike.color,
+                          title: "",
+                          metric: bike.batteryMetric == 'percent'
+                              ? '${bike.battery.toDouble()} %'
+                              : '${bike.voltage.toDouble()} V',
+                          titleIcon: _getBatteryIcon(bike.battery),
+                          selected: false,
+                          onTap: () {
+                            bikeControl.toggleBatteryMetric();
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 8.0, top: 20.0),
+                        child: DiscoverCard(
+                          colorIndex: bike.color,
+                          title: "",
+                          metric: bike.speedMetric == 'metric'
+                              ? '${bike.speedKM} km/h'
+                              : '${bike.speedMI} mph',
+                          titleIcon: Icons.speed,
+                          selected: false,
+                          onTap: () {
+                            bikeControl.toggleSpeedMetric();
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 LightControlWidget(
                   bike: bike,
                 ),
@@ -252,6 +315,21 @@ class BikePageState extends ConsumerState<BikePage> {
               ]))),
     );
   }
+
+  IconData _getBatteryIcon(double batteryPercentage) {
+    return switch (batteryPercentage) {
+      >= 95 => Icons.battery_full,
+      >= 80 => Icons.battery_6_bar,
+      >= 60 => Icons.battery_5_bar,
+      >= 50 => Icons.battery_4_bar,
+      >= 35 => Icons.battery_3_bar,
+      >= 20 => Icons.battery_2_bar,
+      >= 5 => Icons.battery_1_bar,
+      >= 0 => Icons.battery_0_bar,
+      _ => Icons.battery_alert,
+    };
+  }
+
 }
 
 class ConnectionWidget extends ConsumerWidget {
@@ -319,6 +397,7 @@ class LightControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Light",
               metric: bike.light ? "On" : "Off",
+              titleIcon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
               selected: bike.light,
               onTap: () {
                 bikeControl.toggleLight();
@@ -351,6 +430,7 @@ class ModeControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Mode",
               metric: bike.viewMode,
+              titleIcon: Icons.electric_bike,
               selected: bike.viewMode == '1' ? false : true,
               onTap: () {
                 bikeControl.toggleMode();
@@ -379,6 +459,7 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             title: "Background Lock",
             metric: bike.modeLock ? "On" : "Off",
+            titleIcon: Icons.phonelink_lock,
             selected: bike.modeLock,
             colorIndex: bike.color,
             onTap: () async {
@@ -419,6 +500,7 @@ class AssistControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
+              titleIcon: Icons.admin_panel_settings_outlined,
               selected: bike.assist == 0 ? false : true,
               onTap: () {
                 bikeControl.toggleAssist();

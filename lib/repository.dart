@@ -180,7 +180,7 @@ class BluetoothRepository {
     return null;
   }
 
-  Future<List<int>?> readCurrentState(String deviceId) async {
+  Future<List<int>?> readCurrentState(String deviceId, currentStateId) async {
     // Set the char register to the right mode to get the current state.
     await write(deviceId,
         data: currentStateId,

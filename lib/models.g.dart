@@ -19,7 +19,14 @@ _$BikeStateImpl _$$BikeStateImplFromJson(Map<String, dynamic> json) =>
       region: $enumDecodeNullable(_$BikeRegionEnumMap, json['region']),
       modeLock: json['modeLock'] as bool? ?? false,
       selected: json['selected'] as bool? ?? false,
+      speedKM: (json['speedKM'] as num?)?.toDouble() ?? 0,
+      speedMI: (json['speedMI'] as num?)?.toDouble() ?? 0,
+      range: json['range'] as int? ?? 0,
+      battery: (json['battery'] as num?)?.toDouble() ?? 0,
+      voltage: (json['voltage'] as num?)?.toDouble() ?? 0,
       color: json['color'] as int? ?? 0,
+      speedMetric: json['speedMetric'] as String? ?? 'metric',
+      batteryMetric: json['batteryMetric'] as String? ?? 'percent',
     );
 
 Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
@@ -35,7 +42,14 @@ Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
       'region': _$BikeRegionEnumMap[instance.region],
       'modeLock': instance.modeLock,
       'selected': instance.selected,
+      'speedKM': instance.speedKM,
+      'speedMI': instance.speedMI,
+      'range': instance.range,
+      'battery': instance.battery,
+      'voltage': instance.voltage,
       'color': instance.color,
+      'speedMetric': instance.speedMetric,
+      'batteryMetric': instance.batteryMetric,
     };
 
 const _$BikeRegionEnumMap = {
