@@ -319,6 +319,7 @@ class LightControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Light",
               metric: bike.light ? "On" : "Off",
+              titleIcon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
               selected: bike.light,
               onTap: () {
                 bikeControl.toggleLight();
@@ -351,6 +352,7 @@ class ModeControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Mode",
               metric: bike.viewMode,
+              titleIcon: Icons.electric_bike,
               selected: bike.viewMode == '1' ? false : true,
               onTap: () {
                 bikeControl.toggleMode();
@@ -379,6 +381,7 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             title: "Background Lock",
             metric: bike.modeLock ? "On" : "Off",
+            titleIcon: Icons.phonelink_lock,
             selected: bike.modeLock,
             colorIndex: bike.color,
             onTap: () async {
@@ -419,6 +422,7 @@ class AssistControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
+              titleIcon: Icons.admin_panel_settings_outlined,
               selected: bike.assist == 0 ? false : true,
               onTap: () {
                 bikeControl.toggleAssist();

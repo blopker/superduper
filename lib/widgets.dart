@@ -14,6 +14,8 @@ class DiscoverCard extends StatelessWidget {
   final Function()? onLongPress;
   final String? tag;
   final bool selected;
+  final IconData? titleIcon;
+
   const DiscoverCard(
       {super.key,
       this.title,
@@ -27,7 +29,8 @@ class DiscoverCard extends StatelessWidget {
       this.tag,
       this.metric,
       this.colorIndex = 0,
-      this.selected = true});
+      this.selected = true,
+      this.titleIcon});
 
   @override
   Widget build(BuildContext context) {
@@ -71,13 +74,20 @@ class DiscoverCard extends StatelessWidget {
                           color: Colors.transparent,
                           child: Row(
                             children: [
-                              Text(
-                                title!,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(
-                                width: 10,
-                              ),
+                              if (titleIcon != null) // Check if there's an icon
+                                Icon(
+                                  titleIcon,
+                                  size: 24, // Adjust the size as needed
+                                  color: Colors.white,
+                                ),
+                              if (titleIcon !=
+                                  null) // Add spacing if there's an icon
+                                const SizedBox(width: 10),
+                              if (title != null)
+                                Text(
+                                  title!,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
                             ],
                           ),
                         ),
