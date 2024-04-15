@@ -23,6 +23,7 @@ part 'bike.g.dart';
 class Bike extends _$Bike {
   Timer? _updateDebounce;
   Timer? _updateTimer;
+  bool _writing = false;
 
   @override
   BikeState build(String id) {
@@ -30,9 +31,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      updateStateData();
-    });
+    _resetReadTimer();
     var bike = ref.watch(databaseProvider).getBike(id);
     if (bike != null) {
       return bike;
@@ -40,13 +39,32 @@ class Bike extends _$Bike {
     return BikeState.defaultState(id);
   }
 
+  _resetReadTimer() {
+    if (_updateTimer?.isActive ?? false) {
+      _updateTimer?.cancel();
+    }
+    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_writing) {
+        return;
+      }
+      updateStateData();
+    });
+  }
+
+  _resetDebounce() {
+    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
+    _resetReadTimer();
+  }
+
   Future<void> updateStateData({force = false}) async {
     var status = ref.read(connectionStatusProvider);
     if (status != DeviceConnectionState.connected) {
       return;
     }
-    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
+    _resetDebounce();
+    _writing = false;
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
+      _resetReadTimer();
       var data = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id);
@@ -73,7 +91,8 @@ class Bike extends _$Bike {
     });
   }
 
-  void writeStateData(BikeState newState, {saveToBike = true}) {
+  void writeStateData(BikeState newState, {saveToBike = true}) async {
+    _resetDebounce();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
@@ -82,9 +101,9 @@ class Bike extends _$Bike {
       if (status != DeviceConnectionState.connected) {
         return;
       }
-      ref
-          .read(bluetoothRepositoryProvider)
-          .write(newState.id, data: newState.toWriteData());
+      _writing = true;
+      final repo = ref.read(bluetoothRepositoryProvider);
+      await repo.write(newState.id, data: newState.toWriteData());
     }
     ref.read(databaseProvider).addBike(newState);
     state = newState;
@@ -225,7 +244,6 @@ class BikePageState extends ConsumerState<BikePage> {
                 Center(
                   child: Column(
                     children: [
-                      const SizedBox(height: 10),
                       InkWell(
                         onTap: () {
                           showModalBottomSheet<void>(
@@ -239,7 +257,7 @@ class BikePageState extends ConsumerState<BikePage> {
                           "Help",
                           style: Theme.of(context)
                               .textTheme
-                              .bodyMedium!
+                              .bodySmall!
                               .copyWith(color: const Color(0xff4A80F0)),
                         ),
                       ),
@@ -397,8 +415,11 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           height: 10,
         ),
         Text(
-          "Background Lock tries to keep your settings locked even when the app is closed. It may cause battery drain.",
-          style: Theme.of(context).textTheme.bodySmall,
+          "Background Lock may cause battery drain. See Help for more info.",
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall!
+              .copyWith(color: Colors.grey),
           textAlign: TextAlign.center,
         ),
       ],
@@ -422,7 +443,7 @@ class AssistControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
-              titleIcon: Icons.admin_panel_settings_outlined,
+              titleIcon: Icons.autorenew,
               selected: bike.assist == 0 ? false : true,
               onTap: () {
                 bikeControl.toggleAssist();

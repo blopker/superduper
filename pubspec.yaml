@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  device_info_plus: ^9.0.0
+  device_info_plus: ^10.0.0
   flutter_foreground_task: ^6.0.0
   flutter_markdown: ^0.6.13
   flutter_reactive_ble: ^5.0.3

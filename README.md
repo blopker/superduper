@@ -34,6 +34,8 @@ Make sure only one app is connected to the bike at a time. If you have the offic
 
 You can also try restarting the bike and your phone.
 
+Finally, older bike firmware may not be supported. Make sure your bike is up to date.
+
 ### How does Background Lock work and how is it different from the setting lock?
 
 The setting lock feature tells Superduper to ignore whatever the bike is set to and use the settings you have set in the app. This is useful for when the bike starts up and settings reset, like lights and mode. However, the app only enforces the setting lock when the app is open. If you close the app, the bike will go back to whatever settings it was set to. To use it, long press the setting button you want to lock.
