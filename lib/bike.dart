@@ -23,6 +23,7 @@ part 'bike.g.dart';
 class Bike extends _$Bike {
   Timer? _updateDebounce;
   Timer? _updateTimer;
+  bool _writing = false;
 
   @override
   BikeState build(String id) {
@@ -43,6 +44,9 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
     }
     _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_writing) {
+        return;
+      }
       updateStateData();
     });
   }
@@ -58,6 +62,7 @@ class Bike extends _$Bike {
       return;
     }
     _resetDebounce();
+    _writing = false;
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
       _resetReadTimer();
       var data = await ref
@@ -96,6 +101,7 @@ class Bike extends _$Bike {
       if (status != DeviceConnectionState.connected) {
         return;
       }
+      _writing = true;
       final repo = ref.read(bluetoothRepositoryProvider);
       await repo.write(newState.id, data: newState.toWriteData());
     }
