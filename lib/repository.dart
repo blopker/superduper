@@ -59,14 +59,14 @@ class ConnectionHandler {
       if (connectedId == event?.id) {
         return;
       }
-      disconect();
+      disconnect();
       connectedId = db.currentBike?.id;
       connect();
     });
     connectedId = db.currentBike?.id;
     Future.delayed(const Duration(seconds: 1), () => connect());
     reconnectTimer =
-        Timer.periodic(const Duration(seconds: 10), (t) => reconect());
+        Timer.periodic(const Duration(seconds: 10), (t) => reconnect());
   }
 
   void dispose() {
@@ -92,11 +92,11 @@ class ConnectionHandler {
     _connectionSub =
         ref.read(bluetoothRepositoryProvider).connect(id).listen((event) {
       connNotify.set(event.connectionState);
-      debugPrint("conectionSub: $event");
+      debugPrint("connectionSub: $event");
     });
   }
 
-  void reconect() {
+  void reconnect() {
     // print('reconnecting...');
     var conn = ref.read(connectionStatusProvider);
     if (connectedId != null && conn == DeviceConnectionState.disconnected) {
@@ -104,7 +104,7 @@ class ConnectionHandler {
     }
   }
 
-  void disconect() {
+  void disconnect() {
     connectedId = null;
     _connectionSub?.cancel();
     var connNotify = ref.read(connectionStatusProvider.notifier);
