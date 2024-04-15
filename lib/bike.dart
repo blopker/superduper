@@ -30,7 +30,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _setReadTimer();
+    _resetReadTimer();
     var bike = ref.watch(databaseProvider).getBike(id);
     if (bike != null) {
       return bike;
@@ -38,13 +38,18 @@ class Bike extends _$Bike {
     return BikeState.defaultState(id);
   }
 
-  _setReadTimer() {
+  _resetReadTimer() {
     if (_updateTimer?.isActive ?? false) {
       _updateTimer?.cancel();
     }
-    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       updateStateData();
     });
+  }
+
+  _resetDebounce() {
+    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
+    _resetReadTimer();
   }
 
   Future<void> updateStateData({force = false}) async {
@@ -52,9 +57,9 @@ class Bike extends _$Bike {
     if (status != DeviceConnectionState.connected) {
       return;
     }
-    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
+    _resetDebounce();
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
-      _setReadTimer();
+      _resetReadTimer();
       var data = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id);
@@ -81,7 +86,8 @@ class Bike extends _$Bike {
     });
   }
 
-  void writeStateData(BikeState newState, {saveToBike = true}) {
+  void writeStateData(BikeState newState, {saveToBike = true}) async {
+    _resetDebounce();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
@@ -90,9 +96,8 @@ class Bike extends _$Bike {
       if (status != DeviceConnectionState.connected) {
         return;
       }
-      ref
-          .read(bluetoothRepositoryProvider)
-          .write(newState.id, data: newState.toWriteData());
+      final repo = ref.read(bluetoothRepositoryProvider);
+      await repo.write(newState.id, data: newState.toWriteData());
     }
     ref.read(databaseProvider).addBike(newState);
     state = newState;
@@ -233,7 +238,6 @@ class BikePageState extends ConsumerState<BikePage> {
                 Center(
                   child: Column(
                     children: [
-                      const SizedBox(height: 10),
                       InkWell(
                         onTap: () {
                           showModalBottomSheet<void>(
@@ -247,7 +251,7 @@ class BikePageState extends ConsumerState<BikePage> {
                           "Help",
                           style: Theme.of(context)
                               .textTheme
-                              .bodyMedium!
+                              .bodySmall!
                               .copyWith(color: const Color(0xff4A80F0)),
                         ),
                       ),
@@ -405,8 +409,11 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           height: 10,
         ),
         Text(
-          "Background Lock tries to keep your settings locked even when the app is closed. It may cause battery drain.",
-          style: Theme.of(context).textTheme.bodySmall,
+          "Background Lock may cause battery drain. See Help for more info.",
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall!
+              .copyWith(color: Colors.grey),
           textAlign: TextAlign.center,
         ),
       ],

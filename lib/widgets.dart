@@ -43,10 +43,10 @@ class DiscoverCard extends StatelessWidget {
     }
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Ink(
+        child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
             gradient: LinearGradient(
