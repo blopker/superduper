@@ -437,7 +437,7 @@ class AssistControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "Assist",
               metric: bike.assist.toString(),
-              titleIcon: Icons.admin_panel_settings_outlined,
+              titleIcon: Icons.autorenew,
               selected: bike.assist == 0 ? false : true,
               onTap: () {
                 bikeControl.toggleAssist();
