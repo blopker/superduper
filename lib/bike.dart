@@ -74,6 +74,7 @@ class Bike extends _$Bike {
   }
 
   void writeStateData(BikeState newState, {saveToBike = true}) {
+    if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
