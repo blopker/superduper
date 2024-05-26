@@ -13,7 +13,7 @@ part 'repository.g.dart';
 
 @riverpod
 ConnectionHandler connectionHandler(ConnectionHandlerRef ref) =>
-    ConnectionHandler(ref, ref.watch(databaseProvider));
+    ConnectionHandler(ref);
 
 @riverpod
 class ConnectionStatus extends _$ConnectionStatus {
@@ -34,15 +34,14 @@ class ConnectionStatus extends _$ConnectionStatus {
 class ConnectionHandler {
   StreamSubscription<ConnectionStateUpdate>? _btStateSub;
   StreamSubscription<ConnectionStateUpdate>? _connectionSub;
-  StreamSubscription<BikeState?>? _currentSub;
-  Database db;
+  ProviderSubscription<BikeState?>? _currentSub;
 
   Timer? connectTimer;
   Timer? reconnectTimer;
   String? connectedId;
   Ref ref;
 
-  ConnectionHandler(this.ref, this.db) {
+  ConnectionHandler(this.ref) {
     debugPrint("CREATED ConnectionHandler");
     ref.onDispose(dispose);
     _btStateSub = ref
@@ -55,15 +54,15 @@ class ConnectionHandler {
         ref.read(connectionStatusProvider.notifier).set(event.connectionState);
       }
     });
-    _currentSub = db.watchCurrentBike().listen((event) {
-      if (connectedId == event?.id) {
+    _currentSub = ref.listen(currentBikeProvider, (prev, next) {
+      if (connectedId == next?.id) {
         return;
       }
       disconnect();
-      connectedId = db.currentBike?.id;
+      connectedId = next?.id;
       connect();
     });
-    connectedId = db.currentBike?.id;
+    connectedId = ref.read(currentBikeProvider)?.id;
     Future.delayed(const Duration(seconds: 1), () => connect());
     reconnectTimer =
         Timer.periodic(const Duration(seconds: 10), (t) => reconnect());
@@ -72,7 +71,7 @@ class ConnectionHandler {
   void dispose() {
     debugPrint("DISPOSE ConnectionHandler");
     _btStateSub?.cancel();
-    _currentSub?.cancel();
+    _currentSub?.close();
     connectTimer?.cancel();
     reconnectTimer?.cancel();
   }

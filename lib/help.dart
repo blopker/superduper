@@ -76,6 +76,7 @@ class HelpWidget extends StatelessWidget {
                           left: 20, right: 20, bottom: 20),
                       child: MarkdownBody(
                         styleSheet: MarkdownStyleSheet(
+                            textScaler: const TextScaler.linear(0.9),
                             h1Padding:
                                 const EdgeInsets.only(top: 10, bottom: 10),
                             h2Padding:

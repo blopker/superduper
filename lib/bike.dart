@@ -32,7 +32,7 @@ class Bike extends _$Bike {
       _updateDebounce?.cancel();
     });
     _resetReadTimer();
-    var bike = ref.watch(databaseProvider).getBike(id);
+    var bike = ref.watch(bikesDBProvider.notifier).getBike(id);
     if (bike != null) {
       return bike;
     }
@@ -105,7 +105,7 @@ class Bike extends _$Bike {
       final repo = ref.read(bluetoothRepositoryProvider);
       await repo.write(newState.id, data: newState.toWriteData());
     }
-    ref.read(databaseProvider).addBike(newState);
+    ref.read(bikesDBProvider.notifier).saveBike(newState);
     state = newState;
     updateStateData();
   }
@@ -143,7 +143,7 @@ class Bike extends _$Bike {
   }
 
   void deleteStateData(BikeState bike) {
-    ref.read(databaseProvider).deleteBike(bike);
+    ref.read(bikesDBProvider.notifier).deleteBike(bike);
   }
 }
 

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/bike.dart';
+import 'package:superduper/db.dart';
 import 'package:superduper/repository.dart';
-import 'package:superduper/saved_bike.dart';
 import 'package:superduper/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -28,12 +28,12 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
       });
     });
     var ble = ref.read(bluetoothRepositoryProvider);
-    var bikeList = ref.read(savedBikeListProvider.notifier);
+    var bikeList = ref.read(bikesDBProvider.notifier);
     scanStream = ble.scan()?.listen((device) async {
       if (device.name != 'SUPER${70 + 3}') {
         return;
       }
-      if (bikeList.hasBike(device.id)) {
+      if (bikeList.getBike(device.id) != null) {
         return;
       }
       if (foundBikes.any((element) => element.id == device.id)) {
@@ -54,9 +54,9 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
 
   @override
   Widget build(BuildContext context) {
-    var bikeList = ref.watch(savedBikeListProvider);
+    var bikeList = ref.watch(bikesDBProvider);
     var currentBike = ref.watch(currentBikeProvider);
-    var bikeNotifier = ref.watch(savedBikeListProvider.notifier);
+    var bikeNotifier = ref.watch(bikesDBProvider.notifier);
     var scanText = bleStatus == BleStatus.ready
         ? 'Searching...'
         : 'Enable Bluetooth to scan.';
@@ -183,7 +183,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     onTap: () {
-                      ref.read(savedBikeListProvider.notifier).unselect();
+                      ref.read(bikesDBProvider.notifier).selectBike(null);
                     },
                   ),
                 ),
