@@ -30,7 +30,7 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _resetReadTimer();
+    // _resetReadTimer();
     var bike = ref.watch(bikesDBProvider.notifier).getBike(id);
     if (bike != null) {
       return bike;
@@ -52,7 +52,7 @@ class Bike extends _$Bike {
 
   _resetDebounce() {
     if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
-    _resetReadTimer();
+    // _resetReadTimer();
   }
 
   Future<void> updateStateData({force = false}) async {
@@ -63,7 +63,7 @@ class Bike extends _$Bike {
     _resetDebounce();
     _writing = false;
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
-      _resetReadTimer();
+      // _resetReadTimer();
       var data = await ref
           .read(bluetoothRepositoryProvider)
           .readCurrentState(state.id);

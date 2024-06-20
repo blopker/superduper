@@ -186,13 +186,15 @@ class BluetoothRepository {
       }
     });
     device.cancelWhenDisconnected(deviceSub, delayed: true);
-    // var service = device.servicesList
-    //     .firstWhere((element) => element.uuid == UUID_METRICS_SERVICE);
-    // var char = service.characteristics
-    //     .firstWhere((element) => element.uuid == UUID_CHARACTERISTIC_REGISTER);
-    // char.lastValueStream.listen((value) {
-    //   debugPrint('lastValueStream: $value');
-    // });
+    var service = device.servicesList
+        .firstWhere((element) => element.uuid == UUID_METRICS_SERVICE);
+    var char = service.characteristics.firstWhere(
+        (element) => element.uuid == UUID_CHARACTERISTIC_REGISTER_NOTIFIER);
+    var sub = char.lastValueStream.listen((value) {
+      debugPrint('lastValueStream: $value');
+    });
+    device.cancelWhenDisconnected(sub);
+    await char.setNotifyValue(true);
   }
 
   // Stream<List<int>> getNotificationStream(String deviceId) {
