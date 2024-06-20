@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/bike.dart';
 import 'package:superduper/db.dart';
+import 'package:superduper/debug.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,39 +19,23 @@ class BikeSelectWidget extends ConsumerStatefulWidget {
 }
 
 class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
-  late StreamSubscription<DiscoveredDevice>? scanStream;
-  final List<BikeState> foundBikes = [];
-  BleStatus? bleStatus;
+  StreamSubscription<List<ScanResult>>? _scanSubscription;
   @override
   void initState() {
-    ref.listenManual(bluetoothStatusStreamProvider, (_, event) {
-      setState(() {
-        bleStatus = event.value;
-      });
-    });
-    var ble = ref.read(bluetoothRepositoryProvider);
-    var bikeList = ref.read(bikesDBProvider.notifier);
-    scanStream = ble.scan()?.listen((device) async {
-      if (device.name != 'SUPER${70 + 3}') {
-        return;
-      }
-      if (bikeList.getBike(device.id) != null) {
-        return;
-      }
-      if (foundBikes.any((element) => element.id == device.id)) {
-        return;
-      }
-      setState(() {
-        foundBikes.add(BikeState.defaultState(device.id));
-      });
-    });
+    ref.read(bluetoothRepositoryProvider).scan();
     super.initState();
   }
 
   @override
   void dispose() {
+    _scanSubscription?.cancel();
     super.dispose();
-    scanStream?.cancel();
+  }
+
+  void selectBike(BikeState bike) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) {
+      return BikePage(bikeID: bike.id);
+    }));
   }
 
   @override
@@ -57,20 +43,25 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     var bikeList = ref.watch(bikesDBProvider);
     var currentBike = ref.watch(currentBikeProvider);
     var bikeNotifier = ref.watch(bikesDBProvider.notifier);
-    var scanText = bleStatus == BleStatus.ready
-        ? 'Searching...'
-        : 'Enable Bluetooth to scan.';
+    var scanResults = ref.watch(scanResultsProvider);
+    List<BikeState> foundBikes = [];
+    for (var result in scanResults) {
+      if (bikeNotifier.getBike(result.device.remoteId.str) != null) {
+        continue;
+      }
+      foundBikes.add(BikeState.defaultState(result.device.remoteId.str));
+    }
     return Container(
       color: Colors.black87,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: <Widget>[
             const SizedBox(
               height: 40,
             ),
             Text(
-              'Select Bike',
+              'SUPERDUPER',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             if (bikeList.isNotEmpty)
@@ -102,8 +93,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                           child: DiscoverCard(
                             selected: currentBike?.id == bikeList[i].id,
                             onTap: () {
-                              bikeNotifier.selectBike(bikeList[i]);
-                              Navigator.pop(context);
+                              selectBike(bikeList[i]);
                             },
                             title: bikeList[i].name,
                             subtitle: bikeList[i].id,
@@ -115,20 +105,16 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
             const SizedBox(
               height: 40,
             ),
-            Row(children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text(
                 'Found Bikes',
                 style: Theme.of(context).textTheme.labelMedium,
-              )
-            ]),
-            if (foundBikes.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Text(
-                  scanText,
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
               ),
+              const NotConnectingButton(),
+            ]),
+            const SizedBox(
+              height: 20,
+            ),
             ListView.builder(
               shrinkWrap: true,
               itemCount: foundBikes.length,
@@ -139,8 +125,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                   child: DiscoverCard(
                     selected: currentBike?.id == b.id,
                     onTap: () {
-                      bikeNotifier.selectBike(b);
-                      Navigator.pop(context);
+                      selectBike(b);
                     },
                     title: b.name,
                     subtitle: b.id,
@@ -149,56 +134,125 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
               },
             ),
             const SizedBox(
-              height: 40,
+              height: 20,
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                InkWell(
-                  child: Text(
-                    'Not connecting?',
-                    style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                          color: Colors.grey,
-                        ),
-                  ),
-                  onTap: () async {
-                    final Uri url =
-                        Uri.parse('https://github.com/blopker/superduper#faq');
-                    if (!await launchUrl(url)) {
-                      throw Exception('Could not launch $url');
-                    }
-                  },
-                ),
-              ],
-            ),
+            const ScannerButton(),
             const SizedBox(
               height: 40,
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    child: Text(
-                      'Disconnect',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    onTap: () {
-                      ref.read(bikesDBProvider.notifier).selectBike(null);
-                    },
-                  ),
-                ),
-                InkWell(
+            if (currentBike != null)
+              Expanded(
+                child: InkWell(
                   child: Text(
-                    'Close',
+                    'Disconnect',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  onTap: () => Navigator.pop(context),
+                  onTap: () {
+                    ref.read(bikesDBProvider.notifier).selectBike(null);
+                  },
                 ),
-              ],
-            ),
+              ),
+            if (kDebugMode)
+              Padding(
+                padding: const EdgeInsets.only(top: 40.0),
+                child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (BuildContext context) => const DebugPage(),
+                        ),
+                      );
+                    },
+                    child: const Text('DEBUG')),
+              )
           ],
         ),
       ),
+    );
+  }
+}
+
+class ScannerButton extends ConsumerWidget {
+  const ScannerButton({super.key});
+
+  Widget _statusText(BuildContext context, String status) {
+    return Text(
+      status,
+      style: Theme.of(context).textTheme.bodySmall,
+    );
+  }
+
+  Widget _startScanButton(BuildContext context, WidgetRef ref) {
+    var isScanning = ref.watch(isScanningStatusProvider);
+    var startScanButton = InkWell(
+      child: Text(
+        'Start Scan',
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+      onTap: () {
+        ref.read(bluetoothRepositoryProvider).scan();
+      },
+    );
+    return isScanning.map(
+      data: (state) {
+        return switch (state.value) {
+          true => InkWell(
+              child: Text(
+                'Scanning...',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              onTap: () {
+                ref.read(bluetoothRepositoryProvider).stopScan();
+              },
+            ),
+          false => startScanButton
+        };
+      },
+      loading: (_) => startScanButton,
+      error: (error) => _statusText(context, 'Error: ${error.error}'),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    var bleStatus = ref.watch(adapterStateProvider);
+    var scanWidget = bleStatus.map(
+      data: (state) {
+        return switch (state.value) {
+          BluetoothAdapterState.on => _startScanButton(context, ref),
+          BluetoothAdapterState.off =>
+            _statusText(context, 'Enable Bluetooth to scan.'),
+          BluetoothAdapterState.unauthorized =>
+            _statusText(context, 'Enable Bluetooth Permissions to scan.'),
+          _ => _statusText(context, 'Enable Bluetooth to scan.')
+        };
+      },
+      loading: (_) => _statusText(context, 'Loading..?'),
+      error: (error) => _statusText(context, 'Error: ${error.error}'),
+    );
+    return scanWidget;
+  }
+}
+
+class NotConnectingButton extends StatelessWidget {
+  const NotConnectingButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      child: Text(
+        'Not connecting?',
+        style: Theme.of(context).textTheme.bodySmall!.copyWith(
+              color: Colors.grey,
+            ),
+      ),
+      onTap: () async {
+        final Uri url = Uri.parse('https://github.com/blopker/superduper#faq');
+        if (!await launchUrl(url)) {
+          throw Exception('Could not launch $url');
+        }
+      },
     );
   }
 }

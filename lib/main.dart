@@ -2,15 +2,12 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:superduper/bike.dart';
 import 'package:superduper/db.dart' as perf;
-import 'package:superduper/db.dart';
-import 'package:superduper/debug.dart';
+import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 
 void main() async {
@@ -37,13 +34,15 @@ Future<Map<Permission, PermissionStatus>> getPermissions() async {
         Permission.bluetoothScan,
       ]);
     }
-  } else {
+  } else if (Platform.isIOS) {
     perms.addAll([
       Permission.location,
       Permission.bluetooth,
       Permission.bluetoothConnect,
       Permission.bluetoothScan,
     ]);
+  } else if (Platform.isMacOS) {
+    return Future(() => const {});
   }
   return perms.request();
 }
@@ -100,37 +99,29 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    var bike = ref.watch(currentBikeProvider);
-    Widget page = const NoBikePage();
-    if (bike != null) {
-      ref.watch(bikeProvider(bike.id));
-      page = BikePage(bikeID: bike.id);
-    }
+    ref.watch(bluetoothRepositoryProvider);
     return Scaffold(
         backgroundColor: const Color(0xff121421),
         body: SafeArea(
-            child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 8),
-                child: FutureBuilder(
-                  future: permFuture,
-                  builder: (BuildContext context,
-                      AsyncSnapshot<Map<Permission, PermissionStatus>>
-                          snapshot) {
-                    if (snapshot.hasError) {
-                      return ErrorPage(error: snapshot.error.toString());
-                    }
-                    if (!snapshot.hasData) {
-                      return const LoadingPage();
-                    }
-                    var denied = snapshot.data!.values
-                        .any((element) => element.isDenied);
-                    if (denied) {
-                      debugPrint(snapshot.data?.toString());
-                      return const PermissionPage();
-                    }
-                    return page;
-                  },
-                ))));
+            child: FutureBuilder(
+          future: permFuture,
+          builder: (BuildContext context,
+              AsyncSnapshot<Map<Permission, PermissionStatus>> snapshot) {
+            if (snapshot.hasError) {
+              return ErrorPage(error: snapshot.error.toString());
+            }
+            if (!snapshot.hasData) {
+              return const LoadingPage();
+            }
+            var denied =
+                snapshot.data!.values.any((element) => element.isDenied);
+            if (denied) {
+              debugPrint(snapshot.data?.toString());
+              return const PermissionPage();
+            }
+            return const BikeSelectWidget();
+          },
+        )));
   }
 }
 
@@ -167,70 +158,6 @@ class PermissionPage extends StatelessWidget {
         child: Text(
       'Please enable bluetooth and location permissions.',
       style: Theme.of(context).textTheme.bodyMedium,
-    ));
-  }
-}
-
-class NoBikePage extends ConsumerWidget {
-  const NoBikePage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-        child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        InkWell(
-            onTap: () {
-              showModalBottomSheet<void>(
-                  isScrollControlled: true,
-                  context: context,
-                  builder: (BuildContext context) {
-                    return const BikeSelectWidget();
-                  });
-            },
-            child: Column(
-              children: [
-                Image(
-                  image: const AssetImage('assets/superduper-nobg.png'),
-                  height: MediaQuery.of(context).size.shortestSide / 2,
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Select Bike',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(
-                      width: 10,
-                    ),
-                    const Icon(
-                      Icons.unfold_more,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ],
-                ),
-                if (kDebugMode)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 40.0),
-                    child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push<void>(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (BuildContext context) =>
-                                  const DebugPage(),
-                            ),
-                          );
-                        },
-                        child: const Text('DEBUG')),
-                  )
-              ],
-            )),
-      ],
     ));
   }
 }

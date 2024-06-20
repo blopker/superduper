@@ -68,29 +68,23 @@ class DiscoverCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Hero(
-                        tag: tag ?? '',
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Row(
-                            children: [
-                              if (titleIcon != null) // Check if there's an icon
-                                Icon(
-                                  titleIcon,
-                                  size: 24, // Adjust the size as needed
-                                  color: Colors.white,
-                                ),
-                              if (titleIcon !=
-                                  null) // Add spacing if there's an icon
-                                const SizedBox(width: 10),
-                              if (title != null)
-                                Text(
-                                  title!,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                            ],
-                          ),
-                        ),
+                      Row(
+                        children: [
+                          if (titleIcon != null) // Check if there's an icon
+                            Icon(
+                              titleIcon,
+                              size: 24, // Adjust the size as needed
+                              color: Colors.white,
+                            ),
+                          if (titleIcon !=
+                              null) // Add spacing if there's an icon
+                            const SizedBox(width: 10),
+                          if (title != null)
+                            Text(
+                              title!,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                        ],
                       ),
                       if (subtitle != null)
                         Column(

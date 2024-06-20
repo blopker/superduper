@@ -22,8 +22,38 @@ final connectionHandlerProvider =
 );
 
 typedef ConnectionHandlerRef = AutoDisposeProviderRef<ConnectionHandler>;
+String _$adapterStateHash() => r'7e80522f330f7586989aeadfb5a31f82eee98100';
+
+/// See also [adapterState].
+@ProviderFor(adapterState)
+final adapterStateProvider =
+    AutoDisposeStreamProvider<BluetoothAdapterState>.internal(
+  adapterState,
+  name: r'adapterStateProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$adapterStateHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef AdapterStateRef = AutoDisposeStreamProviderRef<BluetoothAdapterState>;
+String _$isScanningStatusHash() => r'327f6620483bdd9d44ee6149c0cb9c58820ba3d0';
+
+/// See also [isScanningStatus].
+@ProviderFor(isScanningStatus)
+final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
+  isScanningStatus,
+  name: r'isScanningStatusProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$isScanningStatusHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
 String _$bluetoothRepositoryHash() =>
-    r'ef4c44b7f0bdee3fcc1854e81cdf7462ec44bb50';
+    r'e97e207fdd1a0ae74a78b657fa387267d192b334';
 
 /// See also [bluetoothRepository].
 @ProviderFor(bluetoothRepository)
@@ -39,38 +69,20 @@ final bluetoothRepositoryProvider =
 );
 
 typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
-String _$bluetoothStatusStreamHash() =>
-    r'9613fd068561041e4fbf7151092c022fe05334f1';
+String _$scanResultsHash() => r'd52e9fc5f1fcb70bb39d62957d30c02f5b8a8e20';
 
-/// See also [bluetoothStatusStream].
-@ProviderFor(bluetoothStatusStream)
-final bluetoothStatusStreamProvider =
-    AutoDisposeStreamProvider<BleStatus>.internal(
-  bluetoothStatusStream,
-  name: r'bluetoothStatusStreamProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$bluetoothStatusStreamHash,
+/// See also [ScanResults].
+@ProviderFor(ScanResults)
+final scanResultsProvider =
+    AutoDisposeNotifierProvider<ScanResults, List<ScanResult>>.internal(
+  ScanResults.new,
+  name: r'scanResultsProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$scanResultsHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
-typedef BluetoothStatusStreamRef = AutoDisposeStreamProviderRef<BleStatus>;
-String _$connectionStatusHash() => r'84cf0380fa442818a867c928f5a0bf132f1b9c28';
-
-/// See also [ConnectionStatus].
-@ProviderFor(ConnectionStatus)
-final connectionStatusProvider = AutoDisposeNotifierProvider<ConnectionStatus,
-    DeviceConnectionState>.internal(
-  ConnectionStatus.new,
-  name: r'connectionStatusProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$connectionStatusHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-typedef _$ConnectionStatus = AutoDisposeNotifier<DeviceConnectionState>;
+typedef _$ScanResults = AutoDisposeNotifier<List<ScanResult>>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member

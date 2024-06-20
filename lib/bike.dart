@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -12,7 +12,6 @@ import 'package:superduper/edit_bike.dart' as edit;
 import 'package:superduper/help.dart';
 import 'package:superduper/models.dart';
 import 'package:superduper/repository.dart';
-import 'package:superduper/select_page.dart';
 import 'package:superduper/widgets.dart';
 
 export 'package:superduper/models.dart';
@@ -58,7 +57,7 @@ class Bike extends _$Bike {
 
   Future<void> updateStateData({force = false}) async {
     var status = ref.read(connectionStatusProvider);
-    if (status != DeviceConnectionState.connected) {
+    if (status != BluetoothConnectionState.connected) {
       return;
     }
     _resetDebounce();
@@ -98,7 +97,7 @@ class Bike extends _$Bike {
     }
     var status = ref.read(connectionStatusProvider);
     if (saveToBike) {
-      if (status != DeviceConnectionState.connected) {
+      if (status != BluetoothConnectionState.connected) {
         return;
       }
       _writing = true;
@@ -155,21 +154,19 @@ class BikePage extends ConsumerStatefulWidget {
   BikePageState createState() => BikePageState();
 }
 
-class BikePageState extends ConsumerState<BikePage> {
+class ForegroundNotificationWrapper extends StatelessWidget {
+  const ForegroundNotificationWrapper(
+      {super.key, required this.child, required this.onWillStart});
+  final Widget child;
+  final Future<bool> Function() onWillStart;
+
   @override
   Widget build(BuildContext context) {
-    var bike = ref.watch(bikeProvider(widget.bikeID));
-    var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
-    ref.listen(connectionStatusProvider, (previous, next) {
-      if (next == DeviceConnectionState.connected) {
-        // First connect, force update
-        bikeControl.updateStateData(force: true);
-      }
-    });
+    if (Platform.isMacOS) {
+      return child;
+    }
     return WillStartForegroundTask(
-      onWillStart: () async {
-        return bike.modeLock;
-      },
+      onWillStart: onWillStart,
       androidNotificationOptions: AndroidNotificationOptions(
           channelId: 'notification_channel_id',
           channelName: 'Background Lock Notification',
@@ -180,114 +177,123 @@ class BikePageState extends ConsumerState<BikePage> {
       foregroundTaskOptions: const ForegroundTaskOptions(),
       notificationTitle: 'SuperDuper Background Lock On',
       notificationText: 'Tap to return to the app',
+      child: child,
+    );
+  }
+}
+
+class BikePageState extends ConsumerState<BikePage> {
+  @override
+  void initState() {
+    super.initState();
+    ref.read(connectionHandlerProvider).connect(widget.bikeID);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var bike = ref.watch(bikeProvider(widget.bikeID));
+    var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
+    ref.listen(connectionStatusProvider, (previous, next) {
+      if (next == BluetoothConnectionState.connected) {
+        // First connect, force update
+        bikeControl.updateStateData(force: true);
+      }
+    });
+    return ForegroundNotificationWrapper(
+      onWillStart: () async {
+        return bike.modeLock;
+      },
       child: Scaffold(
-          backgroundColor: const Color(0xff121421),
-          body: SafeArea(
-              child: ListView(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                const SizedBox(
-                  height: 20,
-                ),
-                InkWell(
-                  onTap: () {
-                    showModalBottomSheet<void>(
-                        isScrollControlled: true,
-                        context: context,
-                        builder: (BuildContext context) {
-                          return const BikeSelectWidget();
-                        });
-                  },
-                  child: Row(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            title:
+                Text(bike.name, style: Theme.of(context).textTheme.titleMedium),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  edit.show(context, bike);
+                },
+              )
+            ],
+          ),
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: SafeArea(
+                child: ListView(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
                     children: [
-                      Text(bike.name,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(
-                        width: 5,
-                      ),
-                      const Icon(
-                        Icons.unfold_more,
-                        color: Colors.white,
-                        size: 20,
-                      )
-                    ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [ConnectionWidget(bike: bike)],
                   ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        edit.show(context, bike);
-                      },
-                      child: Text(
-                        'Edit',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                    Expanded(child: Container()),
-                    const ConnectionWidget()
-                  ],
-                ),
-                LightControlWidget(
-                  bike: bike,
-                ),
-                ModeControlWidget(bike: bike),
-                AssistControlWidget(bike: bike),
-                if (Platform.isAndroid) BackgroundLockControlWidget(bike: bike),
-                const SizedBox(
-                  height: 10,
-                ),
-                Center(
-                  child: Column(
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          showModalBottomSheet<void>(
-                              isScrollControlled: true,
-                              context: context,
-                              builder: (BuildContext context) {
-                                return const HelpWidget();
-                              });
-                        },
-                        child: Text(
-                          "Help",
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall!
-                              .copyWith(color: const Color(0xff4A80F0)),
+                  LightControlWidget(
+                    bike: bike,
+                  ),
+                  ModeControlWidget(bike: bike),
+                  AssistControlWidget(bike: bike),
+                  if (Platform.isAndroid)
+                    BackgroundLockControlWidget(bike: bike),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  Center(
+                    child: Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            showModalBottomSheet<void>(
+                                isScrollControlled: true,
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return const HelpWidget();
+                                });
+                          },
+                          child: Text(
+                            "Help",
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall!
+                                .copyWith(color: const Color(0xff4A80F0)),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(
-                  height: 40,
-                ),
-              ]))),
+                  const SizedBox(
+                    height: 40,
+                  ),
+                ])),
+          )),
     );
   }
 }
 
 class ConnectionWidget extends ConsumerWidget {
-  const ConnectionWidget({super.key});
+  const ConnectionWidget({super.key, required this.bike});
+  final BikeState bike;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var connectionStatus = ref.watch(connectionStatusProvider);
     var connectionHandler = ref.watch(connectionHandlerProvider);
+    var isScanning = ref.watch(isScanningStatusProvider).value == true;
     var text = 'Connecting...';
     var disabled = true;
-    if (connectionStatus == DeviceConnectionState.connected) {
+    if (connectionStatus == BluetoothConnectionState.connected) {
       text = 'Connected';
       disabled = true;
-    } else if (connectionStatus == DeviceConnectionState.disconnected) {
+    } else if (connectionStatus == BluetoothConnectionState.disconnected &&
+        !isScanning) {
       text = 'Connect';
       disabled = false;
-    } else if (connectionStatus == DeviceConnectionState.disconnecting) {
-      text = 'Disconnecting...';
     }
     var style = Theme.of(context).textTheme.bodyMedium;
     if (disabled) {
@@ -297,7 +303,7 @@ class ConnectionWidget extends ConsumerWidget {
         onTap: disabled
             ? null
             : () {
-                connectionHandler.connect();
+                connectionHandler.connect(bike.id);
               },
         child: Text(text, style: style));
   }
@@ -415,7 +421,7 @@ class BackgroundLockControlWidget extends ConsumerWidget {
           height: 10,
         ),
         Text(
-          "Background Lock may cause battery drain. See Help for more info.",
+          "Background Lock may cause phone battery drain. See Help for more info.",
           style: Theme.of(context)
               .textTheme
               .bodySmall!

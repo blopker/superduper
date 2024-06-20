@@ -20,7 +20,7 @@ Map<String, dynamic> _$$SettingsModelImplToJson(_$SettingsModelImpl instance) =>
 // RiverpodGenerator
 // **************************************************************************
 
-String _$currentBikeHash() => r'bb376531c020f9ab89be1f6d99650fe42e87388f';
+String _$currentBikeHash() => r'22e604cfd28e0bf36b33cecb32b509e9a10d4c0a';
 
 /// See also [currentBike].
 @ProviderFor(currentBike)
@@ -34,7 +34,7 @@ final currentBikeProvider = Provider<BikeState?>.internal(
 );
 
 typedef CurrentBikeRef = ProviderRef<BikeState?>;
-String _$bikesDBHash() => r'cc01f2e468778981a9e5b99c2a06934115b892ce';
+String _$bikesDBHash() => r'810c69683efd27a0848618a8053dd89f04593d4b';
 
 /// See also [BikesDB].
 @ProviderFor(BikesDB)
