@@ -39,6 +39,11 @@ class ScanResults extends _$ScanResults {
   }
 }
 
+@riverpod
+Stream<List<BluetoothDevice>> connectedDevices(ConnectedDevicesRef ref) =>
+    Stream<List<BluetoothDevice>>.periodic(
+        const Duration(seconds: 1), (x) => FlutterBluePlus.connectedDevices);
+
 class ConnectionHandler {
   ProviderSubscription<BikeState?>? _currentSub;
   Timer? reconnectTimer;
@@ -87,9 +92,13 @@ class BluetoothRepository {
   Future<void> scan() async {
     debugPrint('scan(): Scanning');
     if (Platform.isAndroid) {
-      await FlutterBluePlus.turnOn();
+      try {
+        await FlutterBluePlus.turnOn();
+      } catch (e) {
+        debugPrint('Error turning on bluetooth: $e');
+      }
     }
-    await FlutterBluePlus.stopScan();
+    stopScan();
     var scanNotifier = ref.read(scanResultsProvider.notifier);
     var scanSub = FlutterBluePlus.onScanResults.listen(
       (results) {
@@ -104,16 +113,28 @@ class BluetoothRepository {
       onError: (e) => debugPrint(e),
     );
     FlutterBluePlus.cancelWhenScanComplete(scanSub);
-    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 100));
+    try {
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 100));
+    } catch (e) {
+      debugPrint('Error starting scan: $e');
+    }
   }
 
-  stopScan() {
-    FlutterBluePlus.stopScan();
+  stopScan() async {
+    try {
+      await FlutterBluePlus.stopScan();
+    } catch (e) {
+      debugPrint('Error stopping scan: $e');
+    }
   }
 
   disconnect() async {
-    for (var device in FlutterBluePlus.connectedDevices) {
-      await device.disconnect();
+    try {
+      for (var device in FlutterBluePlus.connectedDevices) {
+        await device.disconnect();
+      }
+    } catch (e) {
+      debugPrint('Error disconnecting: $e');
     }
   }
 
@@ -132,14 +153,14 @@ class BluetoothRepository {
         return results.any((result) => result.device.remoteId.str == id);
       }).first;
       var device = devices.first.device;
-      await FlutterBluePlus.stopScan();
+      stopScan();
       return device;
     }
   }
 
   connect(String deviceId) async {
     debugPrint('connect(): Connecting to $deviceId');
-    await FlutterBluePlus.stopScan();
+    stopScan();
     var device = await _getDevice(deviceId);
     if (device == null) {
       return;
@@ -154,6 +175,7 @@ class BluetoothRepository {
       await device.discoverServices();
     } catch (e) {
       debugPrint(e.toString());
+      return;
     }
     var deviceSub =
         device.connectionState.listen((BluetoothConnectionState state) async {
@@ -164,6 +186,13 @@ class BluetoothRepository {
       }
     });
     device.cancelWhenDisconnected(deviceSub, delayed: true);
+    // var service = device.servicesList
+    //     .firstWhere((element) => element.uuid == UUID_METRICS_SERVICE);
+    // var char = service.characteristics
+    //     .firstWhere((element) => element.uuid == UUID_CHARACTERISTIC_REGISTER);
+    // char.lastValueStream.listen((value) {
+    //   debugPrint('lastValueStream: $value');
+    // });
   }
 
   // Stream<List<int>> getNotificationStream(String deviceId) {

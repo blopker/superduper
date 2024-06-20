@@ -52,6 +52,23 @@ final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
 );
 
 typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
+String _$connectedDevicesHash() => r'103d3abe23c69bb59bc577f19c755c8d61305977';
+
+/// See also [connectedDevices].
+@ProviderFor(connectedDevices)
+final connectedDevicesProvider =
+    AutoDisposeStreamProvider<List<BluetoothDevice>>.internal(
+  connectedDevices,
+  name: r'connectedDevicesProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$connectedDevicesHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef ConnectedDevicesRef
+    = AutoDisposeStreamProviderRef<List<BluetoothDevice>>;
 String _$bluetoothRepositoryHash() =>
     r'e97e207fdd1a0ae74a78b657fa387267d192b334';
 

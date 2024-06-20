@@ -35,7 +35,6 @@ class BikeState with _$BikeState {
       required String name,
       BikeRegion? region,
       @Default(false) bool modeLock,
-      @Default(false) bool selected,
       @Default(0) int color}) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>

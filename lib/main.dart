@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:superduper/db.dart' as perf;
 import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
-  await perf.init();
   runApp(
     const ProviderScope(
       child: SuperDuper(),

@@ -95,16 +95,8 @@ class BikesDB extends _$BikesDB {
   }
 
   void deleteBike(BikeState bike) {
-    ref.read(settingsDBProvider.notifier).currentBike = null;
     state.removeWhere((element) => element.id == bike.id);
     _writeBikes(state);
-  }
-
-  void selectBike(BikeState? bike) {
-    if (bike != null) {
-      saveBike(bike);
-    }
-    ref.read(settingsDBProvider.notifier).currentBike = bike;
   }
 
   BikeState? getBike(String id) {
@@ -123,26 +115,4 @@ class SettingsDB extends _$SettingsDB {
     _readSettings().then((settings) => state = settings);
     return const SettingsModel();
   }
-
-  set currentBike(BikeState? bike) {
-    state = state.copyWith(currentBike: bike?.id);
-    _writeSettings(state);
-  }
 }
-
-@Riverpod(keepAlive: true)
-BikeState? currentBike(CurrentBikeRef ref) {
-  final settings = ref.watch(settingsDBProvider);
-  final bikes = ref.watch(bikesDBProvider);
-  BikeState? currentBike;
-  try {
-    currentBike =
-        bikes.firstWhere((element) => element.id == settings.currentBike);
-  } catch (e) {
-    // No current bike
-  }
-  debugPrint('Current bike: $currentBike');
-  return currentBike;
-}
-
-Future init() async {}

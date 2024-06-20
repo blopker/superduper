@@ -38,10 +38,15 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     }));
   }
 
+  bool isConnected(
+          AsyncValue<List<BluetoothDevice>> connected, String bikeID) =>
+      connected.value?.any((element) => element.remoteId.str == bikeID) ??
+      false;
+
   @override
   Widget build(BuildContext context) {
     var bikeList = ref.watch(bikesDBProvider);
-    var currentBike = ref.watch(currentBikeProvider);
+    var connectedDevices = ref.watch(connectedDevicesProvider);
     var bikeNotifier = ref.watch(bikesDBProvider.notifier);
     var scanResults = ref.watch(scanResultsProvider);
     List<BikeState> foundBikes = [];
@@ -91,7 +96,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 20.0),
                           child: DiscoverCard(
-                            selected: currentBike?.id == bikeList[i].id,
+                            selected:
+                                isConnected(connectedDevices, bikeList[i].id),
                             onTap: () {
                               selectBike(bikeList[i]);
                             },
@@ -123,7 +129,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 20.0),
                   child: DiscoverCard(
-                    selected: currentBike?.id == b.id,
+                    selected: isConnected(connectedDevices, b.id),
                     onTap: () {
                       selectBike(b);
                     },
@@ -140,7 +146,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
             const SizedBox(
               height: 40,
             ),
-            if (currentBike != null)
+            if (connectedDevices.value?.isNotEmpty ?? false)
               Expanded(
                 child: InkWell(
                   child: Text(
@@ -148,7 +154,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   onTap: () {
-                    ref.read(bikesDBProvider.notifier).selectBike(null);
+                    ref.read(bluetoothRepositoryProvider).disconnect();
                   },
                 ),
               ),

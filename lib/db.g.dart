@@ -20,21 +20,7 @@ Map<String, dynamic> _$$SettingsModelImplToJson(_$SettingsModelImpl instance) =>
 // RiverpodGenerator
 // **************************************************************************
 
-String _$currentBikeHash() => r'22e604cfd28e0bf36b33cecb32b509e9a10d4c0a';
-
-/// See also [currentBike].
-@ProviderFor(currentBike)
-final currentBikeProvider = Provider<BikeState?>.internal(
-  currentBike,
-  name: r'currentBikeProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$currentBikeHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-typedef CurrentBikeRef = ProviderRef<BikeState?>;
-String _$bikesDBHash() => r'810c69683efd27a0848618a8053dd89f04593d4b';
+String _$bikesDBHash() => r'8b043ff7676ab87545bf02676e8500f730f4acd6';
 
 /// See also [BikesDB].
 @ProviderFor(BikesDB)
@@ -48,7 +34,7 @@ final bikesDBProvider = NotifierProvider<BikesDB, List<BikeState>>.internal(
 );
 
 typedef _$BikesDB = Notifier<List<BikeState>>;
-String _$settingsDBHash() => r'0ec838671520d405c0d8acd9fb09eb186373556f';
+String _$settingsDBHash() => r'9d9f31c16ae24aad4da3a06e4815bbecfa11d966';
 
 /// See also [SettingsDB].
 @ProviderFor(SettingsDB)
