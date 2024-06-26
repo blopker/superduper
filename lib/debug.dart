@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:superduper/help.dart';
 
 import 'bike.dart';
 import 'edit_bike.dart';
-import 'package:superduper/help.dart';
 
 class DebugPage extends StatelessWidget {
   const DebugPage({super.key});
@@ -10,6 +10,15 @@ class DebugPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Debug'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       body: Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           ElevatedButton(
