@@ -28,13 +28,13 @@ Optionally, you can tap the "Edit" button to change the name of the bike.
 
 ### The app won't connect to my bike
 
-Make sure your bike is on and your bluetooth is on. If you're on Android, make sure the app has location permissions. If you're on iOS, make sure the app has bluetooth permissions.
+Make sure your bike is on and your bluetooth is on. If you're on Android, make sure the app has location permissions. If you're on iOS, make sure the app has bluetooth permissions. Additionally, on some devices GPS needs to be enabled for scanning to work.
 
 Make sure only one app is connected to the bike at a time. If you have the official app open, disconnect from the bike within the app, and close it. It can also help to uninstall the official app.
 
 You can also try restarting the bike and your phone.
 
-Finally, older bike firmware may not be supported. Make sure your bike is up to date.
+Finally, older bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
 
 ### How does Background Lock work and how is it different from the setting lock?
 
