@@ -1,7 +1,7 @@
 name: superduper
 description: An app for super bikes
 publish_to: "none"
-version: 0.6.3+40
+version: 0.6.4+41
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -50,3 +50,4 @@ flutter_launcher_icons:
   image_path: "assets/superduper_android.png"
   image_path_ios: "assets/superduper.png"
   remove_alpha_ios: true
+
