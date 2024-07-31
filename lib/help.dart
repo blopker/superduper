@@ -51,12 +51,11 @@ class HelpWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 40),
+    return Container(
       child: Scaffold(
         appBar: AppBar(
             backgroundColor: Colors.black87,
-            title: const Text('Help'),
+            title: Text('Help', style: Theme.of(context).textTheme.titleLarge),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
