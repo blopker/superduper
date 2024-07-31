@@ -59,7 +59,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     return Container(
       color: Colors.black87,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           children: <Widget>[
             const SizedBox(

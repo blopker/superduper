@@ -25,6 +25,8 @@ class DebugPage extends StatelessWidget {
             onPressed: () {
               showModalBottomSheet<void>(
                   isScrollControlled: true,
+                  backgroundColor: Colors.black,
+                  useSafeArea: true,
                   context: context,
                   builder: (BuildContext context) {
                     return const HelpWidget();

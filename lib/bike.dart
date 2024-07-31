@@ -252,6 +252,8 @@ class BikePageState extends ConsumerState<BikePage> {
                           onTap: () {
                             showModalBottomSheet<void>(
                                 isScrollControlled: true,
+                                backgroundColor: Colors.black,
+                                useSafeArea: true,
                                 context: context,
                                 builder: (BuildContext context) {
                                   return const HelpWidget();
