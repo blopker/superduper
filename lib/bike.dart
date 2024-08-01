@@ -66,7 +66,7 @@ class Bike extends _$Bike {
       _resetReadTimer();
       var data = await ref
           .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id);
+          .readCurrentState(state.id, 'SETTING');
       if (data == null || data.isEmpty) {
         return;
       }
