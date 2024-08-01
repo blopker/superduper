@@ -24,6 +24,8 @@ class BikeState with _$BikeState {
   @Assert('assist >= 0')
   @Assert('assist <= 4')
   @Assert('color >= 0')
+  @Assert('battery >= 0')
+  @Assert('battery <= 100')
   const factory BikeState(
       {required String id,
       required int mode,
@@ -35,14 +37,15 @@ class BikeState with _$BikeState {
       required String name,
       BikeRegion? region,
       @Default(false) bool modeLock,
-      @Default(0) int color}) = _BikeState;
+      @Default(0) int color,
+      @Default(0.0) double battery}) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>
       _$BikeStateFromJson(json);
 
   factory BikeState.defaultState(String id) {
     return BikeState(
-        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id));
+        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), battery: 0.0);
   }
 
   BikeState updateFromData(List<int> data) {
@@ -56,6 +59,13 @@ class BikeState with _$BikeState {
         mode: newmode,
         assist: data[assistIdx],
         region: region);
+  }
+
+  BikeState updateRideFromData(List<int> data) {
+    const cadenceIdx = 3;
+    const rangeIdx = 8;
+    final batteryPercentage = _batteryPercentage(data[rangeIdx]);
+    return copyWith(battery: batteryPercentage);
   }
 
   BikeRegion _guessRegion(int mode) {
@@ -88,6 +98,12 @@ class BikeState with _$BikeState {
 
   int get nextMode {
     return (mode + 1) % 4;
+  }
+
+  double _batteryPercentage(int range) {
+    // All current Super73 max range is 60km
+    double batteryPercentage = range / 60.0 * 100;
+    return double.parse(batteryPercentage.toStringAsFixed(1));
   }
 
   List<int> toWriteData() {

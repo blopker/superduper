@@ -87,10 +87,19 @@ class Bike extends _$Bike {
         newState = newState.copyWith(assist: state.assist);
       }
       writeStateData(newState);
+
+      // Read the ride state to update the battery level
+      var rideData = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, 'RIDE');
+      if (rideData != null && rideData.isNotEmpty) {
+        //update Battery State
+        state = newState.updateRideFromData(rideData);
+      }
     });
   }
 
-  void writeStateData(BikeState newState, {saveToBike = true}) async {
+  void writeStateData(BikeState newState, {bool saveToBike = true}) async {
     _resetDebounce();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
@@ -290,7 +299,12 @@ class ConnectionWidget extends ConsumerWidget {
     var text = 'Connecting...';
     var disabled = true;
     if (connectionStatus == BluetoothConnectionState.connected) {
-      text = 'Connected';
+      if (bike.battery != 0){
+        text = 'Connected (${bike.battery}%)';
+      }
+      else{
+        text = 'Connected';
+      }
       disabled = true;
     } else if (connectionStatus == BluetoothConnectionState.disconnected &&
         !isScanning) {
