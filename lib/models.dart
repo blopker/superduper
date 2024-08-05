@@ -26,6 +26,8 @@ class BikeState with _$BikeState {
   @Assert('color >= 0')
   @Assert('battery >= 0')
   @Assert('battery <= 100')
+  @Assert('range >= 0')
+  @Assert('speedMetric == "metric" || speedMetric == "imperial"')
   const factory BikeState(
       {required String id,
       required int mode,
@@ -38,14 +40,17 @@ class BikeState with _$BikeState {
       BikeRegion? region,
       @Default(false) bool modeLock,
       @Default(0) int color,
-      @Default(0.0) double battery}) = _BikeState;
+      @Default(0.0) double battery,
+      @Default(0) int range,
+      @Default('metric') String speedMetric
+      }) = _BikeState;
 
   factory BikeState.fromJson(Map<String, Object?> json) =>
       _$BikeStateFromJson(json);
 
   factory BikeState.defaultState(String id) {
     return BikeState(
-        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), battery: 0.0);
+        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), battery: 0.0, range: 0);
   }
 
   BikeState updateFromData(List<int> data) {
@@ -65,7 +70,7 @@ class BikeState with _$BikeState {
     const cadenceIdx = 3;
     const rangeIdx = 8;
     final batteryPercentage = _batteryPercentage(data[rangeIdx]);
-    return copyWith(battery: batteryPercentage);
+    return copyWith(battery: batteryPercentage, range: data[rangeIdx]);
   }
 
   BikeRegion _guessRegion(int mode) {

@@ -20,6 +20,8 @@ _$BikeStateImpl _$$BikeStateImplFromJson(Map<String, dynamic> json) =>
       modeLock: json['modeLock'] as bool? ?? false,
       color: (json['color'] as num?)?.toInt() ?? 0,
       battery: (json['battery'] as num?)?.toDouble() ?? 0.0,
+      range: (json['range'] as num?)?.toInt() ?? 0,
+      speedMetric: json['speedMetric'] as String? ?? 'metric',
     );
 
 Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
@@ -36,6 +38,8 @@ Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
       'modeLock': instance.modeLock,
       'color': instance.color,
       'battery': instance.battery,
+      'range': instance.range,
+      'speedMetric': instance.speedMetric,
     };
 
 const _$BikeRegionEnumMap = {

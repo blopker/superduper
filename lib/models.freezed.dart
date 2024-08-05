@@ -32,6 +32,8 @@ mixin _$BikeState {
   bool get modeLock => throw _privateConstructorUsedError;
   int get color => throw _privateConstructorUsedError;
   double get battery => throw _privateConstructorUsedError;
+  int get range => throw _privateConstructorUsedError;
+  String get speedMetric => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -56,7 +58,9 @@ abstract class $BikeStateCopyWith<$Res> {
       BikeRegion? region,
       bool modeLock,
       int color,
-      double battery});
+      double battery,
+      int range,
+      String speedMetric});
 }
 
 /// @nodoc
@@ -84,6 +88,8 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
     Object? modeLock = null,
     Object? color = null,
     Object? battery = null,
+    Object? range = null,
+    Object? speedMetric = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -134,6 +140,14 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
           ? _value.battery
           : battery // ignore: cast_nullable_to_non_nullable
               as double,
+      range: null == range
+          ? _value.range
+          : range // ignore: cast_nullable_to_non_nullable
+              as int,
+      speedMetric: null == speedMetric
+          ? _value.speedMetric
+          : speedMetric // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -158,7 +172,9 @@ abstract class _$$BikeStateImplCopyWith<$Res>
       BikeRegion? region,
       bool modeLock,
       int color,
-      double battery});
+      double battery,
+      int range,
+      String speedMetric});
 }
 
 /// @nodoc
@@ -184,6 +200,8 @@ class __$$BikeStateImplCopyWithImpl<$Res>
     Object? modeLock = null,
     Object? color = null,
     Object? battery = null,
+    Object? range = null,
+    Object? speedMetric = null,
   }) {
     return _then(_$BikeStateImpl(
       id: null == id
@@ -234,6 +252,14 @@ class __$$BikeStateImplCopyWithImpl<$Res>
           ? _value.battery
           : battery // ignore: cast_nullable_to_non_nullable
               as double,
+      range: null == range
+          ? _value.range
+          : range // ignore: cast_nullable_to_non_nullable
+              as int,
+      speedMetric: null == speedMetric
+          ? _value.speedMetric
+          : speedMetric // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -253,7 +279,9 @@ class _$BikeStateImpl extends _BikeState {
       this.region,
       this.modeLock = false,
       this.color = 0,
-      this.battery = 0.0})
+      this.battery = 0.0,
+      this.range = 0,
+      this.speedMetric = 'metric'})
       : assert(mode <= 3),
         assert(mode >= 0),
         assert(assist >= 0),
@@ -261,6 +289,8 @@ class _$BikeStateImpl extends _BikeState {
         assert(color >= 0),
         assert(battery >= 0),
         assert(battery <= 100),
+        assert(range >= 0),
+        assert(speedMetric == "metric" || speedMetric == "imperial"),
         super._();
 
   factory _$BikeStateImpl.fromJson(Map<String, dynamic> json) =>
@@ -296,10 +326,16 @@ class _$BikeStateImpl extends _BikeState {
   @override
   @JsonKey()
   final double battery;
+  @override
+  @JsonKey()
+  final int range;
+  @override
+  @JsonKey()
+  final String speedMetric;
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, battery: $battery)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, battery: $battery, range: $range, speedMetric: $speedMetric)';
   }
 
   @override
@@ -322,7 +358,10 @@ class _$BikeStateImpl extends _BikeState {
             (identical(other.modeLock, modeLock) ||
                 other.modeLock == modeLock) &&
             (identical(other.color, color) || other.color == color) &&
-            (identical(other.battery, battery) || other.battery == battery));
+            (identical(other.battery, battery) || other.battery == battery) &&
+            (identical(other.range, range) || other.range == range) &&
+            (identical(other.speedMetric, speedMetric) ||
+                other.speedMetric == speedMetric));
   }
 
   @JsonKey(ignore: true)
@@ -340,7 +379,9 @@ class _$BikeStateImpl extends _BikeState {
       region,
       modeLock,
       color,
-      battery);
+      battery,
+      range,
+      speedMetric);
 
   @JsonKey(ignore: true)
   @override
@@ -369,7 +410,9 @@ abstract class _BikeState extends BikeState {
       final BikeRegion? region,
       final bool modeLock,
       final int color,
-      final double battery}) = _$BikeStateImpl;
+      final double battery,
+      final int range,
+      final String speedMetric}) = _$BikeStateImpl;
   const _BikeState._() : super._();
 
   factory _BikeState.fromJson(Map<String, dynamic> json) =
@@ -399,6 +442,10 @@ abstract class _BikeState extends BikeState {
   int get color;
   @override
   double get battery;
+  @override
+  int get range;
+  @override
+  String get speedMetric;
   @override
   @JsonKey(ignore: true)
   _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
