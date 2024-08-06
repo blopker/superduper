@@ -270,6 +270,7 @@ class BluetoothRepository {
         break;
       default:
         currentStateId = [3, 0];
+        break;
     }
 
     // Set the char register to the right mode to get the current state.

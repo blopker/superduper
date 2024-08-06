@@ -26,7 +26,7 @@ class BikeState with _$BikeState {
   @Assert('color >= 0')
   @Assert('battery >= 0')
   @Assert('battery <= 100')
-  @Assert('range >= 0')
+  @Assert('odometer >= 0')
   @Assert('speedMetric == "metric" || speedMetric == "imperial"')
   const factory BikeState(
       {required String id,
@@ -41,7 +41,7 @@ class BikeState with _$BikeState {
       @Default(false) bool modeLock,
       @Default(0) int color,
       @Default(0.0) double battery,
-      @Default(0) int range,
+      @Default(0) double odometer,
       @Default('metric') String speedMetric
       }) = _BikeState;
 
@@ -50,7 +50,7 @@ class BikeState with _$BikeState {
 
   factory BikeState.defaultState(String id) {
     return BikeState(
-        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), battery: 0.0, range: 0);
+        id: id, mode: 0, light: false, assist: 0, name: getName(seed: id), battery: 0.0, odometer: 0);
   }
 
   BikeState updateFromData(List<int> data) {
@@ -70,7 +70,14 @@ class BikeState with _$BikeState {
     const cadenceIdx = 3;
     const rangeIdx = 8;
     final batteryPercentage = _batteryPercentage(data[rangeIdx]);
-    return copyWith(battery: batteryPercentage, range: data[rangeIdx]);
+    return copyWith(battery: batteryPercentage);
+  }
+
+  BikeState updateTotalFromData(List<int> data) {
+    const total1Idx = 6;
+    const total2Idx = 7;
+    final totalodometer = _getodometer(data[total1Idx], data[total2Idx]);
+    return copyWith(odometer: totalodometer);
   }
 
   BikeRegion _guessRegion(int mode) {
@@ -103,6 +110,10 @@ class BikeState with _$BikeState {
 
   int get nextMode {
     return (mode + 1) % 4;
+  }
+
+  double _getodometer(int total1, int total2) {
+    return (((total2 * 256) + total1) / 10);
   }
 
   double _batteryPercentage(int range) {

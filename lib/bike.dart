@@ -96,6 +96,14 @@ class Bike extends _$Bike {
         //update Battery State
         state = newState.updateRideFromData(rideData);
       }
+      // Read the ride state to update the battery level
+      var totalData = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, 'TOTAL');
+      if (totalData != null && totalData.isNotEmpty) {
+        //update Battery State
+        state = newState.updateTotalFromData(totalData);
+      }
     });
   }
 
@@ -244,7 +252,7 @@ class BikePageState extends ConsumerState<BikePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [ConnectionWidget(bike: bike)],
                   ),
-                  BatteryRangeControlWidget(bike: bike),
+                  BatteryODOControlWidget(bike: bike),
                   LightControlWidget(bike: bike),
                   ModeControlWidget(bike: bike),
                   AssistControlWidget(bike: bike),
@@ -334,8 +342,8 @@ class LockWidget extends StatelessWidget {
     );
   }
 }
-class BatteryRangeControlWidget extends ConsumerWidget {
-  const BatteryRangeControlWidget({super.key, required this.bike});
+class BatteryODOControlWidget extends ConsumerWidget {
+  const BatteryODOControlWidget({super.key, required this.bike});
   final BikeState bike;
 
   @override
@@ -351,8 +359,8 @@ class BatteryRangeControlWidget extends ConsumerWidget {
               colorIndex: bike.color,
               title: "",
               metric: bike.speedMetric == 'metric'
-                  ? '${bike.range.toStringAsFixed(0)} km'
-                  : '${(bike.range * 0.621371).toStringAsFixed(0)} mi',
+                  ? '${bike.odometer.toStringAsFixed(0)} km'
+                  : '${(bike.odometer * 0.621371).toStringAsFixed(0)} mi',
               titleIcon: Icons.pedal_bike,
               selected: false,
               onTap: () {
