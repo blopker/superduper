@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:superduper/help.dart';
+import 'dart:math';
 
 import 'bike.dart';
 import 'edit_bike.dart';
@@ -41,7 +42,7 @@ class DebugPage extends StatelessWidget {
                   context: context,
                   builder: (BuildContext context) {
                     return BikeSettingsWidget(
-                        bike: BikeState.defaultState('1'));
+                        bike: BikeState.defaultState(generateRandomMacAddress()));
                   });
             },
             child: const Text('Form'),
@@ -50,4 +51,14 @@ class DebugPage extends StatelessWidget {
       ),
     );
   }
+
+  String generateRandomMacAddress() {
+    final Random random = Random();
+    return '${_randomHex(random)}:${_randomHex(random)}:${_randomHex(random)}:${_randomHex(random)}:${_randomHex(random)}:${_randomHex(random)}';
+  }
+
+  String _randomHex(Random random) {
+    return random.nextInt(16).toRadixString(16).padLeft(2, '0');
+  }
+
 }

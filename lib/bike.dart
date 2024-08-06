@@ -66,7 +66,7 @@ class Bike extends _$Bike {
       _resetReadTimer();
       var data = await ref
           .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id);
+          .readCurrentState(state.id, 'SETTING');
       if (data == null || data.isEmpty) {
         return;
       }
@@ -87,10 +87,27 @@ class Bike extends _$Bike {
         newState = newState.copyWith(assist: state.assist);
       }
       writeStateData(newState);
+
+      // Read the ride state to update the battery level
+      var rideData = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, 'RIDE');
+      if (rideData != null && rideData.isNotEmpty) {
+        //update Battery State
+        state = newState.updateRideFromData(rideData);
+      }
+      // Read the ride state to update the battery level
+      var totalData = await ref
+          .read(bluetoothRepositoryProvider)
+          .readCurrentState(state.id, 'TOTAL');
+      if (totalData != null && totalData.isNotEmpty) {
+        //update Battery State
+        state = newState.updateTotalFromData(totalData);
+      }
     });
   }
 
-  void writeStateData(BikeState newState, {saveToBike = true}) async {
+  void writeStateData(BikeState newState, {bool saveToBike = true}) async {
     _resetDebounce();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
@@ -235,9 +252,8 @@ class BikePageState extends ConsumerState<BikePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [ConnectionWidget(bike: bike)],
                   ),
-                  LightControlWidget(
-                    bike: bike,
-                  ),
+                  BatteryODOControlWidget(bike: bike),
+                  LightControlWidget(bike: bike),
                   ModeControlWidget(bike: bike),
                   AssistControlWidget(bike: bike),
                   if (Platform.isAndroid)
@@ -292,8 +308,7 @@ class ConnectionWidget extends ConsumerWidget {
     if (connectionStatus == BluetoothConnectionState.connected) {
       text = 'Connected';
       disabled = true;
-    } else if (connectionStatus == BluetoothConnectionState.disconnected &&
-        !isScanning) {
+    } else if (connectionStatus == BluetoothConnectionState.disconnected && !isScanning) {
       text = 'Connect';
       disabled = false;
     }
@@ -326,6 +341,66 @@ class LockWidget extends StatelessWidget {
           icon: Icon(locked ? Icons.lock : Icons.lock_open)),
     );
   }
+}
+class BatteryODOControlWidget extends ConsumerWidget {
+  const BatteryODOControlWidget({super.key, required this.bike});
+  final BikeState bike;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    return Padding(
+      padding: const EdgeInsets.only(top: 20.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: DiscoverCard(
+              colorIndex: bike.color,
+              title: "",
+              metric: bike.speedMetric == 'metric'
+                  ? '${bike.odometer.toStringAsFixed(0)} km'
+                  : '${(bike.odometer * 0.621371).toStringAsFixed(0)} mi',
+              titleIcon: Icons.pedal_bike,
+              selected: false,
+              onTap: () {
+                final newMetric = bike.speedMetric == 'metric' ? 'imperial' : 'metric';
+                bikeControl.writeStateData(bike.copyWith(speedMetric: newMetric), saveToBike: false);
+              },
+            ),
+          ),
+          SizedBox(width: 16.0), // Add padding between the cards
+          Expanded(
+            child: DiscoverCard(
+              height: 2,
+              colorIndex: bike.color,
+              title: "",
+              metric: '${bike.battery.toDouble()} %',
+              titleIcon: _getBatteryIcon(bike.battery),
+              selected: false,
+              onTap: () {
+                //todo: show battery info
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+IconData _getBatteryIcon(double batteryPercentage) {
+  return switch (batteryPercentage) {
+    >= 95 => Icons.battery_full,
+    >= 80 => Icons.battery_6_bar,
+    >= 60 => Icons.battery_5_bar,
+    >= 50 => Icons.battery_4_bar,
+    >= 35 => Icons.battery_3_bar,
+    >= 20 => Icons.battery_2_bar,
+    >= 5 => Icons.battery_1_bar,
+    >= 0 => Icons.battery_0_bar,
+    _ => Icons.battery_alert,
+  };
 }
 
 class LightControlWidget extends ConsumerWidget {

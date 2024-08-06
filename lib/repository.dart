@@ -80,7 +80,6 @@ BluetoothRepository bluetoothRepository(BluetoothRepositoryRef ref) =>
     BluetoothRepository(ref);
 
 class BluetoothRepository {
-  final currentStateId = [3, 0];
   Ref ref;
 
   BluetoothRepository(this.ref) {
@@ -246,7 +245,34 @@ class BluetoothRepository {
     return null;
   }
 
-  Future<List<int>?> readCurrentState(String deviceId) async {
+  Future<List<int>?> readCurrentState(String deviceId, String stateName) async {
+    List<int> currentStateId;
+
+    //https://www.reverse.bike/documentation/bluetooth-ble/metrics-service
+    switch (stateName) {
+      case 'MOTION':
+        currentStateId = [2, 1];
+        break;
+      case 'TOTAL':
+        currentStateId = [2, 2];
+        break;
+      case 'RIDE':
+        currentStateId = [2, 3];
+        break;
+      case 'SETTING':
+        currentStateId = [3, 0];
+        break;
+      case 'POWER':
+        currentStateId = [4, 1];
+        break;
+      case 'MYSTERY':
+        currentStateId = [0, 0];
+        break;
+      default:
+        currentStateId = [3, 0];
+        break;
+    }
+
     // Set the char register to the right mode to get the current state.
     await write(deviceId,
         data: currentStateId,
