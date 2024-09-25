@@ -32,8 +32,12 @@ mixin _$BikeState {
   bool get modeLock => throw _privateConstructorUsedError;
   int get color => throw _privateConstructorUsedError;
 
+  /// Serializes this BikeState to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   $BikeStateCopyWith<BikeState> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -67,6 +71,8 @@ class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
   // ignore: unused_field
   final $Res Function($Val) _then;
 
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -161,6 +167,8 @@ class __$$BikeStateImplCopyWithImpl<$Res>
       _$BikeStateImpl _value, $Res Function(_$BikeStateImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -305,12 +313,14 @@ class _$BikeStateImpl extends _BikeState {
             (identical(other.color, color) || other.color == color));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
       lightLocked, assist, assistLocked, name, region, modeLock, color);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
@@ -364,8 +374,11 @@ abstract class _BikeState extends BikeState {
   bool get modeLock;
   @override
   int get color;
+
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
