@@ -168,11 +168,11 @@ class ForegroundNotificationWrapper extends StatelessWidget {
     return WillStartForegroundTask(
       onWillStart: onWillStart,
       androidNotificationOptions: AndroidNotificationOptions(
-          channelId: 'notification_channel_id',
-          channelName: 'Background Lock Notification',
-          priority: NotificationPriority.LOW,
-          channelImportance: NotificationChannelImportance.LOW,
-          iconData: null),
+        channelId: 'notification_channel_id',
+        channelName: 'Background Lock Notification',
+        priority: NotificationPriority.LOW,
+        channelImportance: NotificationChannelImportance.LOW,
+      ),
       iosNotificationOptions: const IOSNotificationOptions(),
       foregroundTaskOptions: const ForegroundTaskOptions(),
       notificationTitle: 'SuperDuper Background Lock On',

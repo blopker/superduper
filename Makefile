@@ -1,7 +1,17 @@
-watch:
+MAKEFLAGS += -j4
+.PHONY: *
+
+watch: watch-runner dev
+
+dev:
+	flutter run --hot -d Pixel
+
+watch-runner:
 	dart run build_runner watch --delete-conflicting-outputs
 
-build: build-runner build-android build-ios
+build: build-runner
+	make build-android
+	make build-ios
 
 build-runner:
 	dart run build_runner build --delete-conflicting-outputs
@@ -31,5 +41,3 @@ icons:
 clean:
 	flutter clean
 	rm -rf build
-
-.PHONY: build
