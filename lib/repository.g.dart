@@ -21,6 +21,8 @@ final connectionHandlerProvider =
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef ConnectionHandlerRef = AutoDisposeProviderRef<ConnectionHandler>;
 String _$adapterStateHash() => r'7e80522f330f7586989aeadfb5a31f82eee98100';
 
@@ -36,6 +38,8 @@ final adapterStateProvider =
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef AdapterStateRef = AutoDisposeStreamProviderRef<BluetoothAdapterState>;
 String _$isScanningStatusHash() => r'327f6620483bdd9d44ee6149c0cb9c58820ba3d0';
 
@@ -51,6 +55,8 @@ final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
 String _$connectedDevicesHash() => r'103d3abe23c69bb59bc577f19c755c8d61305977';
 
@@ -67,6 +73,8 @@ final connectedDevicesProvider =
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef ConnectedDevicesRef
     = AutoDisposeStreamProviderRef<List<BluetoothDevice>>;
 String _$bluetoothRepositoryHash() =>
@@ -85,6 +93,8 @@ final bluetoothRepositoryProvider =
   allTransitiveDependencies: null,
 );
 
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
 typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
 String _$scanResultsHash() => r'd52e9fc5f1fcb70bb39d62957d30c02f5b8a8e20';
 
@@ -102,4 +112,4 @@ final scanResultsProvider =
 
 typedef _$ScanResults = AutoDisposeNotifier<List<ScanResult>>;
 // ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member
+// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
