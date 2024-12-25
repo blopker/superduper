@@ -34,11 +34,11 @@ Future<File> get _bikesFile async {
   return File('$path/bikes.json');
 }
 
-Future<File> _writeSettings(SettingsModel setting) async {
-  debugPrint('Writing settings to file');
-  final file = await _settingsFile;
-  return file.writeAsString(jsonEncode(setting));
-}
+// Future<File> _writeSettings(SettingsModel setting) async {
+//   debugPrint('Writing settings to file');
+//   final file = await _settingsFile;
+//   return file.writeAsString(jsonEncode(setting));
+// }
 
 Future<File> _writeBikes(List<BikeState> bikes) async {
   debugPrint('Writing bikes to file');

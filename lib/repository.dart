@@ -12,20 +12,18 @@ import 'models.dart';
 part 'repository.g.dart';
 
 @riverpod
-ConnectionHandler connectionHandler(ConnectionHandlerRef ref) =>
-    ConnectionHandler(ref);
+ConnectionHandler connectionHandler(Ref ref) => ConnectionHandler(ref);
 
 final connectionStatusProvider = StateProvider<BluetoothConnectionState>(
   (ref) => BluetoothConnectionState.disconnected,
 );
 
 @riverpod
-Stream<BluetoothAdapterState> adapterState(AdapterStateRef ref) =>
+Stream<BluetoothAdapterState> adapterState(Ref ref) =>
     FlutterBluePlus.adapterState;
 
 @riverpod
-Stream<bool> isScanningStatus(IsScanningStatusRef ref) =>
-    FlutterBluePlus.isScanning;
+Stream<bool> isScanningStatus(Ref ref) => FlutterBluePlus.isScanning;
 
 @riverpod
 class ScanResults extends _$ScanResults {
@@ -40,7 +38,7 @@ class ScanResults extends _$ScanResults {
 }
 
 @riverpod
-Stream<List<BluetoothDevice>> connectedDevices(ConnectedDevicesRef ref) =>
+Stream<List<BluetoothDevice>> connectedDevices(Ref ref) =>
     Stream<List<BluetoothDevice>>.periodic(
         const Duration(seconds: 1), (x) => FlutterBluePlus.connectedDevices);
 
@@ -76,8 +74,7 @@ class ConnectionHandler {
 }
 
 @riverpod
-BluetoothRepository bluetoothRepository(BluetoothRepositoryRef ref) =>
-    BluetoothRepository(ref);
+BluetoothRepository bluetoothRepository(Ref ref) => BluetoothRepository(ref);
 
 class BluetoothRepository {
   final currentStateId = [3, 0];

@@ -6,7 +6,7 @@ part of 'repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$connectionHandlerHash() => r'c272f176fda3e930bc1affc061c8d0536daf314d';
+String _$connectionHandlerHash() => r'867ee0b3a5b75054ff74d291107089953d4b7544';
 
 /// See also [connectionHandler].
 @ProviderFor(connectionHandler)
@@ -24,7 +24,7 @@ final connectionHandlerProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ConnectionHandlerRef = AutoDisposeProviderRef<ConnectionHandler>;
-String _$adapterStateHash() => r'7e80522f330f7586989aeadfb5a31f82eee98100';
+String _$adapterStateHash() => r'b2664eace33ac0f397ed4d82636ba521673d9099';
 
 /// See also [adapterState].
 @ProviderFor(adapterState)
@@ -41,7 +41,7 @@ final adapterStateProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AdapterStateRef = AutoDisposeStreamProviderRef<BluetoothAdapterState>;
-String _$isScanningStatusHash() => r'327f6620483bdd9d44ee6149c0cb9c58820ba3d0';
+String _$isScanningStatusHash() => r'dfe37cf6ae13ad7180be16e508b6b6ae1eca4283';
 
 /// See also [isScanningStatus].
 @ProviderFor(isScanningStatus)
@@ -58,7 +58,7 @@ final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
-String _$connectedDevicesHash() => r'103d3abe23c69bb59bc577f19c755c8d61305977';
+String _$connectedDevicesHash() => r'bad504c4de82eb01a975bc4812de5b49623a4720';
 
 /// See also [connectedDevices].
 @ProviderFor(connectedDevices)
@@ -78,7 +78,7 @@ final connectedDevicesProvider =
 typedef ConnectedDevicesRef
     = AutoDisposeStreamProviderRef<List<BluetoothDevice>>;
 String _$bluetoothRepositoryHash() =>
-    r'e97e207fdd1a0ae74a78b657fa387267d192b334';
+    r'f232e7f108085d98f2d484a8aa17addf2a62b39f';
 
 /// See also [bluetoothRepository].
 @ProviderFor(bluetoothRepository)
