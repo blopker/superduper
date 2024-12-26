@@ -11,14 +11,35 @@ import 'models.dart';
 
 part 'repository.g.dart';
 
+enum SDBluetoothConnectionState {
+  disconnected,
+  connected,
+  connecting,
+  disconnecting
+}
+
+_bpStateToSDBluetoothConnectionState(BluetoothConnectionState state) {
+  switch (state) {
+    case BluetoothConnectionState.disconnected:
+      return SDBluetoothConnectionState.disconnected;
+    case BluetoothConnectionState.connected:
+      return SDBluetoothConnectionState.connected;
+    case _:
+      return SDBluetoothConnectionState.disconnected;
+  }
+}
+
 @riverpod
 ConnectionHandler connectionHandler(Ref ref) => ConnectionHandler(ref);
 
-final connectionStatusProvider = StateProvider<BluetoothConnectionState>(
-  (ref) => BluetoothConnectionState.disconnected,
-);
+@Riverpod(keepAlive: true)
+class ConnectionStatus extends _$ConnectionStatus {
+  @override
+  SDBluetoothConnectionState build() => SDBluetoothConnectionState.disconnected;
+  void set(SDBluetoothConnectionState status) => state = status;
+}
 
-@riverpod
+@Riverpod(keepAlive: true)
 Stream<BluetoothAdapterState> adapterState(Ref ref) =>
     FlutterBluePlus.adapterState;
 
@@ -166,18 +187,19 @@ class BluetoothRepository {
       return;
     }
     var connNotify = ref.read(connectionStatusProvider.notifier);
-    connNotify.state = BluetoothConnectionState.connecting;
+    connNotify.set(SDBluetoothConnectionState.connecting);
     try {
       await device.connect(timeout: const Duration(seconds: 20));
       await device.discoverServices();
     } catch (e) {
       debugPrint(e.toString());
+      connNotify.set(SDBluetoothConnectionState.disconnected);
       return;
     }
     var deviceSub =
         device.connectionState.listen((BluetoothConnectionState state) async {
       debugPrint('BluetoothConnectionState: $state');
-      connNotify.state = state;
+      connNotify.set(_bpStateToSDBluetoothConnectionState(state));
       if (state == BluetoothConnectionState.disconnected) {
         debugPrint("${device.disconnectReason}");
       }

@@ -4,7 +4,7 @@ MAKEFLAGS += -j4
 watch: watch-runner dev
 
 dev:
-	flutter run --hot -d Pixel
+	flutter run --hot -d macos
 
 watch-runner:
 	dart run build_runner watch --delete-conflicting-outputs
