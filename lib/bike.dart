@@ -64,30 +64,33 @@ class Bike extends _$Bike {
     _writing = false;
     _updateDebounce = Timer(const Duration(seconds: 2), () async {
       _resetReadTimer();
-      var data = await ref
-          .read(bluetoothRepositoryProvider)
-          .readCurrentState(state.id);
-      if (data == null || data.isEmpty) {
-        return;
-      }
-      var newState = state.updateFromData(data);
-      if (newState == state && !force) {
-        return;
-      }
-      debugPrint('state update $data');
-      if (state.lightLocked && state.light != newState.light) {
-        newState = newState.copyWith(light: state.light);
-      }
-
-      if (state.modeLocked && state.mode != newState.mode) {
-        newState = newState.copyWith(mode: state.mode);
-      }
-
-      if (state.assistLocked && state.assist != newState.assist) {
-        newState = newState.copyWith(assist: state.assist);
-      }
-      writeStateData(newState);
+      await updateStateDataNow();
     });
+  }
+
+  Future<void> updateStateDataNow({force = false}) async {
+    var data =
+        await ref.read(bluetoothRepositoryProvider).readCurrentState(state.id);
+    if (data == null || data.isEmpty) {
+      return;
+    }
+    var newState = state.updateFromData(data);
+    if (newState == state && !force) {
+      return;
+    }
+    debugPrint('state update $data');
+    if (state.lightLocked && state.light != newState.light) {
+      newState = newState.copyWith(light: state.light);
+    }
+
+    if (state.modeLocked && state.mode != newState.mode) {
+      newState = newState.copyWith(mode: state.mode);
+    }
+
+    if (state.assistLocked && state.assist != newState.assist) {
+      newState = newState.copyWith(assist: state.assist);
+    }
+    writeStateData(newState);
   }
 
   void writeStateData(BikeState newState, {saveToBike = true}) async {
@@ -188,9 +191,10 @@ class BikePageState extends ConsumerState<BikePage> {
     var bike = ref.watch(bikeProvider(widget.bikeID));
     var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
     ref.listen(connectionHandlerProvider(bike.id), (previous, next) {
-      if (next == SDBluetoothConnectionState.connected) {
+      if (previous != SDBluetoothConnectionState.connected &&
+          next == SDBluetoothConnectionState.connected) {
         // First connect, force update
-        bikeControl.updateStateData(force: true);
+        bikeControl.updateStateDataNow(force: true);
       }
     });
     return ForegroundNotificationWrapper(

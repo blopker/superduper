@@ -39,54 +39,59 @@ Stream<List<BluetoothDevice>> connectedDevices(Ref ref) =>
 @riverpod
 class ConnectionHandler extends _$ConnectionHandler {
   Timer? _reconnectTimer;
-  BluetoothDevice? _device;
+  late BluetoothDevice _device;
   StreamSubscription<BluetoothConnectionState>? _deviceSub;
 
   @override
   SDBluetoothConnectionState build(String deviceId) {
-    ref.onDispose(_dispose);
-    connect();
-    return SDBluetoothConnectionState.connecting;
-  }
-
-  void _dispose() {
-    debugPrint("DISPOSE ConnectionHandler");
-    _reconnectTimer?.cancel();
-  }
-
-  connect() async {
-    // print('connecting...');
-    _reconnectTimer = _reconnectTimer ??
-        Timer.periodic(const Duration(seconds: 10), (t) => connect());
-    if (_device != null && _device!.isConnected) {
-      state = SDBluetoothConnectionState.connected;
-      return;
-    }
     state = SDBluetoothConnectionState.connecting;
-    var bt = ref.read(bluetoothRepositoryProvider);
-    _device = _device ?? await bt.getDevice(deviceId);
-
-    if (_device == null) {
-      state = SDBluetoothConnectionState.disconnected;
-      return;
-    }
-
-    if (_device!.isConnected) {
-      state = SDBluetoothConnectionState.connected;
-      return;
-    }
-
-    _deviceSub?.cancel();
-    _deviceSub = _device!.connectionState.listen((dstate) {
+    ref.onDispose(_dispose);
+    _device = BluetoothDevice.fromId(deviceId);
+    _deviceSub = _device.connectionState.listen((dstate) {
+      debugPrint('Connection state: $dstate');
       if (dstate == BluetoothConnectionState.connected) {
         state = SDBluetoothConnectionState.connected;
       } else if (dstate == BluetoothConnectionState.disconnected) {
         state = SDBluetoothConnectionState.disconnected;
       }
     });
-    _device!.cancelWhenDisconnected(_deviceSub!, delayed: true);
+    _reconnectTimer = _reconnectTimer ??
+        Timer.periodic(const Duration(seconds: 10), (t) {
+          if (state == SDBluetoothConnectionState.disconnected) {
+            connect();
+          }
+        });
+    connect();
+    return SDBluetoothConnectionState.connecting;
+  }
+
+  void _dispose() {
+    debugPrint("DISPOSE ConnectionHandler");
+    _device.disconnect();
+    _deviceSub?.cancel();
+    _reconnectTimer?.cancel();
+  }
+
+  connect() async {
+    if (_device.isConnected) {
+      state = SDBluetoothConnectionState.connected;
+      return;
+    }
+
+    state = SDBluetoothConnectionState.connecting;
+
     try {
-      await bt.connect(_device!);
+      await _device.connect(autoConnect: true, mtu: null);
+      await _device.connectionState
+          .where((val) => val == BluetoothConnectionState.connected)
+          .first;
+      if (Platform.isAndroid) {
+        await _device.requestMtu(512);
+      }
+      debugPrint('Connected to ${_device.remoteId.str}');
+      await _device.discoverServices();
+      state = SDBluetoothConnectionState.connected;
+      // await _device!.discoverServices();
     } catch (e) {
       debugPrint('Error connecting: $e');
       state = SDBluetoothConnectionState.disconnected;
