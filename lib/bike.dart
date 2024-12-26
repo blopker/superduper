@@ -70,7 +70,7 @@ class Bike extends _$Bike {
 
   Future<void> updateStateDataNow({force = false}) async {
     var data =
-        await ref.read(bluetoothRepositoryProvider).readCurrentState(state.id);
+        await ref.read(connectionHandlerProvider(state.id).notifier).read();
     if (data == null || data.isEmpty) {
       return;
     }
@@ -104,8 +104,8 @@ class Bike extends _$Bike {
         return;
       }
       _writing = true;
-      final repo = ref.read(bluetoothRepositoryProvider);
-      await repo.write(newState.id, data: newState.toWriteData());
+      final repo = ref.read(connectionHandlerProvider(state.id).notifier);
+      await repo.write(newState.toWriteData());
     }
     ref.read(bikesDBProvider.notifier).saveBike(newState);
     state = newState;

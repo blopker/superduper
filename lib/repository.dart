@@ -89,13 +89,27 @@ class ConnectionHandler extends _$ConnectionHandler {
         await _device.requestMtu(512);
       }
       debugPrint('Connected to ${_device.remoteId.str}');
-      await _device.discoverServices();
       state = SDBluetoothConnectionState.connected;
-      // await _device!.discoverServices();
+      await _device.discoverServices();
     } catch (e) {
       debugPrint('Error connecting: $e');
       state = SDBluetoothConnectionState.disconnected;
     }
+  }
+
+  write(List<int> data) async {
+    await ref.read(bluetoothRepositoryProvider).write(_device, data: data);
+  }
+
+  Future<List<int>?> read() async {
+    var bt = ref.read(bluetoothRepositoryProvider);
+    await bt.write(_device,
+        data: bt.currentStateId,
+        serviceId: UUID_METRICS_SERVICE,
+        characteristicId: UUID_CHARACTERISTIC_REGISTER_ID);
+    return await bt.read(_device,
+        serviceId: UUID_METRICS_SERVICE,
+        characteristicId: UUID_CHARACTERISTIC_REGISTER);
   }
 }
 
@@ -149,60 +163,12 @@ class BluetoothRepository {
     }
   }
 
-  Future<BluetoothDevice?> getDevice(String id) async {
-    debugPrint('getDevice(): Looking for $id');
-    for (var device in FlutterBluePlus.connectedDevices) {
-      if (device.remoteId.str == id) {
-        return device;
-      }
-    }
-    BluetoothDevice? device;
-    FlutterBluePlus.scanResults.listen((results) {
-      // return results.any((result) => result.device.remoteId.str == id);
-      for (var result in results) {
-        if (result.device.remoteId.str == id) {
-          device = result.device;
-          stopScan();
-        }
-      }
-    });
-    await scan();
-    return device;
-  }
-
-  connect(BluetoothDevice device) async {
-    debugPrint('connect(): Connecting to ${device.remoteId.str}');
-    await stopScan();
-    await device.connect(timeout: const Duration(seconds: 20));
-    device.discoverServices();
-    // var service = device.servicesList
-    //     .firstWhere((element) => element.uuid == UUID_METRICS_SERVICE);
-    // var char = service.characteristics
-    //     .firstWhere((element) => element.uuid == UUID_CHARACTERISTIC_REGISTER);
-    // char.lastValueStream.listen((value) {
-    //   debugPrint('lastValueStream: $value');
-    // });
-  }
-
-  // Stream<List<int>> getNotificationStream(String deviceId) {
-  //   var char = QualifiedCharacteristic(
-  //       serviceId: UUID_METRICS_SERVICE,
-  //       characteristicId: UUID_CHARACTERISTIC_REGISTER_NOTIFIER,
-  //       deviceId: deviceId);
-  //   return ble.subscribeToCharacteristic(char);
-  // }
-
-  Future<void> write(String deviceId,
+  Future<void> write(BluetoothDevice device,
       {required List<int> data,
       Guid? serviceId,
       Guid? characteristicId}) async {
     serviceId ??= UUID_METRICS_SERVICE;
     characteristicId ??= UUID_CHARACTERISTIC_REGISTER;
-    debugPrint('Writing $data to $deviceId');
-    var device = await getDevice(deviceId);
-    if (device == null) {
-      return;
-    }
     try {
       var service = device.servicesList
           .firstWhere((element) => element.uuid == serviceId);
@@ -210,19 +176,15 @@ class BluetoothRepository {
           .firstWhere((element) => element.uuid == characteristicId);
       await char.write(data);
     } catch (e) {
-      debugPrint('Error writing to $deviceId: $e');
+      debugPrint('Error writing to ${device.remoteId}: $e');
     }
   }
 
-  Future<List<int>?> read(String deviceId,
+  Future<List<int>?> read(BluetoothDevice device,
       {Guid? serviceId, Guid? characteristicId}) async {
     serviceId ??= UUID_METRICS_SERVICE;
     characteristicId ??= UUID_CHARACTERISTIC_REGISTER;
-    debugPrint('Reading from $deviceId');
-    var device = await getDevice(deviceId);
-    if (device == null) {
-      return null;
-    }
+    debugPrint('Reading from ${device.remoteId}');
     try {
       var service = device.servicesList
           .firstWhere((element) => element.uuid == serviceId);
@@ -230,19 +192,8 @@ class BluetoothRepository {
           .firstWhere((element) => element.uuid == characteristicId);
       return await char.read();
     } catch (e) {
-      debugPrint('Error reading from $deviceId: $e');
+      debugPrint('Error reading from ${device.remoteId}: $e');
     }
     return null;
-  }
-
-  Future<List<int>?> readCurrentState(String deviceId) async {
-    // Set the char register to the right mode to get the current state.
-    await write(deviceId,
-        data: currentStateId,
-        serviceId: UUID_METRICS_SERVICE,
-        characteristicId: UUID_CHARACTERISTIC_REGISTER_ID);
-    return await read(deviceId,
-        serviceId: UUID_METRICS_SERVICE,
-        characteristicId: UUID_CHARACTERISTIC_REGISTER);
   }
 }
