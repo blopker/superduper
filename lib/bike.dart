@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -32,6 +31,7 @@ class Bike extends _$Bike {
     });
     _resetReadTimer();
     var bike = ref.watch(bikesDBProvider.notifier).getBike(id);
+    ref.watch(connectionHandlerProvider(id));
     if (bike != null) {
       return bike;
     }
@@ -56,8 +56,8 @@ class Bike extends _$Bike {
   }
 
   Future<void> updateStateData({force = false}) async {
-    var status = ref.read(connectionStatusProvider);
-    if (status != BluetoothConnectionState.connected) {
+    var status = ref.read(connectionHandlerProvider(state.id));
+    if (status != SDBluetoothConnectionState.connected) {
       return;
     }
     _resetDebounce();
@@ -95,9 +95,9 @@ class Bike extends _$Bike {
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
-    var status = ref.read(connectionStatusProvider);
+    var status = ref.read(connectionHandlerProvider(state.id));
     if (saveToBike) {
-      if (status != BluetoothConnectionState.connected) {
+      if (status != SDBluetoothConnectionState.connected) {
         return;
       }
       _writing = true;
@@ -184,17 +184,11 @@ class ForegroundNotificationWrapper extends StatelessWidget {
 
 class BikePageState extends ConsumerState<BikePage> {
   @override
-  void initState() {
-    super.initState();
-    ref.read(connectionHandlerProvider).connect(widget.bikeID);
-  }
-
-  @override
   Widget build(BuildContext context) {
     var bike = ref.watch(bikeProvider(widget.bikeID));
     var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
-    ref.listen(connectionStatusProvider, (previous, next) {
-      if (next == BluetoothConnectionState.connected) {
+    ref.listen(connectionHandlerProvider(bike.id), (previous, next) {
+      if (next == SDBluetoothConnectionState.connected) {
         // First connect, force update
         bikeControl.updateStateData(force: true);
       }
@@ -284,15 +278,16 @@ class ConnectionWidget extends ConsumerWidget {
   final BikeState bike;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var connectionStatus = ref.watch(connectionStatusProvider);
-    var connectionHandler = ref.watch(connectionHandlerProvider);
+    var connectionProvider = connectionHandlerProvider(bike.id);
+    var connectionStatus = ref.watch(connectionProvider);
+    var connectionHandler = ref.watch(connectionProvider.notifier);
     var isScanning = ref.watch(isScanningStatusProvider).value == true;
     var text = 'Connecting...';
     var disabled = true;
-    if (connectionStatus == BluetoothConnectionState.connected) {
+    if (connectionStatus == SDBluetoothConnectionState.connected) {
       text = 'Connected';
       disabled = true;
-    } else if (connectionStatus == BluetoothConnectionState.disconnected &&
+    } else if (connectionStatus == SDBluetoothConnectionState.disconnected &&
         !isScanning) {
       text = 'Connect';
       disabled = false;
@@ -305,7 +300,7 @@ class ConnectionWidget extends ConsumerWidget {
         onTap: disabled
             ? null
             : () {
-                connectionHandler.connect(bike.id);
+                connectionHandler.connect();
               },
         child: Text(text, style: style));
   }

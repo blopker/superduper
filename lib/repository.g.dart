@@ -6,29 +6,12 @@ part of 'repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$connectionHandlerHash() => r'867ee0b3a5b75054ff74d291107089953d4b7544';
-
-/// See also [connectionHandler].
-@ProviderFor(connectionHandler)
-final connectionHandlerProvider =
-    AutoDisposeProvider<ConnectionHandler>.internal(
-  connectionHandler,
-  name: r'connectionHandlerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$connectionHandlerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef ConnectionHandlerRef = AutoDisposeProviderRef<ConnectionHandler>;
-String _$adapterStateHash() => r'03e8c6f0a273f7ee878dc5bffc87f633b88cfb69';
+String _$adapterStateHash() => r'b2664eace33ac0f397ed4d82636ba521673d9099';
 
 /// See also [adapterState].
 @ProviderFor(adapterState)
-final adapterStateProvider = StreamProvider<BluetoothAdapterState>.internal(
+final adapterStateProvider =
+    AutoDisposeStreamProvider<BluetoothAdapterState>.internal(
   adapterState,
   name: r'adapterStateProvider',
   debugGetCreateSourceHash:
@@ -39,7 +22,7 @@ final adapterStateProvider = StreamProvider<BluetoothAdapterState>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef AdapterStateRef = StreamProviderRef<BluetoothAdapterState>;
+typedef AdapterStateRef = AutoDisposeStreamProviderRef<BluetoothAdapterState>;
 String _$isScanningStatusHash() => r'dfe37cf6ae13ad7180be16e508b6b6ae1eca4283';
 
 /// See also [isScanningStatus].
@@ -57,6 +40,23 @@ final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
+String _$scanResultsHash() => r'bf071ca0d8662268581c447c2de7b7f4fc56a685';
+
+/// See also [scanResults].
+@ProviderFor(scanResults)
+final scanResultsProvider =
+    AutoDisposeStreamProvider<List<ScanResult>>.internal(
+  scanResults,
+  name: r'scanResultsProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$scanResultsHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef ScanResultsRef = AutoDisposeStreamProviderRef<List<ScanResult>>;
 String _$connectedDevicesHash() => r'bad504c4de82eb01a975bc4812de5b49623a4720';
 
 /// See also [connectedDevices].
@@ -95,36 +95,172 @@ final bluetoothRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
-String _$connectionStatusHash() => r'22deef3a0c9d3f85c96b4af687a4fc9ac62c5614';
+String _$connectionHandlerHash() => r'2ef302c732d8043b0371c30927cbcf1de193e03d';
 
-/// See also [ConnectionStatus].
-@ProviderFor(ConnectionStatus)
-final connectionStatusProvider =
-    NotifierProvider<ConnectionStatus, SDBluetoothConnectionState>.internal(
-  ConnectionStatus.new,
-  name: r'connectionStatusProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$connectionStatusHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+/// Copied from Dart SDK
+class _SystemHash {
+  _SystemHash._();
 
-typedef _$ConnectionStatus = Notifier<SDBluetoothConnectionState>;
-String _$scanResultsHash() => r'd52e9fc5f1fcb70bb39d62957d30c02f5b8a8e20';
+  static int combine(int hash, int value) {
+    // ignore: parameter_assignments
+    hash = 0x1fffffff & (hash + value);
+    // ignore: parameter_assignments
+    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
+    return hash ^ (hash >> 6);
+  }
 
-/// See also [ScanResults].
-@ProviderFor(ScanResults)
-final scanResultsProvider =
-    AutoDisposeNotifierProvider<ScanResults, List<ScanResult>>.internal(
-  ScanResults.new,
-  name: r'scanResultsProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$scanResultsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+  static int finish(int hash) {
+    // ignore: parameter_assignments
+    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
+    // ignore: parameter_assignments
+    hash = hash ^ (hash >> 11);
+    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
+  }
+}
 
-typedef _$ScanResults = AutoDisposeNotifier<List<ScanResult>>;
+abstract class _$ConnectionHandler
+    extends BuildlessAutoDisposeNotifier<SDBluetoothConnectionState> {
+  late final String deviceId;
+
+  SDBluetoothConnectionState build(
+    String deviceId,
+  );
+}
+
+/// See also [ConnectionHandler].
+@ProviderFor(ConnectionHandler)
+const connectionHandlerProvider = ConnectionHandlerFamily();
+
+/// See also [ConnectionHandler].
+class ConnectionHandlerFamily extends Family<SDBluetoothConnectionState> {
+  /// See also [ConnectionHandler].
+  const ConnectionHandlerFamily();
+
+  /// See also [ConnectionHandler].
+  ConnectionHandlerProvider call(
+    String deviceId,
+  ) {
+    return ConnectionHandlerProvider(
+      deviceId,
+    );
+  }
+
+  @override
+  ConnectionHandlerProvider getProviderOverride(
+    covariant ConnectionHandlerProvider provider,
+  ) {
+    return call(
+      provider.deviceId,
+    );
+  }
+
+  static const Iterable<ProviderOrFamily>? _dependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
+
+  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
+
+  @override
+  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
+      _allTransitiveDependencies;
+
+  @override
+  String? get name => r'connectionHandlerProvider';
+}
+
+/// See also [ConnectionHandler].
+class ConnectionHandlerProvider extends AutoDisposeNotifierProviderImpl<
+    ConnectionHandler, SDBluetoothConnectionState> {
+  /// See also [ConnectionHandler].
+  ConnectionHandlerProvider(
+    String deviceId,
+  ) : this._internal(
+          () => ConnectionHandler()..deviceId = deviceId,
+          from: connectionHandlerProvider,
+          name: r'connectionHandlerProvider',
+          debugGetCreateSourceHash:
+              const bool.fromEnvironment('dart.vm.product')
+                  ? null
+                  : _$connectionHandlerHash,
+          dependencies: ConnectionHandlerFamily._dependencies,
+          allTransitiveDependencies:
+              ConnectionHandlerFamily._allTransitiveDependencies,
+          deviceId: deviceId,
+        );
+
+  ConnectionHandlerProvider._internal(
+    super._createNotifier, {
+    required super.name,
+    required super.dependencies,
+    required super.allTransitiveDependencies,
+    required super.debugGetCreateSourceHash,
+    required super.from,
+    required this.deviceId,
+  }) : super.internal();
+
+  final String deviceId;
+
+  @override
+  SDBluetoothConnectionState runNotifierBuild(
+    covariant ConnectionHandler notifier,
+  ) {
+    return notifier.build(
+      deviceId,
+    );
+  }
+
+  @override
+  Override overrideWith(ConnectionHandler Function() create) {
+    return ProviderOverride(
+      origin: this,
+      override: ConnectionHandlerProvider._internal(
+        () => create()..deviceId = deviceId,
+        from: from,
+        name: null,
+        dependencies: null,
+        allTransitiveDependencies: null,
+        debugGetCreateSourceHash: null,
+        deviceId: deviceId,
+      ),
+    );
+  }
+
+  @override
+  AutoDisposeNotifierProviderElement<ConnectionHandler,
+      SDBluetoothConnectionState> createElement() {
+    return _ConnectionHandlerProviderElement(this);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ConnectionHandlerProvider && other.deviceId == deviceId;
+  }
+
+  @override
+  int get hashCode {
+    var hash = _SystemHash.combine(0, runtimeType.hashCode);
+    hash = _SystemHash.combine(hash, deviceId.hashCode);
+
+    return _SystemHash.finish(hash);
+  }
+}
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+mixin ConnectionHandlerRef
+    on AutoDisposeNotifierProviderRef<SDBluetoothConnectionState> {
+  /// The parameter `deviceId` of this provider.
+  String get deviceId;
+}
+
+class _ConnectionHandlerProviderElement
+    extends AutoDisposeNotifierProviderElement<ConnectionHandler,
+        SDBluetoothConnectionState> with ConnectionHandlerRef {
+  _ConnectionHandlerProviderElement(super.provider);
+
+  @override
+  String get deviceId => (origin as ConnectionHandlerProvider).deviceId;
+}
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

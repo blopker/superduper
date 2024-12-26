@@ -50,7 +50,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     var bikeNotifier = ref.watch(bikesDBProvider.notifier);
     var scanResults = ref.watch(scanResultsProvider);
     List<BikeState> foundBikes = [];
-    for (var result in scanResults) {
+    for (var result in scanResults.value ?? []) {
       if (bikeNotifier.getBike(result.device.remoteId.str) != null) {
         continue;
       }
