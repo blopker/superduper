@@ -1,10 +1,25 @@
-![Superduper](https://raw.githubusercontent.com/blopker/superduper/main/assets/superduper_android_feature.jpg)
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="assets/superduper-nobg.png" alt="Logo" width="80" height="80">
+  </a>
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Google Play" width="200"/>](https://play.google.com/store/apps/details?id=io.kbl.superduper)
+  <h3 align="center">SuperDuper App</h3>
 
-[<img src="https://explore.tivo.com/content/dam/tivo/explore/how-to/app-store-badge.png" alt="Apple Store" width="200"/>](https://testflight.apple.com/join/Tl0UibRY)
-
-This app is an alternative the official Super ebike app.
+  <p align="center">
+    An alternative ebike app.
+    <br />
+    <a href="https://discord.gg/STvgARZYaw"><strong>Join the Discord</strong></a>
+    <br />
+    <br />
+    <a href="https://testflight.apple.com/join/Tl0UibRY">iOS Download</a>
+    ·
+    <a href="https://play.google.com/store/apps/details?id=io.kbl.superduper">Android Download</a>
+    ·
+    <a href="https://github.com/blopker/superduper/issues">Bug Reports</a>
+  </p>
+</div>
 
 Features:
 
