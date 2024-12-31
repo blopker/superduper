@@ -20,6 +20,11 @@
     <a href="https://github.com/blopker/superduper/issues">Bug Reports</a>
   </p>
 </div>
+<br/>
+<div align="center">
+    <img src="assets/superdupergithub.webp" alt="Logo">
+</div>
+<br/>
 
 Features:
 
