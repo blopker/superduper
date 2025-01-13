@@ -29,7 +29,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner:
-  custom_lint:
+  custom_lint: 0.7.1
   flutter_launcher_icons: ^0.14.0
   flutter_lints: ^5.0.0
   freezed: ^2.5.0
