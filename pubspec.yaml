@@ -30,7 +30,7 @@ dev_dependencies:
     sdk: flutter
   build_runner:
   custom_lint:
-  flutter_launcher_icons: ^0.14.0
+  flutter_launcher_icons: ^0.14.3
   flutter_lints: ^5.0.0
   freezed: ^2.5.0
   json_serializable: ^6.9.0
