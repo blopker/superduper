@@ -1,0 +1,2 @@
+/Users/blopker/code/superduper/android/app/.cxx/Debug/356y7065/x86_64/CMakeFiles/edit_cache.dir
+/Users/blopker/code/superduper/android/app/.cxx/Debug/356y7065/x86_64/CMakeFiles/rebuild_cache.dir

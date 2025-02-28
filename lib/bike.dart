@@ -210,6 +210,10 @@ class BikePageState extends ConsumerState<BikePage> {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
+                var settings = ref.read(settingsDBProvider);
+                ref
+                    .read(settingsDBProvider.notifier)
+                    .save(settings.copyWith(currentBike: null));
                 Navigator.pop(context);
               },
             ),
@@ -280,6 +284,7 @@ class BikePageState extends ConsumerState<BikePage> {
 class ConnectionWidget extends ConsumerWidget {
   const ConnectionWidget({super.key, required this.bike});
   final BikeState bike;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var connectionProvider = connectionHandlerProvider(bike.id);

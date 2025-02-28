@@ -6,12 +6,12 @@ part of 'db.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SettingsModelImpl _$$SettingsModelImplFromJson(Map<String, dynamic> json) =>
-    _$SettingsModelImpl(
+_SettingsModel _$SettingsModelFromJson(Map<String, dynamic> json) =>
+    _SettingsModel(
       currentBike: json['currentBike'] as String?,
     );
 
-Map<String, dynamic> _$$SettingsModelImplToJson(_$SettingsModelImpl instance) =>
+Map<String, dynamic> _$SettingsModelToJson(_SettingsModel instance) =>
     <String, dynamic>{
       'currentBike': instance.currentBike,
     };
@@ -34,7 +34,7 @@ final bikesDBProvider = NotifierProvider<BikesDB, List<BikeState>>.internal(
 );
 
 typedef _$BikesDB = Notifier<List<BikeState>>;
-String _$settingsDBHash() => r'9d9f31c16ae24aad4da3a06e4815bbecfa11d966';
+String _$settingsDBHash() => r'85752969120b912d56c7db093dfba66f5d667b6a';
 
 /// See also [SettingsDB].
 @ProviderFor(SettingsDB)

@@ -67,12 +67,12 @@ class ConnectionHandler extends _$ConnectionHandler {
 
   void _dispose() {
     debugPrint("DISPOSE ConnectionHandler");
-    _device.disconnect();
     _deviceSub?.cancel();
     _reconnectTimer?.cancel();
   }
 
   connect() async {
+    debugPrint("Connecting to ${_device.remoteId}");
     if (_device.isConnected) {
       state = SDBluetoothConnectionState.connected;
       return;
@@ -81,7 +81,7 @@ class ConnectionHandler extends _$ConnectionHandler {
     state = SDBluetoothConnectionState.connecting;
 
     try {
-      await _device.connect(autoConnect: true, mtu: null);
+      await _device.connect(mtu: null);
       await _device.connectionState
           .where((val) => val == BluetoothConnectionState.connected)
           .first;

@@ -99,7 +99,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     ref.watch(bluetoothRepositoryProvider);
     return Scaffold(
-        backgroundColor: const Color(0xff121421),
+        backgroundColor: Colors.black,
         body: SafeArea(
             child: FutureBuilder(
           future: permFuture,

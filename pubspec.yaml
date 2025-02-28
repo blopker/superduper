@@ -45,8 +45,8 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   adaptive_icon_background: "#DBECF0"
-  adaptive_icon_foreground: "assets/superduper_android.png"
+  adaptive_icon_foreground: "assets/superduper.png"
   ios: true
-  image_path: "assets/superduper_android.png"
+  image_path: "assets/superduper.png"
   image_path_ios: "assets/superduper.png"
   remove_alpha_ios: true

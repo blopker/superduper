@@ -33,6 +33,10 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   }
 
   void selectBike(BikeState bike) {
+    var settings = ref.read(settingsDBProvider);
+    ref
+        .read(settingsDBProvider.notifier)
+        .save(settings.copyWith(currentBike: bike.id));
     Navigator.push(context, MaterialPageRoute(builder: (_) {
       return BikePage(bikeID: bike.id);
     }));
@@ -57,7 +61,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
       foundBikes.add(BikeState.defaultState(result.device.remoteId.str));
     }
     return Container(
-      color: Colors.black87,
+      color: Colors.black,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(

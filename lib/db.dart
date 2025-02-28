@@ -12,7 +12,7 @@ part 'db.freezed.dart';
 part 'db.g.dart';
 
 @freezed
-class SettingsModel with _$SettingsModel {
+abstract class SettingsModel with _$SettingsModel {
   const factory SettingsModel({String? currentBike}) = _SettingsModel;
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) =>
@@ -108,5 +108,10 @@ class SettingsDB extends _$SettingsDB {
   SettingsModel build() {
     _readSettings().then((settings) => state = settings);
     return const SettingsModel();
+  }
+
+  void save(SettingsModel settings) {
+    _settingsFile.then((file) => file.writeAsString(jsonEncode(settings)));
+    state = settings;
   }
 }

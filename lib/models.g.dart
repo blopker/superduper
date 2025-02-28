@@ -6,8 +6,7 @@ part of 'models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$BikeStateImpl _$$BikeStateImplFromJson(Map<String, dynamic> json) =>
-    _$BikeStateImpl(
+_BikeState _$BikeStateFromJson(Map<String, dynamic> json) => _BikeState(
       id: json['id'] as String,
       mode: (json['mode'] as num).toInt(),
       modeLocked: json['modeLocked'] as bool? ?? false,
@@ -21,7 +20,7 @@ _$BikeStateImpl _$$BikeStateImplFromJson(Map<String, dynamic> json) =>
       color: (json['color'] as num?)?.toInt() ?? 0,
     );
 
-Map<String, dynamic> _$$BikeStateImplToJson(_$BikeStateImpl instance) =>
+Map<String, dynamic> _$BikeStateToJson(_BikeState instance) =>
     <String, dynamic>{
       'id': instance.id,
       'mode': instance.mode,

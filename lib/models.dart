@@ -17,7 +17,7 @@ enum BikeRegion {
 }
 
 @freezed
-class BikeState with _$BikeState {
+abstract class BikeState with _$BikeState {
   const BikeState._();
   @Assert('mode <= 3')
   @Assert('mode >= 0')

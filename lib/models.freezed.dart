@@ -1,3 +1,4 @@
+// dart format width=80
 // coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
@@ -9,141 +10,70 @@ part of 'models.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-BikeState _$BikeStateFromJson(Map<String, dynamic> json) {
-  return _BikeState.fromJson(json);
-}
 
 /// @nodoc
 mixin _$BikeState {
-  String get id => throw _privateConstructorUsedError;
-  int get mode => throw _privateConstructorUsedError;
-  bool get modeLocked => throw _privateConstructorUsedError;
-  bool get light => throw _privateConstructorUsedError;
-  bool get lightLocked => throw _privateConstructorUsedError;
-  int get assist => throw _privateConstructorUsedError;
-  bool get assistLocked => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  BikeRegion? get region => throw _privateConstructorUsedError;
-  bool get modeLock => throw _privateConstructorUsedError;
-  int get color => throw _privateConstructorUsedError;
-
-  /// Serializes this BikeState to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  String get id;
+  int get mode;
+  bool get modeLocked;
+  bool get light;
+  bool get lightLocked;
+  int get assist;
+  bool get assistLocked;
+  String get name;
+  BikeRegion? get region;
+  bool get modeLock;
+  int get color;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $BikeStateCopyWith<BikeState> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $BikeStateCopyWith<$Res> {
-  factory $BikeStateCopyWith(BikeState value, $Res Function(BikeState) then) =
-      _$BikeStateCopyWithImpl<$Res, BikeState>;
-  @useResult
-  $Res call(
-      {String id,
-      int mode,
-      bool modeLocked,
-      bool light,
-      bool lightLocked,
-      int assist,
-      bool assistLocked,
-      String name,
-      BikeRegion? region,
-      bool modeLock,
-      int color});
-}
-
-/// @nodoc
-class _$BikeStateCopyWithImpl<$Res, $Val extends BikeState>
-    implements $BikeStateCopyWith<$Res> {
-  _$BikeStateCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
-  /// Create a copy of BikeState
-  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
+  $BikeStateCopyWith<BikeState> get copyWith =>
+      _$BikeStateCopyWithImpl<BikeState>(this as BikeState, _$identity);
+
+  /// Serializes this BikeState to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? mode = null,
-    Object? modeLocked = null,
-    Object? light = null,
-    Object? lightLocked = null,
-    Object? assist = null,
-    Object? assistLocked = null,
-    Object? name = null,
-    Object? region = freezed,
-    Object? modeLock = null,
-    Object? color = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      mode: null == mode
-          ? _value.mode
-          : mode // ignore: cast_nullable_to_non_nullable
-              as int,
-      modeLocked: null == modeLocked
-          ? _value.modeLocked
-          : modeLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
-      light: null == light
-          ? _value.light
-          : light // ignore: cast_nullable_to_non_nullable
-              as bool,
-      lightLocked: null == lightLocked
-          ? _value.lightLocked
-          : lightLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
-      assist: null == assist
-          ? _value.assist
-          : assist // ignore: cast_nullable_to_non_nullable
-              as int,
-      assistLocked: null == assistLocked
-          ? _value.assistLocked
-          : assistLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      region: freezed == region
-          ? _value.region
-          : region // ignore: cast_nullable_to_non_nullable
-              as BikeRegion?,
-      modeLock: null == modeLock
-          ? _value.modeLock
-          : modeLock // ignore: cast_nullable_to_non_nullable
-              as bool,
-      color: null == color
-          ? _value.color
-          : color // ignore: cast_nullable_to_non_nullable
-              as int,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is BikeState &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.mode, mode) || other.mode == mode) &&
+            (identical(other.modeLocked, modeLocked) ||
+                other.modeLocked == modeLocked) &&
+            (identical(other.light, light) || other.light == light) &&
+            (identical(other.lightLocked, lightLocked) ||
+                other.lightLocked == lightLocked) &&
+            (identical(other.assist, assist) || other.assist == assist) &&
+            (identical(other.assistLocked, assistLocked) ||
+                other.assistLocked == assistLocked) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.region, region) || other.region == region) &&
+            (identical(other.modeLock, modeLock) ||
+                other.modeLock == modeLock) &&
+            (identical(other.color, color) || other.color == color));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
+      lightLocked, assist, assistLocked, name, region, modeLock, color);
+
+  @override
+  String toString() {
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color)';
   }
 }
 
 /// @nodoc
-abstract class _$$BikeStateImplCopyWith<$Res>
-    implements $BikeStateCopyWith<$Res> {
-  factory _$$BikeStateImplCopyWith(
-          _$BikeStateImpl value, $Res Function(_$BikeStateImpl) then) =
-      __$$BikeStateImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $BikeStateCopyWith<$Res> {
+  factory $BikeStateCopyWith(BikeState value, $Res Function(BikeState) _then) =
+      _$BikeStateCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -160,12 +90,11 @@ abstract class _$$BikeStateImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$BikeStateImplCopyWithImpl<$Res>
-    extends _$BikeStateCopyWithImpl<$Res, _$BikeStateImpl>
-    implements _$$BikeStateImplCopyWith<$Res> {
-  __$$BikeStateImplCopyWithImpl(
-      _$BikeStateImpl _value, $Res Function(_$BikeStateImpl) _then)
-      : super(_value, _then);
+class _$BikeStateCopyWithImpl<$Res> implements $BikeStateCopyWith<$Res> {
+  _$BikeStateCopyWithImpl(this._self, this._then);
+
+  final BikeState _self;
+  final $Res Function(BikeState) _then;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
@@ -184,49 +113,49 @@ class __$$BikeStateImplCopyWithImpl<$Res>
     Object? modeLock = null,
     Object? color = null,
   }) {
-    return _then(_$BikeStateImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       mode: null == mode
-          ? _value.mode
+          ? _self.mode
           : mode // ignore: cast_nullable_to_non_nullable
               as int,
       modeLocked: null == modeLocked
-          ? _value.modeLocked
+          ? _self.modeLocked
           : modeLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       light: null == light
-          ? _value.light
+          ? _self.light
           : light // ignore: cast_nullable_to_non_nullable
               as bool,
       lightLocked: null == lightLocked
-          ? _value.lightLocked
+          ? _self.lightLocked
           : lightLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       assist: null == assist
-          ? _value.assist
+          ? _self.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
       assistLocked: null == assistLocked
-          ? _value.assistLocked
+          ? _self.assistLocked
           : assistLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       name: null == name
-          ? _value.name
+          ? _self.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       region: freezed == region
-          ? _value.region
+          ? _self.region
           : region // ignore: cast_nullable_to_non_nullable
               as BikeRegion?,
       modeLock: null == modeLock
-          ? _value.modeLock
+          ? _self.modeLock
           : modeLock // ignore: cast_nullable_to_non_nullable
               as bool,
       color: null == color
-          ? _value.color
+          ? _self.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
     ));
@@ -235,8 +164,8 @@ class __$$BikeStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$BikeStateImpl extends _BikeState {
-  const _$BikeStateImpl(
+class _BikeState extends BikeState {
+  const _BikeState(
       {required this.id,
       required this.mode,
       this.modeLocked = false,
@@ -254,9 +183,8 @@ class _$BikeStateImpl extends _BikeState {
         assert(assist <= 4),
         assert(color >= 0),
         super._();
-
-  factory _$BikeStateImpl.fromJson(Map<String, dynamic> json) =>
-      _$$BikeStateImplFromJson(json);
+  factory _BikeState.fromJson(Map<String, dynamic> json) =>
+      _$BikeStateFromJson(json);
 
   @override
   final String id;
@@ -286,16 +214,26 @@ class _$BikeStateImpl extends _BikeState {
   @JsonKey()
   final int color;
 
+  /// Create a copy of BikeState
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$BikeStateCopyWith<_BikeState> get copyWith =>
+      __$BikeStateCopyWithImpl<_BikeState>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$BikeStateToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$BikeStateImpl &&
+            other is _BikeState &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.mode, mode) || other.mode == mode) &&
             (identical(other.modeLocked, modeLocked) ||
@@ -318,67 +256,105 @@ class _$BikeStateImpl extends _BikeState {
   int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
       lightLocked, assist, assistLocked, name, region, modeLock, color);
 
-  /// Create a copy of BikeState
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  @pragma('vm:prefer-inline')
-  _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
-      __$$BikeStateImplCopyWithImpl<_$BikeStateImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$BikeStateImplToJson(
-      this,
-    );
+  String toString() {
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color)';
   }
 }
 
-abstract class _BikeState extends BikeState {
-  const factory _BikeState(
-      {required final String id,
-      required final int mode,
-      final bool modeLocked,
-      required final bool light,
-      final bool lightLocked,
-      required final int assist,
-      final bool assistLocked,
-      required final String name,
-      final BikeRegion? region,
-      final bool modeLock,
-      final int color}) = _$BikeStateImpl;
-  const _BikeState._() : super._();
+/// @nodoc
+abstract mixin class _$BikeStateCopyWith<$Res>
+    implements $BikeStateCopyWith<$Res> {
+  factory _$BikeStateCopyWith(
+          _BikeState value, $Res Function(_BikeState) _then) =
+      __$BikeStateCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      int mode,
+      bool modeLocked,
+      bool light,
+      bool lightLocked,
+      int assist,
+      bool assistLocked,
+      String name,
+      BikeRegion? region,
+      bool modeLock,
+      int color});
+}
 
-  factory _BikeState.fromJson(Map<String, dynamic> json) =
-      _$BikeStateImpl.fromJson;
+/// @nodoc
+class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
+  __$BikeStateCopyWithImpl(this._self, this._then);
 
-  @override
-  String get id;
-  @override
-  int get mode;
-  @override
-  bool get modeLocked;
-  @override
-  bool get light;
-  @override
-  bool get lightLocked;
-  @override
-  int get assist;
-  @override
-  bool get assistLocked;
-  @override
-  String get name;
-  @override
-  BikeRegion? get region;
-  @override
-  bool get modeLock;
-  @override
-  int get color;
+  final _BikeState _self;
+  final $Res Function(_BikeState) _then;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
   @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$BikeStateImplCopyWith<_$BikeStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? mode = null,
+    Object? modeLocked = null,
+    Object? light = null,
+    Object? lightLocked = null,
+    Object? assist = null,
+    Object? assistLocked = null,
+    Object? name = null,
+    Object? region = freezed,
+    Object? modeLock = null,
+    Object? color = null,
+  }) {
+    return _then(_BikeState(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      mode: null == mode
+          ? _self.mode
+          : mode // ignore: cast_nullable_to_non_nullable
+              as int,
+      modeLocked: null == modeLocked
+          ? _self.modeLocked
+          : modeLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      light: null == light
+          ? _self.light
+          : light // ignore: cast_nullable_to_non_nullable
+              as bool,
+      lightLocked: null == lightLocked
+          ? _self.lightLocked
+          : lightLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      assist: null == assist
+          ? _self.assist
+          : assist // ignore: cast_nullable_to_non_nullable
+              as int,
+      assistLocked: null == assistLocked
+          ? _self.assistLocked
+          : assistLocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      region: freezed == region
+          ? _self.region
+          : region // ignore: cast_nullable_to_non_nullable
+              as BikeRegion?,
+      modeLock: null == modeLock
+          ? _self.modeLock
+          : modeLock // ignore: cast_nullable_to_non_nullable
+              as bool,
+      color: null == color
+          ? _self.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
 }
+
+// dart format on
