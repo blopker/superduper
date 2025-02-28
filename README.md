@@ -62,7 +62,7 @@ The setting lock feature tells Superduper to ignore whatever the bike is set to 
 
 Background Lock is a feature that will keep the bike on the settings you set in the app, even if the app is closed. This is useful for when you want to leave the bike on a certain setting, like lights and mode, but don't want to keep the app open. For now, this feature is only available on Android. It also takes extra battery to keep the app running in the background.
 
-### What up with the bike names?
+### What's up with the bike names?
 
 The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes. You can change the name in the bike's Edit page after you connect to the bike for the first time.
 
