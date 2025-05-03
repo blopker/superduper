@@ -26,6 +26,9 @@ class BikeSettingsWidget extends ConsumerStatefulWidget {
 class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
   @override
   Widget build(BuildContext context) {
+    // Get the keyboard inset to adjust for keyboard appearance
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    
     return Container(
       decoration: const BoxDecoration(
         color: Colors.black,
@@ -34,9 +37,14 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
           topRight: Radius.circular(16),
         ),
       ),
+      // Use the height constraint to make the modal fill only part of the screen
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          // Add bottom padding equal to keyboard height when keyboard is visible
+          padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset : 0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -50,36 +58,53 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Row(
-                children: [
-                  Text(
-                    'Edit Bike',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Row(
+                  children: [
+                    Text(
+                      'Edit Bike',
+                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
-                  )
-                ],
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[800],
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  ],
+                ),
               ),
-              CompleteForm(bike: widget.bike),
-              const SizedBox(height: 40),
+              // Make the form scrollable when keyboard appears
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      children: [
+                        CompleteForm(bike: widget.bike),
+                        // Add bottom spacing for better scrolling
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
