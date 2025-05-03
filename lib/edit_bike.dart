@@ -8,6 +8,7 @@ import 'package:superduper/colors.dart';
 show(BuildContext context, BikeState bike) {
   showModalBottomSheet<void>(
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       context: context,
       builder: (BuildContext context) {
         return BikeSettingsWidget(bike: bike);
@@ -26,39 +27,61 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black87,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: <Widget>[
-            const SizedBox(
-              height: 40,
-            ),
-            Row(
-              children: [
-                Text(
-                  'Edit Bike',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium!
-                      .copyWith(color: Colors.white),
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // Modal draggable indicator
+              Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const Spacer(),
-                IconButton(
+              ),
+              Row(
+                children: [
+                  Text(
+                    'Edit Bike',
+                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const Spacer(),
+                  IconButton(
                     onPressed: () {
                       Navigator.pop(context);
                     },
-                    icon: const Icon(
-                      Icons.close,
-                      size: 30,
-                    ))
-              ],
-            ),
-            CompleteForm(bike: widget.bike),
-            const SizedBox(
-              height: 20,
-            ),
-          ],
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              CompleteForm(bike: widget.bike),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -93,6 +116,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
       barrierDismissible: false, // user must tap button!
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.grey[900],
           title: const Text('Delete Bike'),
           content: SingleChildScrollView(
             child: ListBody(
@@ -108,7 +132,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Delete'),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
@@ -130,38 +154,60 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
     var bikeNotifier = ref.watch(bikeProvider(widget.bike.id).notifier);
     final colors = getColorList();
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           FormBuilder(
             key: _formKey,
             onChanged: () {
               _formKey.currentState!.save();
-              debugPrint(_formKey.currentState!.value.toString());
             },
-            autovalidateMode: AutovalidateMode.disabled,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             initialValue: {
               'name': widget.bike.name,
               'region': widget.bike.region,
               'color': widget.bike.color,
             },
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const SizedBox(height: 15),
+                // Name field
                 FormBuilderTextField(
                   name: 'name',
                   style: Theme.of(context).textTheme.bodyMedium,
-                  decoration: const InputDecoration(labelText: 'Name'),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    filled: true,
+                    fillColor: Colors.grey[800]!.withAlpha(100),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
                   validator: FormBuilderValidators.compose([
                     FormBuilderValidators.required(),
                   ]),
                   textInputAction: TextInputAction.next,
                 ),
-                const SizedBox(height: 15),
+                
+                const SizedBox(height: 24),
+                
+                // Region dropdown
                 FormBuilderDropdown<BikeRegion>(
                   name: 'region',
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Region',
+                    labelStyle: TextStyle(color: Colors.grey[400]),
+                    filled: true,
+                    fillColor: Colors.grey[800]!.withAlpha(100),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   ),
                   validator: FormBuilderValidators.compose(
                       [FormBuilderValidators.required()]),
@@ -172,7 +218,20 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                           ))
                       .toList(),
                 ),
-                const SizedBox(height: 40),
+                
+                const SizedBox(height: 32),
+                
+                // Color section
+                Text(
+                  'Bike Color',
+                  style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                    color: Colors.grey[400],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Color picker button
                 InkWell(
                   onTap: () async {
                     var colorIndex =
@@ -182,8 +241,9 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                     });
                   },
                   child: Container(
+                    height: 60,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(26),
+                      borderRadius: BorderRadius.circular(16),
                       gradient: LinearGradient(
                         colors: [
                           Color(colors[_selectedColorIndex].start),
@@ -193,12 +253,13 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                         end: Alignment.topRight,
                       ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                          left: 24, top: 10, bottom: 10, right: 24),
+                    child: Center(
                       child: Text(
-                        'Set Color',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        'Select Color',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -206,38 +267,37 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ],
             ),
           ),
-          const SizedBox(
-            height: 30,
-          ),
+          
+          const SizedBox(height: 40),
+          
+          // Action buttons
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: InkWell(
-                  child: Text(
-                    'Delete',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium!
-                        .copyWith(color: Colors.red),
-                  ),
-                  onTap: () async {
-                    if (await _showMyDialog() ?? false) {
-                      bikeNotifier.deleteStateData(widget.bike);
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
+              // Delete button
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (await _showMyDialog() ?? false) {
+                    bikeNotifier.deleteStateData(widget.bike);
+                    if (context.mounted) {
+                      Navigator.pop(context);
                     }
-                  },
+                  }
+                },
+                icon: const Icon(Icons.delete, size: 18),
+                label: const Text('Delete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.withAlpha(51), // 0.2 opacity
+                  foregroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              InkWell(
-                child: Text(
-                  'Save',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                onTap: () {
+              
+              // Save button
+              ElevatedButton.icon(
+                onPressed: () {
                   if (_formKey.currentState?.saveAndValidate() ?? false) {
-                    debugPrint(_formKey.currentState?.value.toString());
                     bikeNotifier.writeStateData(
                         widget.bike.copyWith(
                             name: _formKey.currentState?.value['name'],
@@ -245,11 +305,16 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                             region: _formKey.currentState?.value['region']),
                         saveToBike: false);
                     Navigator.pop(context);
-                  } else {
-                    debugPrint(_formKey.currentState?.value.toString());
-                    debugPrint('validation failed');
                   }
                 },
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff441DFC).withAlpha(51),
+                  foregroundColor: const Color(0xff441DFC),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ],
           ),
@@ -263,30 +328,97 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
   final colors = getColorList();
   final answer = await showModalBottomSheet<int>(
     context: context,
+    backgroundColor: Colors.black,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
     builder: (BuildContext context) {
-      return ListView.builder(
-        itemCount: colors.length,
-        itemBuilder: (BuildContext context, int index) {
-          return ListTile(
-            title: Container(
-              height: 50,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Modal draggable indicator
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: LinearGradient(
-                  colors: [
-                    Color(colors[index].start),
-                    Color(colors[index].end),
-                  ],
-                  begin: Alignment.bottomLeft,
-                  end: Alignment.topRight,
-                ),
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            onTap: () {
-              Navigator.pop(context, index); // return the color index
-            },
-          );
-        },
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(
+              'Select Bike Color',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          // Color grid
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: GridView.builder(
+                padding: const EdgeInsets.only(bottom: 16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1.5,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: colors.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Navigator.pop(context, index);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(colors[index].start),
+                              Color(colors[index].end),
+                            ],
+                            begin: Alignment.bottomLeft,
+                            end: Alignment.topRight,
+                          ),
+                          boxShadow: [
+                            if (index == currentIndex)
+                              BoxShadow(
+                                color: Colors.white.withAlpha(60),
+                                blurRadius: 4,
+                                spreadRadius: 2,
+                              ),
+                          ],
+                        ),
+                        child: index == currentIndex
+                            ? const Center(
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       );
     },
   );
