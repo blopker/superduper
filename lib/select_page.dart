@@ -20,6 +20,8 @@ class BikeSelectWidget extends ConsumerStatefulWidget {
 
 class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   StreamSubscription<List<ScanResult>>? _scanSubscription;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     ref.read(bluetoothRepositoryProvider).scan();
@@ -29,6 +31,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   @override
   void dispose() {
     _scanSubscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -53,6 +56,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     var connectedDevices = ref.watch(connectedDevicesProvider);
     var bikeNotifier = ref.watch(bikesDBProvider.notifier);
     var scanResults = ref.watch(scanResultsProvider);
+    var isScanning = ref.watch(isScanningStatusProvider);
+
     List<BikeState> foundBikes = [];
     for (var result in scanResults.value ?? []) {
       if (bikeNotifier.getBike(result.device.remoteId.str) != null) {
@@ -60,112 +65,299 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
       }
       foundBikes.add(BikeState.defaultState(result.device.remoteId.str));
     }
-    return Container(
-      color: Colors.black,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: <Widget>[
-            const SizedBox(
-              height: 40,
-            ),
-            Text(
-              'SUPERDUPER',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (bikeList.isNotEmpty)
-              Column(
-                children: [
-                  const SizedBox(
-                    height: 40,
-                  ),
-                  Row(children: [
-                    Text(
-                      'My Bikes',
-                      style: Theme.of(context).textTheme.labelMedium,
-                    )
-                  ]),
-                  if (bikeList.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20.0),
-                      child: Text(
-                        'No saved bikes.',
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                    ),
-                  ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: bikeList.length,
-                      itemBuilder: (ctx, i) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 20.0),
-                          child: DiscoverCard(
-                            selected:
-                                isConnected(connectedDevices, bikeList[i].id),
-                            onTap: () {
-                              selectBike(bikeList[i]);
-                            },
-                            title: bikeList[i].name,
-                            subtitle: bikeList[i].id,
-                          ),
-                        );
-                      }),
-                ],
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xff441DFC),
+        onPressed: () {
+          if (isScanning.value ?? false) {
+            ref.read(bluetoothRepositoryProvider).stopScan();
+          } else {
+            ref.read(bluetoothRepositoryProvider).scan();
+          }
+        },
+        child: Icon(
+          isScanning.value ?? false ? Icons.stop : Icons.bluetooth_searching,
+          color: Colors.white,
+        ),
+      ),
+      body: SafeArea(
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            // App Bar with SUPERDUPER title
+            SliverAppBar(
+              backgroundColor: Colors.black,
+              pinned: true,
+              expandedHeight: 80,
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(
+                  'SUPERDUPER',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                centerTitle: true,
               ),
-            const SizedBox(
-              height: 40,
             ),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(
-                'Found Bikes',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              const NotConnectingButton(),
-            ]),
-            const SizedBox(
-              height: 20,
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              itemCount: foundBikes.length,
-              itemBuilder: (ctx, i) {
-                var b = foundBikes[i];
-                return Padding(
-                  padding: const EdgeInsets.only(top: 20.0),
-                  child: DiscoverCard(
-                    selected: isConnected(connectedDevices, b.id),
-                    onTap: () {
-                      selectBike(b);
+
+            // Bluetooth Status Indicator
+            SliverToBoxAdapter(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  var bleStatus = ref.watch(adapterStateProvider);
+
+                  return bleStatus.when(
+                    data: (state) {
+                      if (state == BluetoothAdapterState.on) {
+                        return const SizedBox.shrink();
+                      }
+
+                      String message = switch (state) {
+                        BluetoothAdapterState.off => 'Bluetooth is turned off',
+                        BluetoothAdapterState.unauthorized =>
+                          'Bluetooth permissions are needed',
+                        _ => 'Bluetooth unavailable'
+                      };
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: Colors.amber),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                                message,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: Colors.amber,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
                     },
-                    title: b.name,
-                    subtitle: b.id,
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  );
+                },
+              ),
+            ),
+
+            // Scanning Status Indicator
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isScanning.value ?? false
+                        ? const Color(0xff441DFC).withOpacity(0.2)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                );
-              },
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            const ScannerButton(),
-            const SizedBox(
-              height: 40,
-            ),
-            if (connectedDevices.value?.isNotEmpty ?? false)
-              Expanded(
-                child: InkWell(
-                  child: Text(
-                    'Disconnect',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  child: Center(
+                    child: isScanning.value ?? false
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2)),
+                              const SizedBox(width: 10),
+                              Text('Scanning for bikes...',
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                  onTap: () {
-                    ref.read(bluetoothRepositoryProvider).disconnect();
-                  },
                 ),
               ),
+            ),
+
+            // My Bikes Section
+            if (bikeList.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.only(left: 20.0, right: 20.0, top: 0.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'My Bikes',
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      if (connectedDevices.value?.isNotEmpty ?? false)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.red.withOpacity(0.2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.bluetooth_disabled,
+                              color: Colors.red, size: 16),
+                          onPressed: () {
+                            ref.read(bluetoothRepositoryProvider).disconnect();
+                          },
+                          label: Text(
+                            'Disconnect',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.red),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: DiscoverCard(
+                          selected:
+                              isConnected(connectedDevices, bikeList[index].id),
+                          onTap: () => selectBike(bikeList[index]),
+                          title: bikeList[index].name,
+                          subtitle: bikeList[index].id,
+                          titleIcon: Icons.directions_bike,
+                          colorIndex: index % 10, // Vary colors based on index
+                        ),
+                      );
+                    },
+                    childCount: bikeList.length,
+                  ),
+                ),
+              ),
+            ],
+
+            // Found Bikes Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.only(left: 20.0, right: 20.0, top: 30.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Found Bikes',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const NotConnectingButton(),
+                  ],
+                ),
+              ),
+            ),
+
+            // Found Bikes List or Empty State
+            foundBikes.isEmpty
+                ? SliverToBoxAdapter(
+                    child: Container(
+                      height: 200,
+                      padding: const EdgeInsets.only(top: 30),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bluetooth_searching,
+                            size: 50,
+                            color: Colors.grey[700],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No bikes found nearby',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.grey[500],
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              ref.read(bluetoothRepositoryProvider).scan();
+                            },
+                            child: Text(
+                              'TAP TO SCAN',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: const Color(0xff441DFC),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          var bike = foundBikes[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: DiscoverCard(
+                              selected: isConnected(connectedDevices, bike.id),
+                              onTap: () => selectBike(bike),
+                              title: bike.name,
+                              subtitle: bike.id,
+                              titleIcon: Icons.bluetooth,
+                              colorIndex: (index + 3) %
+                                  10, // Different color range for found bikes
+                            ),
+                          );
+                        },
+                        childCount: foundBikes.length,
+                      ),
+                    ),
+                  ),
+
+            // Debug Button in Debug Mode
             if (kDebugMode)
-              Padding(
-                padding: const EdgeInsets.only(top: 40.0),
-                child: ElevatedButton(
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 40.0, horizontal: 20.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                     onPressed: () {
                       Navigator.push<void>(
                         context,
@@ -174,74 +366,17 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                         ),
                       );
                     },
-                    child: const Text('DEBUG')),
-              )
+                    child: const Text('DEBUG CONSOLE'),
+                  ),
+                ),
+              ),
+
+            // Bottom Padding
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
     );
-  }
-}
-
-class ScannerButton extends ConsumerWidget {
-  const ScannerButton({super.key});
-
-  Widget _statusText(BuildContext context, String status) {
-    return Text(
-      status,
-      style: Theme.of(context).textTheme.bodySmall,
-    );
-  }
-
-  Widget _startScanButton(BuildContext context, WidgetRef ref) {
-    var isScanning = ref.watch(isScanningStatusProvider);
-    var startScanButton = InkWell(
-      child: Text(
-        'Start Scan',
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-      onTap: () {
-        ref.read(bluetoothRepositoryProvider).scan();
-      },
-    );
-    return isScanning.map(
-      data: (state) {
-        return switch (state.value) {
-          true => InkWell(
-              child: Text(
-                'Scanning...',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              onTap: () {
-                ref.read(bluetoothRepositoryProvider).stopScan();
-              },
-            ),
-          false => startScanButton
-        };
-      },
-      loading: (_) => startScanButton,
-      error: (error) => _statusText(context, 'Error: ${error.error}'),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    var bleStatus = ref.watch(adapterStateProvider);
-    var scanWidget = bleStatus.map(
-      data: (state) {
-        return switch (state.value) {
-          BluetoothAdapterState.on => _startScanButton(context, ref),
-          BluetoothAdapterState.off =>
-            _statusText(context, 'Enable Bluetooth to scan.'),
-          BluetoothAdapterState.unauthorized =>
-            _statusText(context, 'Enable Bluetooth Permissions to scan.'),
-          _ => _statusText(context, 'Enable Bluetooth to scan.')
-        };
-      },
-      loading: (_) => _statusText(context, 'Loading..?'),
-      error: (error) => _statusText(context, 'Error: ${error.error}'),
-    );
-    return scanWidget;
   }
 }
 
@@ -251,11 +386,26 @@ class NotConnectingButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      child: Text(
-        'Not connecting?',
-        style: Theme.of(context).textTheme.bodySmall!.copyWith(
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.help_outline,
+              size: 16,
               color: Colors.grey,
             ),
+            const SizedBox(width: 4),
+            Text(
+              'Not connecting?',
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: Colors.grey,
+                  ),
+            ),
+          ],
+        ),
       ),
       onTap: () async {
         final Uri url = Uri.parse('https://github.com/blopker/superduper#faq');
