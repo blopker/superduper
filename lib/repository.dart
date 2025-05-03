@@ -174,10 +174,24 @@ class BluetoothRepository {
     serviceId ??= UUID_METRICS_SERVICE;
     characteristicId ??= UUID_CHARACTERISTIC_REGISTER;
     try {
-      var service = device.servicesList
-          .firstWhere((element) => element.uuid == serviceId);
-      var char = service.characteristics
-          .firstWhere((element) => element.uuid == characteristicId);
+      var servicesList = device.servicesList;
+      if (servicesList.isEmpty) {
+        log.w(SDLogger.BLUETOOTH,
+            'No services discovered for ${device.remoteId}, attempting discovery');
+        return;
+      }
+
+      // Find service with orElse to prevent exceptions
+      var service = servicesList.firstWhere(
+          (element) => element.uuid == serviceId,
+          orElse: () => throw Exception('Service $serviceId not found'));
+
+      // Find characteristic with orElse to prevent exceptions
+      var char = service.characteristics.firstWhere(
+          (element) => element.uuid == characteristicId,
+          orElse: () =>
+              throw Exception('Characteristic $characteristicId not found'));
+
       await char.write(data);
       log.d(SDLogger.BLUETOOTH, 'Wrote data to ${device.remoteId.str}: $data');
     } catch (e) {
@@ -191,8 +205,14 @@ class BluetoothRepository {
     characteristicId ??= UUID_CHARACTERISTIC_REGISTER;
     log.d(SDLogger.BLUETOOTH, 'Reading from ${device.remoteId}');
     try {
-      var service = device.servicesList
-          .firstWhere((element) => element.uuid == serviceId);
+      var servicesList = device.servicesList;
+      if (servicesList.isEmpty) {
+        log.w(SDLogger.BLUETOOTH,
+            'No services discovered for ${device.remoteId}, attempting discovery');
+        return null;
+      }
+      var service =
+          servicesList.firstWhere((element) => element.uuid == serviceId);
       var char = service.characteristics
           .firstWhere((element) => element.uuid == characteristicId);
       final result = await char.read();
