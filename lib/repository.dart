@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/services.dart';
+import 'package:superduper/utils/logger.dart'; // Import the logger
 
 part 'repository.g.dart';
 
@@ -48,7 +48,7 @@ class ConnectionHandler extends _$ConnectionHandler {
     ref.onDispose(_dispose);
     _device = BluetoothDevice.fromId(deviceId);
     _deviceSub = _device.connectionState.listen((dstate) {
-      debugPrint('Connection state: $dstate');
+      log.d(SDLogger.BLUETOOTH, 'Connection state: $dstate');
       if (dstate == BluetoothConnectionState.connected) {
         state = SDBluetoothConnectionState.connected;
       } else if (dstate == BluetoothConnectionState.disconnected) {
@@ -66,13 +66,13 @@ class ConnectionHandler extends _$ConnectionHandler {
   }
 
   void _dispose() {
-    debugPrint("DISPOSE ConnectionHandler");
+    log.d(SDLogger.BLUETOOTH, "DISPOSE ConnectionHandler");
     _deviceSub?.cancel();
     _reconnectTimer?.cancel();
   }
 
   connect() async {
-    debugPrint("Connecting to ${_device.remoteId}");
+    log.d(SDLogger.BLUETOOTH, "Connecting to ${_device.remoteId}");
     if (_device.isConnected) {
       state = SDBluetoothConnectionState.connected;
       return;
@@ -88,11 +88,11 @@ class ConnectionHandler extends _$ConnectionHandler {
       if (Platform.isAndroid) {
         await _device.requestMtu(512);
       }
-      debugPrint('Connected to ${_device.remoteId.str}');
+      log.i(SDLogger.BLUETOOTH, 'Connected to ${_device.remoteId.str}');
       state = SDBluetoothConnectionState.connected;
       await _device.discoverServices();
     } catch (e) {
-      debugPrint('Error connecting: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error connecting', e);
       state = SDBluetoothConnectionState.disconnected;
     }
   }
@@ -127,29 +127,32 @@ class BluetoothRepository {
   }
 
   Future<void> scan() async {
-    debugPrint('scan(): Scanning');
+    log.i(SDLogger.BLUETOOTH, 'Starting Bluetooth scan');
     if (Platform.isAndroid) {
       try {
         await FlutterBluePlus.turnOn();
       } catch (e) {
-        debugPrint('Error turning on bluetooth: $e');
+        log.e(SDLogger.BLUETOOTH, 'Error turning on bluetooth', e);
       }
     }
     try {
       await FlutterBluePlus.startScan(
           timeout: const Duration(seconds: 100),
           withKeywords: ['SUPER${70 + 3}']);
+      log.d(SDLogger.BLUETOOTH, 'Scan initiated with timeout: 100s');
       await FlutterBluePlus.isScanning.where((val) => val == false).first;
+      log.d(SDLogger.BLUETOOTH, 'Scan completed');
     } catch (e) {
-      debugPrint('Error starting scan: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error starting scan', e);
     }
   }
 
   stopScan() async {
     try {
       await FlutterBluePlus.stopScan();
+      log.d(SDLogger.BLUETOOTH, 'Scan stopped manually');
     } catch (e) {
-      debugPrint('Error stopping scan: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error stopping scan', e);
     }
   }
 
@@ -157,9 +160,10 @@ class BluetoothRepository {
     try {
       for (var device in FlutterBluePlus.connectedDevices) {
         await device.disconnect();
+        log.i(SDLogger.BLUETOOTH, 'Disconnected from ${device.remoteId.str}');
       }
     } catch (e) {
-      debugPrint('Error disconnecting: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error disconnecting', e);
     }
   }
 
@@ -175,8 +179,9 @@ class BluetoothRepository {
       var char = service.characteristics
           .firstWhere((element) => element.uuid == characteristicId);
       await char.write(data);
+      log.d(SDLogger.BLUETOOTH, 'Wrote data to ${device.remoteId.str}: $data');
     } catch (e) {
-      debugPrint('Error writing to ${device.remoteId}: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error writing to ${device.remoteId}', e);
     }
   }
 
@@ -184,15 +189,18 @@ class BluetoothRepository {
       {Guid? serviceId, Guid? characteristicId}) async {
     serviceId ??= UUID_METRICS_SERVICE;
     characteristicId ??= UUID_CHARACTERISTIC_REGISTER;
-    debugPrint('Reading from ${device.remoteId}');
+    log.d(SDLogger.BLUETOOTH, 'Reading from ${device.remoteId}');
     try {
       var service = device.servicesList
           .firstWhere((element) => element.uuid == serviceId);
       var char = service.characteristics
           .firstWhere((element) => element.uuid == characteristicId);
-      return await char.read();
+      final result = await char.read();
+      log.d(
+          SDLogger.BLUETOOTH, 'Read data from ${device.remoteId.str}: $result');
+      return result;
     } catch (e) {
-      debugPrint('Error reading from ${device.remoteId}: $e');
+      log.e(SDLogger.BLUETOOTH, 'Error reading from ${device.remoteId}', e);
     }
     return null;
   }

@@ -2,6 +2,8 @@ dictionaries = []
 words = [
     "ebike",
     "superduper",
+    "riverpod",
+    "freezed"
 ]
 flag_words = []
 ignore_paths = []

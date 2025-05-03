@@ -11,6 +11,7 @@ import 'package:superduper/edit_bike.dart' as edit;
 import 'package:superduper/help.dart';
 import 'package:superduper/models.dart';
 import 'package:superduper/repository.dart';
+import 'package:superduper/utils/logger.dart';
 import 'package:superduper/widgets.dart';
 
 export 'package:superduper/models.dart';
@@ -78,7 +79,7 @@ class Bike extends _$Bike {
     if (newState == state && !force) {
       return;
     }
-    debugPrint('state update $data');
+    log.d(SDLogger.BIKE, 'State update from data: $data');
     if (state.lightLocked && state.light != newState.light) {
       newState = newState.copyWith(light: state.light);
     }
@@ -106,6 +107,7 @@ class Bike extends _$Bike {
       _writing = true;
       final repo = ref.read(connectionHandlerProvider(state.id).notifier);
       await repo.write(newState.toWriteData());
+      log.d(SDLogger.BIKE, 'Wrote data to bike: ${newState.toWriteData()}');
     }
     ref.read(bikesDBProvider.notifier).saveBike(newState);
     state = newState;
@@ -113,38 +115,47 @@ class Bike extends _$Bike {
   }
 
   void toggleLight() async {
+    log.d(SDLogger.BIKE, 'Toggling light: ${!state.light}');
     writeStateData(state.copyWith(light: !state.light));
   }
 
   void toggleMode() async {
+    log.d(SDLogger.BIKE, 'Toggling mode to: ${state.nextMode}');
     writeStateData(state.copyWith(mode: state.nextMode));
   }
 
   void toggleAssist() async {
-    writeStateData(state.copyWith(assist: (state.assist + 1) % 5));
+    final newAssist = (state.assist + 1) % 5;
+    log.d(SDLogger.BIKE, 'Toggling assist to: $newAssist');
+    writeStateData(state.copyWith(assist: newAssist));
   }
 
   void toggleLightLocked() async {
+    log.d(SDLogger.BIKE, 'Toggling light lock: ${!state.lightLocked}');
     writeStateData(state.copyWith(lightLocked: !state.lightLocked),
         saveToBike: false);
   }
 
   void toggleModeLocked() async {
+    log.d(SDLogger.BIKE, 'Toggling mode lock: ${!state.modeLocked}');
     writeStateData(state.copyWith(modeLocked: !state.modeLocked),
         saveToBike: false);
   }
 
   void toggleAssistLocked() async {
+    log.d(SDLogger.BIKE, 'Toggling assist lock: ${!state.assistLocked}');
     writeStateData(state.copyWith(assistLocked: !state.assistLocked),
         saveToBike: false);
   }
 
   void toggleBackgroundLock() async {
+    log.d(SDLogger.BIKE, 'Toggling background lock: ${!state.modeLock}');
     writeStateData(state.copyWith(modeLock: !state.modeLock),
         saveToBike: false);
   }
 
   void deleteStateData(BikeState bike) {
+    log.i(SDLogger.BIKE, 'Deleting bike: ${bike.name}');
     ref.read(bikesDBProvider.notifier).deleteBike(bike);
   }
 }
@@ -557,12 +568,6 @@ class EnhancedBackgroundLockWidget extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.info_outline,
-                size: 14,
-                color: Colors.grey,
-              ),
-              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   "Background Lock may cause phone battery drain. See Help for more info.",

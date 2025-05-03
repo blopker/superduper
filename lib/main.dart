@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
+import 'package:superduper/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,7 +115,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             var denied =
                 snapshot.data!.values.any((element) => element.isDenied);
             if (denied) {
-              debugPrint(snapshot.data?.toString());
+              log.i(SDLogger.BIKE, 'Permission denied: ${snapshot.data}');
               return const PermissionPage();
             }
             return const BikeSelectWidget();
