@@ -28,7 +28,7 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
   Widget build(BuildContext context) {
     // Get the keyboard inset to adjust for keyboard appearance
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.black,
