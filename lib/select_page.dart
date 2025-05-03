@@ -259,8 +259,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                             title: bikeList[index].name,
                             subtitle: bikeList[index].id,
                             titleIcon: Icons.directions_bike,
-                            colorIndex:
-                                index % 10, // Vary colors based on index
+                            colorIndex: bikeList[index]
+                                .color, // Vary colors based on index
                           ),
                         );
                       },
