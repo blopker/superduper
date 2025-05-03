@@ -193,8 +193,10 @@ class BikePageState extends ConsumerState<BikePage> {
     ref.listen(connectionHandlerProvider(bike.id), (previous, next) {
       if (previous != SDBluetoothConnectionState.connected &&
           next == SDBluetoothConnectionState.connected) {
-        // First connect, force update
-        bikeControl.updateStateDataNow(force: true);
+        // add a delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          bikeControl.updateStateDataNow(force: true);
+        });
       }
     });
     return ForegroundNotificationWrapper(
