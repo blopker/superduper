@@ -185,16 +185,17 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
                   ),
                   validator: FormBuilderValidators.compose([
                     FormBuilderValidators.required(),
                   ]),
                   textInputAction: TextInputAction.next,
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Region dropdown
                 FormBuilderDropdown<BikeRegion>(
                   name: 'region',
@@ -207,7 +208,8 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
                   ),
                   validator: FormBuilderValidators.compose(
                       [FormBuilderValidators.required()]),
@@ -217,20 +219,25 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                             child: Text(region.value),
                           ))
                       .toList(),
+                  dropdownColor: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
+                  iconSize: 24,
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                
+
                 const SizedBox(height: 32),
-                
+
                 // Color section
                 Text(
                   'Bike Color',
                   style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                    color: Colors.grey[400],
-                  ),
+                        color: Colors.grey[400],
+                      ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 // Color picker button
                 InkWell(
                   onTap: () async {
@@ -257,9 +264,9 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                       child: Text(
                         'Select Color',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                       ),
                     ),
                   ),
@@ -267,9 +274,9 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 40),
-          
+
           // Action buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -289,11 +296,13 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.withAlpha(51), // 0.2 opacity
                   foregroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              
+
               // Save button
               ElevatedButton.icon(
                 onPressed: () {
@@ -312,8 +321,10 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xff441DFC).withAlpha(51),
                   foregroundColor: const Color(0xff441DFC),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
@@ -349,18 +360,18 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
               ),
             ),
           ),
-          
+
           // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text(
               'Select Bike Color',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ),
-          
+
           // Color grid
           Expanded(
             child: Padding(
