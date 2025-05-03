@@ -251,7 +251,7 @@ class BikePageState extends ConsumerState<BikePage> {
                   stretchModes: const [],
                 ),
               ),
-              
+
               // Bike name as a header
               SliverToBoxAdapter(
                 child: Padding(
@@ -264,10 +264,13 @@ class BikePageState extends ConsumerState<BikePage> {
                           children: [
                             Text(
                               bike.name,
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 2,
                             ),
@@ -484,7 +487,7 @@ class EnhancedLightControlWidget extends ConsumerWidget {
         EnhancedLockWidget(
           locked: bike.lightLocked,
           onTap: bikeControl.toggleLightLocked,
-          activeColor: bike.light ? Colors.white : Colors.grey[700]!,
+          activeColor: Colors.white,
         )
       ],
     );
@@ -506,7 +509,7 @@ class EnhancedModeControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             colorIndex: bike.color,
             title: "Mode",
-            metric: bike.viewMode,
+            metric: "${bike.viewMode}/4",
             titleIcon: Icons.electric_bike,
             selected: isActiveMode,
             onTap: () {
@@ -517,7 +520,7 @@ class EnhancedModeControlWidget extends ConsumerWidget {
         EnhancedLockWidget(
           locked: bike.modeLocked,
           onTap: bikeControl.toggleModeLocked,
-          activeColor: isActiveMode ? Colors.white : Colors.grey[700]!,
+          activeColor: Colors.white,
         )
       ],
     );
@@ -591,7 +594,7 @@ class EnhancedAssistControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             colorIndex: bike.color,
             title: "Assist",
-            metric: bike.assist.toString(),
+            metric: "${bike.assist}/4",
             titleIcon: Icons.autorenew,
             selected: isActiveAssist,
             onTap: () {
@@ -602,7 +605,7 @@ class EnhancedAssistControlWidget extends ConsumerWidget {
         EnhancedLockWidget(
           locked: bike.assistLocked,
           onTap: bikeControl.toggleAssistLocked,
-          activeColor: isActiveAssist ? Colors.white : Colors.grey[700]!,
+          activeColor: Colors.white,
         )
       ],
     );

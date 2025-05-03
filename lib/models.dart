@@ -83,7 +83,7 @@ abstract class BikeState with _$BikeState {
   }
 
   String get viewMode {
-    return (mode + 1).toString();
+    return "${mode + 1}";
   }
 
   int get nextMode {
