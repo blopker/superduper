@@ -13,6 +13,8 @@
 migrate_working_dir/
 android/app/.cxx/
 
+docs/public
+
 # IntelliJ related
 *.iml
 *.ipr
