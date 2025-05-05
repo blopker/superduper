@@ -151,6 +151,12 @@ main .content h1:first-child {
     margin-bottom: 1.5rem;
 }
 
+main .content h2 {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-top: 2.5rem;
+}
+
 main .content ul,
 main .content ol {
     padding-left: 1.5rem;
@@ -193,10 +199,81 @@ blockquote {
     color: var(--footer-color);
 }
 
+/* Footer */
 .footer {
     margin-top: 40px;
     text-align: center;
     font-size: 0.9em;
     color: var(--footer-color);
     padding: 1rem 0;
+}
+
+/* Print styles */
+@media print {
+    body {
+        font-size: 12pt;
+        color: #000;
+        background: #fff;
+    }
+    
+    .content {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .header, .footer, .links a, .back-to-top {
+        display: none;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    
+    img, table, pre, blockquote, ul, ol, dl {
+        page-break-inside: avoid;
+    }
+    
+    p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+    }
+    
+    a {
+        color: #000;
+        text-decoration: underline;
+    }
+}
+
+/* Back to top button */
+.back-to-top {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background-color: var(--link-color);
+    color: white;
+    border-radius: 50%;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(15px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    text-decoration: none;
+}
+
+.back-to-top.visible {
+    opacity: 0.8;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    opacity: 1;
+    color: white;
 }
