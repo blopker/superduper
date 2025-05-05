@@ -1,0 +1,39 @@
+[build]
+  # Directory to publish (relative to root of the repository)
+  publish = "docs/public"
+
+  # Command to build the site
+  command = "cd docs && hugo --minify"
+
+[build.environment]
+  # Set Hugo version
+  HUGO_VERSION = "0.110.0"
+  # Enable Hugo's extended version for SCSS/SASS processing
+  HUGO_ENV = "production"
+  HUGO_ENABLEGITINFO = "true"
+
+# Headers to set on files
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+
+# Cache control headers
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=6000"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=6000"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=6000"
