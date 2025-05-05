@@ -1,3 +1,7 @@
+---
+title: Terms of Service
+---
+
 # Terms and Conditions for SuperDuper App
 
 **Effective Date: May 4th, 2025**

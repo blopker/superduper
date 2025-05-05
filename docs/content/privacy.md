@@ -1,3 +1,7 @@
+---
+title: Privacy Policy
+---
+
 # Privacy Policy for SuperDuper App
 
 **Effective Date: May 4th, 2025**
