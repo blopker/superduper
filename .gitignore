@@ -13,6 +13,9 @@
 migrate_working_dir/
 android/app/.cxx/
 
+docs/public
+.hugo_build.lock
+
 # IntelliJ related
 *.iml
 *.ipr

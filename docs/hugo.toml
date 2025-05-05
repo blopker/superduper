@@ -1,0 +1,4 @@
+baseURL = '/'
+languageCode = 'en-us'
+title = 'SuperDuper App - Legal'
+theme = "sd"

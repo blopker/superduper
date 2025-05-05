@@ -38,6 +38,9 @@ release: tag build
 icons:
 	dart run flutter_launcher_icons
 
+docs:
+	cd docs && hugo build
+
 clean:
 	flutter clean
 	rm -rf build
