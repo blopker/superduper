@@ -221,8 +221,8 @@ jobs:
                       <h1>SuperDuper App Legal Documents</h1>
                       <p>SuperDuper is an open source alternative ebike app available for iOS and Android platforms.</p>
                       <div class="links">
-                        <a href="/tos/">Terms of Service</a>
-                        <a href="/privacy/">Privacy Policy</a>
+                        <a href="./tos/">Terms of Service</a>
+                        <a href="./privacy/">Privacy Policy</a>
                       </div>
                       <p style="margin-top: 40px;">For more information about SuperDuper, visit our <a href="https://github.com/blopker/superduper">GitHub repository</a>.</p>
                     </div>
