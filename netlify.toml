@@ -7,7 +7,7 @@
 
 [build.environment]
   # Set Hugo version
-  HUGO_VERSION = "0.110.0"
+  HUGO_VERSION = "0.147.1"
   # Enable Hugo's extended version for SCSS/SASS processing
   HUGO_ENV = "production"
   HUGO_ENABLEGITINFO = "true"
