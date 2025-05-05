@@ -1,28 +1,98 @@
+:root {
+    /* Light mode variables */
+    --bg-color: #f5f7fa;
+    --content-bg: #ffffff;
+    --text-color: #333333;
+    --heading-color: #2c3e50;
+    --link-color: #3498db;
+    --link-hover-color: #2980b9;
+    --link-bg: #f8f9fa;
+    --link-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    --link-hover-box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    --border-color: #eee;
+    --footer-color: #7f8c8d;
+    --content-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Dark mode variables */
+        --bg-color: #1a1a2e;
+        --content-bg: #16213e;
+        --text-color: #e6e6e6;
+        --heading-color: #59a5d8;
+        --link-color: #61dafb;
+        --link-hover-color: #88e1ff;
+        --link-bg: #0f3460;
+        --link-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        --link-hover-box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        --border-color: #2a4365;
+        --footer-color: #a0aec0;
+        --content-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+}
+
+* {
+    box-sizing: border-box;
+    transition:
+        background-color 0.3s ease,
+        color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
 body {
     font-family:
         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
         Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
     line-height: 1.6;
-    color: #333;
+    color: var(--text-color);
+    background-color: var(--bg-color);
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--heading-color);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
 h1 {
-    color: #2c3e50;
-    border-bottom: 1px solid #eee;
+    font-size: 2rem;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
+    margin-top: 0;
 }
 
 h2 {
-    color: #3498db;
+    font-size: 1.5rem;
     margin-top: 30px;
+}
+
+p {
+    margin: 1.2em 0;
+}
+
+.header {
+    padding: 1rem 0;
+}
+
+.header h1 {
+    margin: 0;
+    border: none;
+    font-size: 1.8rem;
 }
 
 .header h1 a {
     text-decoration: none;
-    color: #2c3e50;
+    color: var(--heading-color);
     background: none;
     box-shadow: none;
     padding: 0;
@@ -35,45 +105,98 @@ h2 {
 }
 
 a {
-    color: #3498db;
+    color: var(--link-color);
     text-decoration: none;
+    position: relative;
+}
+
+a:hover {
+    color: var(--link-hover-color);
+}
+
+.links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin: 2rem 0;
 }
 
 .links a {
     display: inline-block;
-    margin: 10px;
     padding: 15px 30px;
-    background-color: #f8f9fa;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+    background-color: var(--link-bg);
+    border-radius: 8px;
+    box-shadow: var(--link-box-shadow);
+    transition: all 0.3s ease;
+    font-weight: 500;
 }
 
 .links a:hover {
     transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--link-hover-box-shadow);
 }
 
 .content {
-    background: #fff;
-    padding: 40px 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background: var(--content-bg);
+    padding: 40px 30px;
+    border-radius: 12px;
+    box-shadow: var(--content-box-shadow);
     margin-top: 30px;
     text-align: left;
 }
 
 main .content h1:first-child {
     text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+main .content ul,
+main .content ol {
+    padding-left: 1.5rem;
+}
+
+main .content li {
+    margin-bottom: 0.5rem;
 }
 
 .home-page .content {
     text-align: center;
 }
+.home-page li {
+    list-style: none;
+}
+
+code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family:
+        SFMono-Regular,
+        Consolas,
+        Liberation Mono,
+        Menlo,
+        monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+    code {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+blockquote {
+    border-left: 4px solid var(--link-color);
+    margin-left: 0;
+    padding-left: 1rem;
+    color: var(--footer-color);
+}
 
 .footer {
-    margin-top: 30px;
+    margin-top: 40px;
     text-align: center;
     font-size: 0.9em;
-    color: #7f8c8d;
+    color: var(--footer-color);
+    padding: 1rem 0;
 }
