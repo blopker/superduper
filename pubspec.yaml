@@ -41,13 +41,13 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/superduper-nobg.png
+    - assets/superduper.jpg
 
 flutter_launcher_icons:
   android: "launcher_icon"
   adaptive_icon_background: "#DBECF0"
-  adaptive_icon_foreground: "assets/superduper.png"
+  adaptive_icon_foreground: "assets/superduper.jpg"
   ios: true
-  image_path: "assets/superduper.png"
-  image_path_ios: "assets/superduper.png"
+  image_path: "assets/superduper.jpg"
+  image_path_ios: "assets/superduper.jpg"
   remove_alpha_ios: true
