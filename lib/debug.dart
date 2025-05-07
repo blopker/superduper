@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:superduper/help.dart';
+import 'dart:math';
 
 import 'bike.dart';
 import 'edit_bike.dart';
 
 class DebugPage extends StatelessWidget {
   const DebugPage({super.key});
+
+  // Function to generate a random MAC address
+  String _generateRandomMac() {
+    final random = Random();
+    final parts = List.generate(6, (_) => random.nextInt(256));
+    return parts.map((part) => part.toRadixString(16).padLeft(2, '0')).join(':');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +49,7 @@ class DebugPage extends StatelessWidget {
                   context: context,
                   builder: (BuildContext context) {
                     return BikeSettingsWidget(
-                        bike: BikeState.defaultState('1'));
+                        bike: BikeState.defaultState(_generateRandomMac()));
                   });
             },
             child: const Text('Form'),
