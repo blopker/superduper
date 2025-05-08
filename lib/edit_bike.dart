@@ -278,8 +278,8 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                       borderRadius: BorderRadius.circular(16),
                       gradient: LinearGradient(
                         colors: [
-                          Color(colors[_selectedColorIndex].start),
-                          Color(colors[_selectedColorIndex].end),
+                          colors[_selectedColorIndex].start,
+                          colors[_selectedColorIndex].end,
                         ],
                         begin: Alignment.bottomLeft,
                         end: Alignment.topRight,
@@ -290,7 +290,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                         'Select Color',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: colors[_selectedColorIndex].fontColor(),
                             ),
                       ),
                     ),
@@ -411,8 +411,8 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                 ),
                 itemCount: colors.length,
                 itemBuilder: (BuildContext context, int index) {
-                  final startColor = Color(colors[index].start);
-                  final textColor = startColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+                  final color = colors[index];
+                  final textColor = color.fontColor();
                   return Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -425,8 +425,8 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                           borderRadius: BorderRadius.circular(16),
                           gradient: LinearGradient(
                             colors: [
-                              Color(colors[index].start),
-                              Color(colors[index].end),
+                              color.start,
+                              color.end,
                             ],
                             begin: Alignment.bottomLeft,
                             end: Alignment.topRight,
@@ -457,10 +457,9 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                               child: Text(
                                 colors[index].name,
                                 style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold
-                                ),
+                                    color: textColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,

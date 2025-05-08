@@ -35,17 +35,14 @@ class DiscoverCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var defaultColors = getColor(colorIndex);
-    var startColor = Color(defaultColors.start);
-    var endColor = Color(defaultColors.end);
-    var textColor = Colors.white;
+    var startColor = defaultColors.start;
+    var endColor = defaultColors.end;
+    var textColor = defaultColors.fontColor();
 
     if (!selected) {
       startColor = Colors.grey[800]!;
       endColor = Colors.grey[800]!;
     }
-
-    //if the color is too bright, set the text color to black
-    textColor = startColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     return Material(
       color: Colors.transparent,
@@ -88,7 +85,10 @@ class DiscoverCard extends StatelessWidget {
                           if (title != null)
                             Text(
                               title!,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: textColor),
                             ),
                         ],
                       ),
@@ -103,9 +103,9 @@ class DiscoverCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                               style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w300,
-                                  )?.copyWith(color: textColor),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w300,
+                              ).copyWith(color: textColor),
                             ),
                           ],
                         )
@@ -115,7 +115,10 @@ class DiscoverCard extends StatelessWidget {
                 metric != null
                     ? Text(
                         metric!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: textColor),
                       )
                     : Container(),
               ],
