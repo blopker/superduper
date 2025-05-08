@@ -42,14 +42,10 @@ class DiscoverCard extends StatelessWidget {
     if (!selected) {
       startColor = Colors.grey[800]!;
       endColor = Colors.grey[800]!;
-      textColor = Colors.white;
     }
 
     //if the color is too bright, set the text color to black
-    final bgLuminance = startColor.computeLuminance() > endColor.computeLuminance()
-        ? startColor.computeLuminance()
-        : endColor.computeLuminance();
-    textColor = bgLuminance > 0.5 ? Colors.black : Colors.white;
+    textColor = startColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     return Material(
       color: Colors.transparent,
