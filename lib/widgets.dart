@@ -37,10 +37,16 @@ class DiscoverCard extends StatelessWidget {
     var defaultColors = getColor(colorIndex);
     var startColor = Color(defaultColors.start);
     var endColor = Color(defaultColors.end);
+    var textColor = Colors.white;
+
     if (!selected) {
       startColor = Colors.grey[800]!;
       endColor = Colors.grey[800]!;
     }
+
+    //if the color is too bright, set the text color to black
+    textColor = startColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+
     return Material(
       color: Colors.transparent,
       child: GestureDetector(
@@ -74,7 +80,7 @@ class DiscoverCard extends StatelessWidget {
                             Icon(
                               titleIcon,
                               size: 24, // Adjust the size as needed
-                              color: Colors.white,
+                              color: textColor,
                             ),
                           if (titleIcon !=
                               null) // Add spacing if there's an icon
@@ -82,7 +88,7 @@ class DiscoverCard extends StatelessWidget {
                           if (title != null)
                             Text(
                               title!,
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
                             ),
                         ],
                       ),
@@ -99,7 +105,7 @@ class DiscoverCard extends StatelessWidget {
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w300,
-                                  color: Colors.white),
+                                  )?.copyWith(color: textColor),
                             ),
                           ],
                         )
@@ -109,7 +115,7 @@ class DiscoverCard extends StatelessWidget {
                 metric != null
                     ? Text(
                         metric!,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
                       )
                     : Container(),
               ],
