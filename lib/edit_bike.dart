@@ -411,6 +411,8 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                 ),
                 itemCount: colors.length,
                 itemBuilder: (BuildContext context, int index) {
+                  final startColor = Color(colors[index].start);
+                  final textColor = startColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
                   return Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -438,15 +440,34 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                               ),
                           ],
                         ),
-                        child: index == currentIndex
-                            ? const Center(
+                        child: Stack(
+                          children: [
+                            if (index == currentIndex)
+                              Center(
                                 child: Icon(
                                   Icons.check_circle,
-                                  color: Colors.white,
+                                  color: textColor,
                                   size: 28,
                                 ),
-                              )
-                            : null,
+                              ),
+                            Positioned(
+                              bottom: 8,
+                              left: 8,
+                              right: 8,
+                              child: Text(
+                                colors[index].name,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
