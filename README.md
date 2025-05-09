@@ -21,10 +21,6 @@
   </p>
 </div>
 <br/>
-<div align="center">
-    <img src="assets/superdupergithub.webp" alt="Logo">
-</div>
-<br/>
 
 Features:
 
