@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown_widget/markdown_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const helpText = """
@@ -17,8 +17,8 @@ when the bike turns on.
 If your bike has them, this toggles your bike's lights on and off.
 
 ## Mode
-Changes the legal category your bike will operate at. PAS is Pedal Assist System, 
-which means the motor will only run when you are pedaling. 
+Changes the legal category your bike will operate at. PAS is Pedal Assist System,
+which means the motor will only run when you are pedaling.
 Throttle means the motor will run when you press the throttle, regardless of if you are pedaling or not.
 
 ### US:
@@ -39,7 +39,7 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 | 4    | Off-Road | Yes | Yes  | No Limit    |
 
 ## Assist
-Changes the amount of assist your bike will provide while pedaling. 
+Changes the amount of assist your bike will provide while pedaling.
 0 is no assist, 4 is full assist. This does not affect throttle power.
 
 ## Background Lock (Android Only)
@@ -53,46 +53,39 @@ class HelpWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          backgroundColor: Colors.black87,
-          title: Text('Help', style: Theme.of(context).textTheme.titleLarge),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          )),
+        backgroundColor: Colors.black,
+        title: Text('Help', style: Theme.of(context).textTheme.titleLarge),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       body: Container(
-          height: MediaQuery.of(context).size.height,
-          color: Colors.black87,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Expanded(
-                child: ListView(shrinkWrap: true, children: [
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-                    child: MarkdownBody(
-                      styleSheet: MarkdownStyleSheet(
-                          textScaler: const TextScaler.linear(0.9),
-                          h1Padding: const EdgeInsets.only(top: 10, bottom: 10),
-                          h2Padding: const EdgeInsets.only(top: 10, bottom: 10),
-                          h3Padding:
-                              const EdgeInsets.only(top: 10, bottom: 10)),
-                      selectable: true,
-                      onTapLink: (text, href, title) {
-                        if (href != null) {
-                          launchUrl(Uri.parse(href),
-                              mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      data: helpText,
-                    ),
-                  )
-                ]),
-              ),
-            ],
-          )),
+        height: MediaQuery.of(context).size.height,
+        color: Colors.black,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+          child: MarkdownWidget(
+            data: helpText,
+            config: MarkdownConfig.darkConfig.copy(
+              configs: [
+                LinkConfig(
+                  onTap: (url) {
+                    launchUrl(Uri.parse(url),
+                        mode: LaunchMode.externalApplication);
+                  },
+                  style: const TextStyle(
+                    color: Colors.lightBlue,
+                  ),
+                ),
+              ],
+            ),
+            selectable: true,
+          ),
+        ),
+      ),
     );
   }
 }

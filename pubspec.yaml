@@ -14,7 +14,6 @@ dependencies:
   flutter_blue_plus: ^1.32.7
   flutter_foreground_task: ^6.0.0
   flutter_form_builder: ^10.0.0
-  flutter_markdown: ^0.7.0
   flutter_riverpod: ^2.1.1
   form_builder_validators: ^11.0.0
   freezed_annotation: ^3.0.0
@@ -25,6 +24,7 @@ dependencies:
   unique_name_generator: ^1.0.0
   url_launcher: ^6.1.8
   logger: ^2.5.0
+  markdown_widget: ^2.3.2+8
 
 dev_dependencies:
   flutter_test:
