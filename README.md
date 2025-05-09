@@ -44,6 +44,51 @@ Optionally, you can tap the "Edit" button to change the name of the bike.
 
 **Make sure your bluetooth is on**
 
+## Bike Functions
+
+Control your bike's functions by tapping the buttons on the screen. Press the lock icon to lock the setting.
+A locked setting tells the bike to use that setting when it turns on. An unlocked setting will reset to the default
+when the bike turns on.
+
+### Light
+
+If your bike has them, this toggles your bike's lights on and off.
+
+### Mode
+
+Changes the legal category your bike will operate at. PAS is Pedal Assist System,
+which means the motor will only run when you are pedaling.
+Throttle means the motor will run when you press the throttle, regardless of if you are pedaling or not.
+
+#### US:
+
+| Mode | Class | PAS | Throttle | Speed Limit |
+| ---- | ----- | --- | -------- | ----------- |
+| 1    | 1     | Yes | No       | 20 mph      |
+| 2    | 2     | Yes | Yes      | 20 mph      |
+| 3    | 3     | Yes | No       | 28 mph      |
+| 4    | Off-Road | Yes | Yes  | No Limit    |
+
+
+#### EU:
+
+| Mode | Class | PAS | Throttle | Speed Limit |
+| ---- | ----- | --- | -------- | ----------- |
+| 1    | EPAC  | Yes | No       | 25 km/h     |
+| 2    | 250W  | Yes | No       | 35 km/h     |
+| 3    | 850W  | Yes | No       | 45 km/h     |
+| 4    | Off-Road | Yes | Yes  | No Limit    |
+
+### Assist
+
+Changes the amount of assist your bike will provide while pedaling.
+0 is no assist, 4 is full assist. This does not affect throttle power.
+
+### Background Lock (Android Only)
+
+**Uses extra battery.** Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
+
+
 ## FAQ
 
 ### The app won't connect to my bike
