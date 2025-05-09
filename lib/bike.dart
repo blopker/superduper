@@ -8,11 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/db.dart';
 import 'package:superduper/edit_bike.dart' as edit;
-import 'package:superduper/help.dart';
 import 'package:superduper/models.dart';
 import 'package:superduper/repository.dart';
 import 'package:superduper/utils/logger.dart';
 import 'package:superduper/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 export 'package:superduper/models.dart';
 
@@ -344,14 +344,10 @@ class BikePageState extends ConsumerState<BikePage> {
                       child: Center(
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            showModalBottomSheet<void>(
-                                isScrollControlled: true,
-                                backgroundColor: Colors.black,
-                                useSafeArea: true,
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return const HelpWidget();
-                                });
+                            final Uri url = Uri.parse(
+                                'https://github.com/blopker/superduper/?tab=readme-ov-file#getting-started');
+                            launchUrl(url,
+                                mode: LaunchMode.externalApplication);
                           },
                           icon: const Icon(Icons.help_outline, size: 18),
                           label: Text(

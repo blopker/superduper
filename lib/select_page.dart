@@ -429,9 +429,7 @@ class NotConnectingButton extends StatelessWidget {
       ),
       onTap: () async {
         final Uri url = Uri.parse('https://github.com/blopker/superduper#faq');
-        if (!await launchUrl(url)) {
-          throw Exception('Could not launch $url');
-        }
+        launchUrl(url, mode: LaunchMode.externalApplication);
       },
     );
   }

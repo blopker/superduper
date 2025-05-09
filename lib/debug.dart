@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:superduper/help.dart';
 import 'dart:math';
 
 import 'bike.dart';
@@ -12,7 +11,9 @@ class DebugPage extends StatelessWidget {
   String _generateRandomMac() {
     final random = Random();
     final parts = List.generate(6, (_) => random.nextInt(256));
-    return parts.map((part) => part.toRadixString(16).padLeft(2, '0')).join(':');
+    return parts
+        .map((part) => part.toRadixString(16).padLeft(2, '0'))
+        .join(':');
   }
 
   @override
@@ -29,19 +30,6 @@ class DebugPage extends StatelessWidget {
       ),
       body: Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          ElevatedButton(
-            onPressed: () {
-              showModalBottomSheet<void>(
-                  isScrollControlled: true,
-                  backgroundColor: Colors.black,
-                  useSafeArea: true,
-                  context: context,
-                  builder: (BuildContext context) {
-                    return const HelpWidget();
-                  });
-            },
-            child: const Text('FAQ'),
-          ),
           ElevatedButton(
             onPressed: () {
               showModalBottomSheet<void>(
