@@ -198,6 +198,21 @@ class ForegroundNotificationWrapper extends StatelessWidget {
 
 class BikePageState extends ConsumerState<BikePage> {
   @override
+  void initState() {
+    super.initState();
+    // Schedule a post-frame callback to ensure providers are initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bikeControl = ref.read(bikeProvider(widget.bikeID).notifier);
+      final connectionState =
+          ref.read(connectionHandlerProvider(widget.bikeID));
+
+      if (connectionState == SDBluetoothConnectionState.connected) {
+        bikeControl.updateStateDataNow(force: true);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     var bike = ref.watch(bikeProvider(widget.bikeID));
     var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
@@ -205,7 +220,7 @@ class BikePageState extends ConsumerState<BikePage> {
       if (previous != SDBluetoothConnectionState.connected &&
           next == SDBluetoothConnectionState.connected) {
         // add a delay
-        Future.delayed(const Duration(milliseconds: 200), () {
+        Future.delayed(const Duration(milliseconds: 1000), () {
           bikeControl.updateStateDataNow(force: true);
         });
       }
