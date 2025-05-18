@@ -5,6 +5,7 @@ import 'package:superduper/utils/names.dart';
 part 'bike_model.freezed.dart';
 part 'bike_model.g.dart';
 
+// Must be an abstract class to work with new freezed version
 @freezed
 abstract class BikeModel with _$BikeModel {
   const BikeModel._();
@@ -30,9 +31,6 @@ abstract class BikeModel with _$BikeModel {
     @Default(false) bool isConnected,
   }) = _BikeModel;
 
-  factory BikeModel.fromJson(Map<String, dynamic> json) =>
-      _$BikeModelFromJson(json);
-
   factory BikeModel.defaultBike(String id, String bluetoothAddress) {
     return BikeModel(
       id: id,
@@ -40,6 +38,9 @@ abstract class BikeModel with _$BikeModel {
       bluetoothAddress: bluetoothAddress,
     );
   }
+
+  factory BikeModel.fromJson(Map<String, Object?> json) =>
+      _$BikeModelFromJson(json);
 
   /// Current mode displayed to the user (1-indexed)
   String get viewMode {

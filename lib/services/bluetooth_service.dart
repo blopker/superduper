@@ -4,6 +4,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/utils/logger.dart';
+import 'package:superduper/utils/uuids.dart';
 
 part 'bluetooth_service.g.dart';
 
@@ -34,6 +35,9 @@ class SDBluetoothService {
     }
 
     try {
+      await FlutterBluePlus.adapterState
+          .where((val) => val == BluetoothAdapterState.on)
+          .first;
       await FlutterBluePlus.startScan(
         timeout: timeout,
         withKeywords: ['SUPER${70 + 3}'],
@@ -188,10 +192,3 @@ Stream<List<BluetoothDevice>> connectedDevices(Ref ref) {
   return Stream<List<BluetoothDevice>>.periodic(
       const Duration(seconds: 1), (x) => FlutterBluePlus.connectedDevices);
 }
-
-// Constants from services.dart
-final UUID_METRICS_SERVICE = Guid("0000fee0-0000-1000-8000-00805f9b34fb");
-final UUID_CHARACTERISTIC_REGISTER =
-    Guid("0000fee1-0000-1000-8000-00805f9b34fb");
-final UUID_CHARACTERISTIC_REGISTER_ID =
-    Guid("0000fee2-0000-1000-8000-00805f9b34fb");

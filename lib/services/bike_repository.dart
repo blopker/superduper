@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -17,11 +17,11 @@ part 'bike_repository.g.dart';
 class BikeRepository {
   final Ref _ref;
   final Map<String, BikeService> _bikeServices = {};
-  final StreamController<List<BikeModel>> _bikesController = 
+  final StreamController<List<BikeModel>> _bikesController =
       StreamController<List<BikeModel>>.broadcast();
   List<BikeModel> _bikes = [];
   bool _initialized = false;
-  
+
   /// Creates a new bike repository.
   BikeRepository(this._ref) {
     _loadBikes();
@@ -40,6 +40,10 @@ class BikeRepository {
   /// Returns the bike service for the specified bike ID.
   BikeService? getBikeService(String bikeId) => _bikeServices[bikeId];
 
+  /// Returns a bike model by ID directly from the list.
+  BikeModel? getBikeForId(String bikeId) =>
+      _bikes.firstWhereOrNull((bike) => bike.id == bikeId);
+
   /// Returns all bike services.
   List<BikeService> get allBikeServices => _bikeServices.values.toList();
 
@@ -49,6 +53,9 @@ class BikeRepository {
 
   /// Adds a new bike from a scan result.
   Future<BikeModel> addBike(String bikeId, String deviceAddress) async {
+    // Ensure we're initialized
+    if (!_initialized) await _loadBikes();
+
     // Check if bike already exists
     final existingIndex = _bikes.indexWhere((bike) => bike.id == bikeId);
 
@@ -159,49 +166,26 @@ class BikeRepository {
     }
   }
 
-  /// Loads bikes from storage.
+  /// Loads bikes from storage or starts fresh.
   Future<void> _loadBikes() async {
     if (_initialized) return;
-    
+
     try {
+      // Get file reference
       final file = await _getBikesFile();
-      if (!await file.exists()) {
-        log.d(SDLogger.DB, 'No bikes file found');
-        _bikesController.add(_bikes);
-        _initialized = true;
-        return;
+
+      // Start fresh: Delete the old file if it exists
+      if (await file.exists()) {
+        await file.delete();
+        log.i(SDLogger.DB, 'Deleted old bikes file to start fresh');
       }
-      
-      final contents = await file.readAsString();
-      if (contents.isEmpty) {
-        log.d(SDLogger.DB, 'Empty bikes file');
-        _bikesController.add(_bikes);
-        _initialized = true;
-        return;
-      }
-      
-      try {
-        final bikesList = jsonDecode(contents) as List;
-        _bikes = bikesList
-            .map((json) => BikeModel.fromJson(json as Map<String, dynamic>))
-            .toList();
-        
-        log.d(SDLogger.DB, 'Loaded ${_bikes.length} bikes from disk');
-        
-        // Create services for each bike
-        final bluetoothService = _ref.read(bluetoothServiceProvider);
-        for (final bike in _bikes) {
-          final bikeService = BikeService(_ref, bike, bluetoothService);
-          _bikeServices[bike.id] = bikeService;
-          log.d(SDLogger.DB, 'Loaded bike service for: ${bike.name}');
-        }
-      } catch (parseError) {
-        log.e(SDLogger.DB, 'Error parsing bikes data', parseError);
-      }
-      
+
+      // Initialize with empty list
+      _bikes = [];
       _bikesController.add(_bikes);
+      log.i(SDLogger.DB, 'Starting with fresh bike data');
     } catch (e) {
-      log.e(SDLogger.DB, 'Error loading bikes', e);
+      log.e(SDLogger.DB, 'Error initializing bikes repository', e);
     } finally {
       _initialized = true;
     }
@@ -210,12 +194,13 @@ class BikeRepository {
   /// Saves bikes to storage.
   Future<void> _saveBikes() async {
     if (!_initialized) await _loadBikes();
-    
+
     try {
       final file = await _getBikesFile();
-      final jsonData = jsonEncode(_bikes);
+      // Use explicit toJson to ensure proper serialization
+      final jsonData = jsonEncode(_bikes.map((b) => b.toJson()).toList());
       await file.writeAsString(jsonData);
-      
+
       log.d(SDLogger.DB, 'Saved ${_bikes.length} bikes to disk');
     } catch (e) {
       log.e(SDLogger.DB, 'Error saving bikes', e);
@@ -225,7 +210,7 @@ class BikeRepository {
   /// Gets the bikes file.
   Future<File> _getBikesFile() async {
     final directory = await getApplicationDocumentsDirectory();
-    return File('${directory.path}/bikes.json');
+    return File('${directory.path}/bikes2.json');
   }
 
   /// Disposes resources.
@@ -244,7 +229,7 @@ class BikeRepository {
 /// Provider for the bike repository.
 @Riverpod(keepAlive: true)
 BikeRepository bikeRepository(Ref ref) {
-  log.i(SDLogger.DB, 'Initializing bike repository');
+  log.i(SDLogger.DB, 'Initializing bike repository with fresh data');
   final repository = BikeRepository(ref);
   ref.onDispose(() {
     log.i(SDLogger.DB, 'Disposing bike repository');

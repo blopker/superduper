@@ -6,6 +6,7 @@ import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
+import 'package:superduper/utils/uuids.dart';
 
 /// Service that manages communication with a single bike.
 ///
@@ -406,10 +407,3 @@ class BikeService {
     }
   }
 }
-
-// Constants from services.dart
-final UUID_METRICS_SERVICE = Guid("0000fee0-0000-1000-8000-00805f9b34fb");
-final UUID_CHARACTERISTIC_REGISTER =
-    Guid("0000fee1-0000-1000-8000-00805f9b34fb");
-final UUID_CHARACTERISTIC_REGISTER_ID =
-    Guid("0000fee2-0000-1000-8000-00805f9b34fb");

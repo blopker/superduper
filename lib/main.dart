@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -12,29 +13,14 @@ import 'package:superduper/services/bike_connection_manager.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
-import 'package:superduper/utils/migration.dart';
 
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
-  
-  // Create a ProviderContainer to run migration before the app starts
-  final container = ProviderContainer();
-  
-  try {
-    // Run the migration before initializing the app
-    log.i(SDLogger.DB, 'Running data migration if needed');
-    await container.read(runMigrationProvider.future);
-    log.i(SDLogger.DB, 'Migration completed successfully');
-  } catch (e) {
-    log.e(SDLogger.DB, 'Error during migration', e);
-    // Continue with app startup even if migration fails
-  } finally {
-    // Dispose the container when done
-    container.dispose();
-  }
-  
+
+  log.i(SDLogger.DB, 'App starting with fresh data');
+
   // Start the app
   runApp(
     const ProviderScope(
@@ -71,15 +57,13 @@ Future<Map<Permission, PermissionStatus>> getPermissions() async {
 
 class SuperDuper extends ConsumerWidget {
   const SuperDuper({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Initialize the bike connection manager which will
     // automatically manage bike connections in the background
     ref.watch(ensureBikeConnectionManagerInitializedProvider);
-    
-    // Run migration if it hasn't been run yet (as fallback)
-    ref.watch(runMigrationProvider);
-    
+
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         statusBarIconBrightness: Brightness.light,
         statusBarColor: Colors.transparent,
@@ -133,11 +117,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Initialize the bike repository and bluetooth service
     ref.watch(bikeRepositoryProvider);
     ref.watch(bluetoothServiceProvider);
-    
+
     return Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-            child: FutureBuilder(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: FutureBuilder(
           future: permFuture,
           builder: (BuildContext context,
               AsyncSnapshot<Map<Permission, PermissionStatus>> snapshot) {
@@ -155,7 +139,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             }
             return const BikeListScreen();
           },
-        )));
+        ),
+      ),
+    );
   }
 }
 
