@@ -47,7 +47,7 @@ class BikeService {
         _onBikeUpdated = onBikeUpdated ?? _defaultBikeUpdatedCallback {
     _initialize();
   }
-  
+
   // Default callback that does nothing when bike is updated
   static void _defaultBikeUpdatedCallback(BikeModel _) {}
 
@@ -113,6 +113,9 @@ class BikeService {
           _setConnectionState(BikeConnectionState.connected);
           _updateBikeModelProperty(isConnected: true);
           _startUpdateTimer();
+          Future.delayed(Duration(seconds: 1), () {
+            _pushLockedSettings(); // Push locked settings immediately on connection
+          });
           _updateStateDataNow();
         } else if (state == BluetoothConnectionState.disconnected) {
           log.i(SDLogger.BIKE, 'Device disconnected: ${_bike.name}');
@@ -275,12 +278,38 @@ class BikeService {
         updatedBike = updatedBike.copyWith(assist: _bike.assist);
       }
 
+      // Also check if any settings are locked, even if they haven't changed
+      bool hasLockedSettings =
+          _bike.lightLocked || _bike.modeLocked || _bike.assistLocked;
+
       if (updatedBike != _bike) {
         _updateBikeModel(updatedBike);
         await _writeToBike(updatedBike.toWriteData());
+      } else if (hasLockedSettings) {
+        await _writeToBike(_bike.toWriteData());
       }
     } catch (e) {
       log.e(SDLogger.BIKE, 'Error updating state from bike: ${_bike.name}', e);
+    }
+  }
+
+  /// Immediately pushes locked settings to the bike.
+  /// This ensures the bike receives the locked settings as soon as it connects.
+  Future<void> _pushLockedSettings() async {
+    if (_disposed) return;
+    if (_connectionState != BikeConnectionState.connected || _device == null) {
+      return;
+    }
+
+    try {
+      // Only push settings if at least one setting is locked
+      if (_bike.lightLocked || _bike.modeLocked || _bike.assistLocked) {
+        log.i(SDLogger.BIKE, 'Pushing locked settings to bike: ${_bike.name}');
+        await _writeToBike(_bike.toWriteData());
+      }
+    } catch (e) {
+      log.e(SDLogger.BIKE,
+          'Error pushing locked settings to bike: ${_bike.name}', e);
     }
   }
 
