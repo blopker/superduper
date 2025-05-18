@@ -187,23 +187,35 @@ class BikeListScreen extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                   ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.2),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Icon(Icons.bluetooth_disabled,
-                        color: Colors.red, size: 16),
-                    onPressed: () {
+                  InkWell(
+                    onTap: () {
                       ref.read(bikeRepositoryProvider).disconnectAllBikes();
                     },
-                    label: Text(
-                      'Disconnect All',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.red),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bluetooth_disabled,
+                              color: Colors.red, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Disconnect All',
+                            style: const TextStyle(
+                              color: Colors.red, 
+                              fontSize: 12, 
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -397,9 +409,75 @@ class _BikeCard extends ConsumerWidget {
             _showBikeOptionsDialog(context, ref, bike);
           },
           title: bike.name,
-          subtitle: "${bike.isActive ? '🔄 Auto-connect • ' : ''}${isConnected ? '🟢 Connected' : '🔴 Disconnected'}",
+          subtitle: "",
           titleIcon: Icons.directions_bike,
           colorIndex: bike.color,
+          vectorBottom: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (isConnected)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bluetooth_connected, size: 14, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Connected',
+                        style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bluetooth_disabled, size: 14, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Disconnected',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              if (bike.isActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff441DFC).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xff441DFC).withOpacity(0.3), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.autorenew, size: 14, color: Color(0xff441DFC)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Auto-connect',
+                        style: const TextStyle(color: Color(0xff441DFC), fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );

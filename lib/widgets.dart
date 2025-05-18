@@ -108,6 +108,13 @@ class DiscoverCard extends StatelessWidget {
                               ).copyWith(color: textColor),
                             ),
                           ],
+                        ),
+                      if (vectorBottom != null)
+                        Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            vectorBottom!
+                          ],
                         )
                     ],
                   ),
