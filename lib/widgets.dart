@@ -111,10 +111,7 @@ class DiscoverCard extends StatelessWidget {
                         ),
                       if (vectorBottom != null)
                         Column(
-                          children: [
-                            const SizedBox(height: 12),
-                            vectorBottom!
-                          ],
+                          children: [const SizedBox(height: 12), vectorBottom!],
                         )
                     ],
                   ),

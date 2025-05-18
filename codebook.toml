@@ -4,7 +4,8 @@ words = [
     "superduper",
     "riverpod",
     "freezed",
-    "autorenew"
+    "autorenew",
+    "ble"
 ]
 flag_words = []
 ignore_paths = []

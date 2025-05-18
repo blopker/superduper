@@ -34,7 +34,9 @@ class BikeListScreen extends ConsumerWidget {
           }
         },
         child: Icon(
-          isScanning.valueOrNull ?? false ? Icons.stop : Icons.bluetooth_searching,
+          isScanning.valueOrNull ?? false
+              ? Icons.stop
+              : Icons.bluetooth_searching,
           color: Colors.white,
         ),
       ),
@@ -42,10 +44,12 @@ class BikeListScreen extends ConsumerWidget {
         child: Container(
           color: Colors.black,
           child: bikesAsync.when(
-            data: (bikes) => _buildBikesList(context, ref, bikes, scrollController, isScanning, bleStatus),
+            data: (bikes) => _buildBikesList(
+                context, ref, bikes, scrollController, isScanning, bleStatus),
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => Center(
-              child: Text('Error loading bikes: ${err.toString()}', style: const TextStyle(color: Colors.white)),
+              child: Text('Error loading bikes: ${err.toString()}',
+                  style: const TextStyle(color: Colors.white)),
             ),
           ),
         ),
@@ -54,24 +58,22 @@ class BikeListScreen extends ConsumerWidget {
   }
 
   Widget _buildBikesList(
-      BuildContext context, 
-      WidgetRef ref, 
-      List<BikeModel> bikes, 
+      BuildContext context,
+      WidgetRef ref,
+      List<BikeModel> bikes,
       ScrollController scrollController,
       AsyncValue<bool> isScanning,
       AsyncValue<BluetoothAdapterState> bleStatus) {
-        
     final scanResults = ref.watch(scanResultsProvider);
-    
+
     List<BikeModel> foundBikes = [];
     for (var result in scanResults.valueOrNull ?? []) {
-      if (bikes.any((bike) => bike.bluetoothAddress == result.device.remoteId.str)) {
+      if (bikes
+          .any((bike) => bike.bluetoothAddress == result.device.remoteId.str)) {
         continue;
       }
       foundBikes.add(BikeModel.defaultBike(
-        result.device.remoteId.str, 
-        result.device.remoteId.str
-      ));
+          result.device.remoteId.str, result.device.remoteId.str));
     }
 
     return CustomScrollView(
@@ -106,27 +108,31 @@ class BikeListScreen extends ConsumerWidget {
 
               String message = switch (state) {
                 BluetoothAdapterState.off => 'Bluetooth is turned off',
-                BluetoothAdapterState.unauthorized => 'Bluetooth permissions are needed',
+                BluetoothAdapterState.unauthorized =>
+                  'Bluetooth permissions are needed',
                 _ => 'Bluetooth unavailable'
               };
 
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.amber.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Colors.amber),
                     const SizedBox(width: 12),
                     Flexible(
                       child: Text(
                         message,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.amber,
-                        ),
+                              color: Colors.amber,
+                            ),
                       ),
                     ),
                   ],
@@ -141,7 +147,8 @@ class BikeListScreen extends ConsumerWidget {
         // Scanning Status Indicator
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+            padding:
+                const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: 40,
@@ -198,7 +205,8 @@ class BikeListScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+                        border: Border.all(
+                            color: Colors.red.withOpacity(0.3), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -209,8 +217,8 @@ class BikeListScreen extends ConsumerWidget {
                           Text(
                             'Disconnect All',
                             style: const TextStyle(
-                              color: Colors.red, 
-                              fontSize: 12, 
+                              color: Colors.red,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -276,10 +284,7 @@ class BikeListScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'No bikes found nearby',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.grey[500],
                             ),
                       ),
@@ -290,13 +295,11 @@ class BikeListScreen extends ConsumerWidget {
                         },
                         child: Text(
                           'TAP TO SCAN',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: const Color(0xff441DFC),
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xff441DFC),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                       ),
                     ],
@@ -315,9 +318,6 @@ class BikeListScreen extends ConsumerWidget {
                           selected: false,
                           onTap: () => _addBike(context, ref, bike),
                           title: bike.name,
-                          subtitle: bike.bluetoothAddress,
-                          titleIcon: Icons.bluetooth,
-                          colorIndex: (index + 3) % 10,
                         ),
                       );
                     },
@@ -330,8 +330,8 @@ class BikeListScreen extends ConsumerWidget {
         if (kDebugMode)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: 40.0, horizontal: 20.0),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[800],
@@ -360,14 +360,14 @@ class BikeListScreen extends ConsumerWidget {
             bike.id,
             bike.bluetoothAddress,
           );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Added bike: ${addedBike.name}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
+
       AppRouter.navigateToBikeDetail(context, addedBike.id);
     } catch (e) {
       log.e(SDLogger.BIKE, 'Error adding bike', e);
@@ -409,8 +409,6 @@ class _BikeCard extends ConsumerWidget {
             _showBikeOptionsDialog(context, ref, bike);
           },
           title: bike.name,
-          subtitle: "",
-          titleIcon: Icons.directions_bike,
           colorIndex: bike.color,
           vectorBottom: Wrap(
             spacing: 8,
@@ -418,60 +416,79 @@ class _BikeCard extends ConsumerWidget {
             children: [
               if (isConnected)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.withOpacity(0.3), width: 1),
+                    border: Border.all(
+                        color: Colors.green.withOpacity(0.3), width: 1),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.bluetooth_connected, size: 14, color: Colors.green),
+                      const Icon(Icons.bluetooth_connected,
+                          size: 14, color: Colors.green),
                       const SizedBox(width: 4),
                       Text(
                         'Connected',
-                        style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                 )
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.grey.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                    border: Border.all(
+                        color: Colors.grey.withOpacity(0.3), width: 1),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.bluetooth_disabled, size: 14, color: Colors.grey),
+                      const Icon(Icons.bluetooth_disabled,
+                          size: 14, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
                         'Disconnected',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                 ),
               if (bike.isActive)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xff441DFC).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xff441DFC).withOpacity(0.3), width: 1),
+                    border: Border.all(
+                        color: const Color(0xff441DFC).withOpacity(0.3),
+                        width: 1),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.autorenew, size: 14, color: Color(0xff441DFC)),
+                      const Icon(Icons.autorenew,
+                          size: 14, color: Color(0xff441DFC)),
                       const SizedBox(width: 4),
                       Text(
                         'Auto-connect',
-                        style: const TextStyle(color: Color(0xff441DFC), fontSize: 12, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            color: Color(0xff441DFC),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -483,7 +500,8 @@ class _BikeCard extends ConsumerWidget {
     );
   }
 
-  void _showBikeOptionsDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
+  void _showBikeOptionsDialog(
+      BuildContext context, WidgetRef ref, BikeModel bike) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -493,8 +511,10 @@ class _BikeCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SwitchListTile(
-              title: const Text('Auto-connect', style: TextStyle(color: Colors.white)),
-              subtitle: const Text('Connect when app starts', style: TextStyle(color: Colors.grey)),
+              title: const Text('Auto-connect',
+                  style: TextStyle(color: Colors.white)),
+              subtitle: const Text('Connect when app starts',
+                  style: TextStyle(color: Colors.grey)),
               value: bike.isActive,
               onChanged: (value) {
                 ref.read(bikeRepositoryProvider).setBikeActive(bike.id, value);
@@ -504,7 +524,8 @@ class _BikeCard extends ConsumerWidget {
             const Divider(color: Colors.grey),
             ListTile(
               leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Rename', style: TextStyle(color: Colors.white)),
+              title:
+                  const Text('Rename', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 _showRenameDialog(context, ref, bike);
@@ -512,7 +533,8 @@ class _BikeCard extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.white)),
+              title:
+                  const Text('Delete', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirmationDialog(context, ref, bike);
@@ -523,7 +545,8 @@ class _BikeCard extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Color(0xff441DFC))),
+            child: const Text('CANCEL',
+                style: TextStyle(color: Color(0xff441DFC))),
           ),
         ],
       ),
@@ -532,7 +555,7 @@ class _BikeCard extends ConsumerWidget {
 
   void _showRenameDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
     final textController = TextEditingController(text: bike.name);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -561,19 +584,22 @@ class _BikeCard extends ConsumerWidget {
           TextButton(
             onPressed: () {
               if (textController.text.trim().isNotEmpty) {
-                final updatedBike = bike.copyWith(name: textController.text.trim());
+                final updatedBike =
+                    bike.copyWith(name: textController.text.trim());
                 ref.read(bikeRepositoryProvider).updateBike(updatedBike);
                 Navigator.pop(context);
               }
             },
-            child: const Text('SAVE', style: TextStyle(color: Color(0xff441DFC))),
+            child:
+                const Text('SAVE', style: TextStyle(color: Color(0xff441DFC))),
           ),
         ],
       ),
     );
   }
 
-  void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
+  void _showDeleteConfirmationDialog(
+      BuildContext context, WidgetRef ref, BikeModel bike) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
