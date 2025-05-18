@@ -19,7 +19,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
 
-  log.i(SDLogger.DB, 'App starting with fresh data');
+  log.i(SDLogger.DB, 'App starting - will load existing bike data if available');
 
   // Start the app
   runApp(

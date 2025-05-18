@@ -5,7 +5,6 @@ import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/router.dart';
 import 'package:superduper/services/bike_repository.dart';
-import 'package:superduper/services/bike_service.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
 
@@ -68,11 +67,12 @@ class BikeListScreen extends ConsumerWidget {
     );
   }
 
-  void _showScanDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+  void _showScanDialog(BuildContext context, WidgetRef ref) async {
+    await showDialog(
       context: context,
       builder: (context) => const _ScanDialog(),
     );
+    ref.read(bluetoothServiceProvider).stopScan();
   }
 }
 
@@ -156,39 +156,19 @@ class _ScanDialog extends ConsumerStatefulWidget {
 }
 
 class _ScanDialogState extends ConsumerState<_ScanDialog> {
-  bool _isScanning = false;
-
   @override
   void initState() {
     super.initState();
     _startScan();
   }
 
-  @override
-  void dispose() {
-    if (_isScanning) {
-      ref.read(bluetoothServiceProvider).stopScan();
-    }
-    super.dispose();
-  }
-
   void _startScan() async {
-    setState(() {
-      _isScanning = true;
-    });
-
     try {
       await ref.read(bluetoothServiceProvider).startScan(
             timeout: const Duration(seconds: 15),
           );
     } catch (e) {
       log.e(SDLogger.BLUETOOTH, 'Error scanning for bikes', e);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isScanning = false;
-        });
-      }
     }
   }
 

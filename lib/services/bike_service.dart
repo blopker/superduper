@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/services/bluetooth_service.dart';
@@ -13,8 +12,6 @@ import 'package:superduper/utils/uuids.dart';
 /// Each bike has its own service instance that handles connections,
 /// state updates, and commands independent of other bikes or the UI.
 class BikeService {
-  final Ref _ref;
-  final BikeModel _initialBike;
   final SDBluetoothService _bluetoothService;
 
   // Stream controllers
@@ -38,8 +35,7 @@ class BikeService {
   bool _disposed = false;
 
   /// Creates a new bike service.
-  BikeService(this._ref, this._initialBike, this._bluetoothService)
-      : _bike = _initialBike {
+  BikeService(initialBike, this._bluetoothService) : _bike = initialBike {
     _initialize();
   }
 

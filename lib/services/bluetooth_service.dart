@@ -13,14 +13,12 @@ part 'bluetooth_service.g.dart';
 /// This service handles low-level Bluetooth operations and is shared
 /// across all bike connections.
 class SDBluetoothService {
-  final Ref _ref;
-
   /// Create a new Bluetooth service.
-  SDBluetoothService(this._ref);
+  SDBluetoothService();
 
   /// Start scanning for Bluetooth devices.
   ///
-  /// This will scan for devices with the SUPER73 keyword.
+  /// This will scan for devices with the keyword.
   /// The scan will timeout after the specified duration.
   Future<void> startScan(
       {Duration timeout = const Duration(seconds: 10)}) async {
@@ -157,8 +155,9 @@ class SDBluetoothService {
 // Provider for the Bluetooth service
 @riverpod
 SDBluetoothService bluetoothService(Ref ref) {
-  final service = SDBluetoothService(ref);
+  final service = SDBluetoothService();
   ref.onDispose(() {
+    service.stopScan();
     service.disconnectAll();
   });
   return service;
