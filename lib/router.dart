@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:superduper/main.dart';
 import 'package:superduper/screens/bike_detail_screen.dart';
 import 'package:superduper/screens/bike_list_screen.dart';
+import 'package:superduper/screens/debug_screen.dart';
 
 /// Router class for the SuperDuper app.
 ///
@@ -10,12 +11,14 @@ class AppRouter {
   static const String home = '/';
   static const String bikeList = '/bikes';
   static const String bikeDetail = '/bike';
+  static const String debug = '/debug';
 
   /// Get the named routes for the app.
   static Map<String, WidgetBuilder> getRoutes() {
     return {
       home: (_) => const HomePage(),
       bikeList: (_) => const BikeListScreen(),
+      debug: (_) => const DebugScreen(),
     };
   }
 
@@ -48,6 +51,11 @@ class AppRouter {
   /// Navigate to the home screen.
   static void navigateToHome(BuildContext context) {
     Navigator.of(context).pushNamedAndRemoveUntil(home, (route) => false);
+  }
+  
+  /// Navigate to the debug screen.
+  static void navigateToDebug(BuildContext context) {
+    Navigator.of(context).pushNamed(debug);
   }
 }
 
