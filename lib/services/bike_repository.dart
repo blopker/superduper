@@ -103,16 +103,20 @@ class BikeRepository {
     // Update the bike service if it exists
     final service = _bikeServices[updatedBike.id];
     if (service != null) {
-      // Update active state which triggers connection logic
+      // First update active state which triggers connection logic
       if (service.bike.isActive != updatedBike.isActive) {
         service.isActive = updatedBike.isActive;
       }
+      
+      // Then sync all other changes (name, color, etc.) to the service
+      // This updates the service's internal model without triggering callbacks
+      service.updateBikeModel(updatedBike);
     }
 
     await _saveBikes();
     _bikesController.add(_bikes);
 
-    log.d(SDLogger.DB, 'Updated bike: ${updatedBike.name} (${updatedBike.id})');
+    log.d(SDLogger.DB, 'Updated bike: ${updatedBike.name} (${updatedBike.id}), color: ${updatedBike.color}');
   }
 
   /// Deletes a bike.

@@ -7,6 +7,7 @@ import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/screens/bike_edit_sheet.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bike_service.dart';
+import 'package:superduper/utils/logger.dart';
 import 'package:superduper/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -45,6 +46,7 @@ class BikeDetailScreen extends ConsumerWidget {
       initialData: bike,
       builder: (context, snapshot) {
         final currentBike = snapshot.data ?? bike;
+        log.d(SDLogger.BIKE, 'BikeDetailScreen received bike update: ${currentBike.name}, color: ${currentBike.color}');
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -388,8 +390,10 @@ class BikeDetailScreen extends ConsumerWidget {
 
   void _showEditBikeDialog(
       BuildContext context, WidgetRef ref, BikeModel bike) {
+    log.d(SDLogger.BIKE, 'Opening edit dialog for bike: ${bike.name}, current color: ${bike.color}');
     BikeEditBottomSheet.show(context, bike).then((updatedBike) {
       if (updatedBike != null) {
+        log.d(SDLogger.BIKE, 'Edit dialog returned updated bike: ${updatedBike.name}, new color: ${updatedBike.color}');
         ref.read(bikeRepositoryProvider).updateBike(updatedBike);
       }
     });

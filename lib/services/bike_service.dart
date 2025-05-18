@@ -443,6 +443,11 @@ class BikeService {
       log.e(SDLogger.BIKE, 'Cannot update bike with different ID', null);
       return;
     }
+    
+    // Log the update to help with debugging
+    log.d(SDLogger.BIKE, 'External update to bike model: ${updatedBike.name}, color: ${updatedBike.color}');
+    
+    // Update the internal model with the changes
     _updateBikeModel(updatedBike, skipCallback: skipCallback);
   }
 
