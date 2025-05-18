@@ -79,7 +79,7 @@ class BikeListScreen extends ConsumerWidget {
 class _BikeListTile extends ConsumerWidget {
   final BikeModel bike;
 
-  const _BikeListTile({super.key, required this.bike});
+  const _BikeListTile({required this.bike});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
