@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/router.dart';
+import 'package:superduper/screens/bike_edit_sheet.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
@@ -417,129 +418,11 @@ class _BikeCard extends ConsumerWidget {
 
   void _showBikeOptionsDialog(
       BuildContext context, WidgetRef ref, BikeModel bike) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(bike.name, style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: const Text('Auto-connect',
-                  style: TextStyle(color: Colors.white)),
-              subtitle: const Text('Connect when app starts',
-                  style: TextStyle(color: Colors.grey)),
-              value: bike.isActive,
-              onChanged: (value) {
-                ref.read(bikeRepositoryProvider).setBikeActive(bike.id, value);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(color: Colors.grey),
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title:
-                  const Text('Rename', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                _showRenameDialog(context, ref, bike);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title:
-                  const Text('Delete', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirmationDialog(context, ref, bike);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL',
-                style: TextStyle(color: Color(0xff441DFC))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRenameDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
-    final textController = TextEditingController(text: bike.name);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Rename Bike', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Bike Name',
-            labelStyle: TextStyle(color: Colors.grey),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xff441DFC)),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              if (textController.text.trim().isNotEmpty) {
-                final updatedBike =
-                    bike.copyWith(name: textController.text.trim());
-                ref.read(bikeRepositoryProvider).updateBike(updatedBike);
-                Navigator.pop(context);
-              }
-            },
-            child:
-                const Text('SAVE', style: TextStyle(color: Color(0xff441DFC))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteConfirmationDialog(
-      BuildContext context, WidgetRef ref, BikeModel bike) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Delete Bike', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to delete "${bike.name}"?',
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () {
-              ref.read(bikeRepositoryProvider).deleteBike(bike.id);
-              Navigator.pop(context);
-            },
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
-    );
+    BikeEditBottomSheet.show(context, bike).then((updatedBike) {
+      if (updatedBike != null) {
+        ref.read(bikeRepositoryProvider).updateBike(updatedBike);
+      }
+    });
   }
 }
 

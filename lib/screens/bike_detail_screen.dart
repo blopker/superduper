@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
+import 'package:superduper/screens/bike_edit_sheet.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bike_service.dart';
 
@@ -207,10 +208,7 @@ class BikeDetailScreen extends ConsumerWidget {
 
   void _showEditBikeDialog(
       BuildContext context, WidgetRef ref, BikeModel bike) {
-    showDialog(
-      context: context,
-      builder: (context) => _EditBikeDialog(bike: bike),
-    ).then((updatedBike) {
+    BikeEditBottomSheet.show(context, bike).then((updatedBike) {
       if (updatedBike != null) {
         ref.read(bikeRepositoryProvider).updateBike(updatedBike);
       }
@@ -310,75 +308,4 @@ class _SettingControl extends StatelessWidget {
   }
 }
 
-class _EditBikeDialog extends StatefulWidget {
-  final BikeModel bike;
 
-  const _EditBikeDialog({required this.bike});
-
-  @override
-  State<_EditBikeDialog> createState() => _EditBikeDialogState();
-}
-
-class _EditBikeDialogState extends State<_EditBikeDialog> {
-  late TextEditingController _nameController;
-  late bool _isActive;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.bike.name);
-    _isActive = widget.bike.isActive;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Edit Bike'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Bike Name',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            title: const Text('Active'),
-            subtitle: const Text('Auto-connect when app starts'),
-            value: _isActive,
-            onChanged: (value) {
-              setState(() {
-                _isActive = value;
-              });
-            },
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CANCEL'),
-        ),
-        TextButton(
-          onPressed: () {
-            final updatedBike = widget.bike.copyWith(
-              name: _nameController.text,
-              isActive: _isActive,
-            );
-            Navigator.of(context).pop(updatedBike);
-          },
-          child: const Text('SAVE'),
-        ),
-      ],
-    );
-  }
-}

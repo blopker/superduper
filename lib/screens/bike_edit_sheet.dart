@@ -2,28 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:superduper/bike.dart';
 import 'package:superduper/colors.dart';
+import 'package:superduper/models/bike_model.dart';
+import 'package:superduper/models/bike_region.dart';
+import 'package:superduper/services/bike_repository.dart';
 
-show(BuildContext context, BikeState bike) {
-  showModalBottomSheet<void>(
+/// A bottom sheet for editing bike settings.
+/// 
+/// This presents a form that allows users to edit bike properties like name, 
+/// region, color, and auto-connect status.
+class BikeEditBottomSheet extends ConsumerStatefulWidget {
+  final BikeModel bike;
+
+  const BikeEditBottomSheet({super.key, required this.bike});
+
+  /// Shows the bike edit bottom sheet.
+  static Future<BikeModel?> show(BuildContext context, BikeModel bike) async {
+    return await showModalBottomSheet<BikeModel>(
+      context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      context: context,
-      builder: (BuildContext context) {
-        return BikeSettingsWidget(bike: bike);
-      });
-}
-
-class BikeSettingsWidget extends ConsumerStatefulWidget {
-  const BikeSettingsWidget({super.key, required this.bike});
-  final BikeState bike;
+      builder: (context) => BikeEditBottomSheet(bike: bike),
+    );
+  }
 
   @override
-  BikeSettingsWidgetState createState() => BikeSettingsWidgetState();
+  BikeEditBottomSheetState createState() => BikeEditBottomSheetState();
 }
 
-class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
+class BikeEditBottomSheetState extends ConsumerState<BikeEditBottomSheet> {
   @override
   Widget build(BuildContext context) {
     // Get the keyboard inset to adjust for keyboard appearance
@@ -97,7 +104,7 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: Column(
                       children: [
-                        CompleteForm(bike: widget.bike),
+                        _BikeEditForm(bike: widget.bike),
                         // Add bottom spacing for better scrolling
                         const SizedBox(height: 40),
                       ],
@@ -113,32 +120,30 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
   }
 }
 
-class CompleteForm extends ConsumerStatefulWidget {
-  const CompleteForm({super.key, required this.bike});
-  final BikeState bike;
+class _BikeEditForm extends ConsumerStatefulWidget {
+  const _BikeEditForm({required this.bike});
+  final BikeModel bike;
 
   @override
-  ConsumerState<CompleteForm> createState() {
-    return _CompleteFormState();
-  }
+  ConsumerState<_BikeEditForm> createState() => _BikeEditFormState();
 }
 
-class _CompleteFormState extends ConsumerState<CompleteForm> {
+class _BikeEditFormState extends ConsumerState<_BikeEditForm> {
   final _formKey = GlobalKey<FormBuilderState>();
   late int _selectedColorIndex;
-
-  var genderOptions = ['Male', 'Female', 'Other'];
+  late bool _isActive;
 
   @override
   void initState() {
     super.initState();
     _selectedColorIndex = widget.bike.color;
+    _isActive = widget.bike.isActive;
   }
 
-  Future<bool?> _showMyDialog() async {
+  Future<bool?> _showDeleteConfirmation() async {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: false, // user must tap button!
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.grey[900],
@@ -176,8 +181,8 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
 
   @override
   Widget build(BuildContext context) {
-    var bikeNotifier = ref.watch(bikeProvider(widget.bike.id).notifier);
     final colors = getColorList();
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
@@ -192,7 +197,6 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
             initialValue: {
               'name': widget.bike.name,
               'region': widget.bike.region,
-              'color': widget.bike.color,
             },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +209,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                     labelText: 'Name',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.grey[800]!.withAlpha(100),
+                    fillColor: Colors.grey[800]!.withOpacity(0.4),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -228,7 +232,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                     labelText: 'Region',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.grey[800]!.withAlpha(100),
+                    fillColor: Colors.grey[800]!.withOpacity(0.4),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -241,7 +245,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                   items: BikeRegion.values
                       .map((region) => DropdownMenuItem(
                             value: region,
-                            child: Text(region.value),
+                            child: Text(region.name),
                           ))
                       .toList(),
                   dropdownColor: Colors.grey[900],
@@ -249,6 +253,41 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                   iconSize: 24,
                   icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
                   style: Theme.of(context).textTheme.bodyMedium,
+                ),
+
+                const SizedBox(height: 24),
+
+                // Auto-connect switch
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800]!.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SwitchListTile(
+                    title: Text(
+                      'Auto-Connect',
+                      style: TextStyle(
+                        color: Colors.grey[200],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Connect when app starts',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12,
+                      ),
+                    ),
+                    value: _isActive,
+                    activeColor: const Color(0xff441DFC),
+                    onChanged: (bool value) {
+                      setState(() {
+                        _isActive = value;
+                      });
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 32),
@@ -287,7 +326,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                     ),
                     child: Center(
                       child: Text(
-                        'Select Color',
+                        colors[_selectedColorIndex].name,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colors[_selectedColorIndex].fontColor(),
@@ -309,8 +348,8 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               // Delete button
               ElevatedButton.icon(
                 onPressed: () async {
-                  if (await _showMyDialog() ?? false) {
-                    bikeNotifier.deleteStateData(widget.bike);
+                  if (await _showDeleteConfirmation() ?? false) {
+                    await ref.read(bikeRepositoryProvider).deleteBike(widget.bike.id);
                     if (context.mounted) {
                       Navigator.pop(context);
                     }
@@ -319,7 +358,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
                 icon: const Icon(Icons.delete, size: 18),
                 label: const Text('Delete'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withAlpha(51), // 0.2 opacity
+                  backgroundColor: Colors.red.withOpacity(0.2),
                   foregroundColor: Colors.red,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -332,19 +371,19 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ElevatedButton.icon(
                 onPressed: () {
                   if (_formKey.currentState?.saveAndValidate() ?? false) {
-                    bikeNotifier.writeStateData(
-                        widget.bike.copyWith(
-                            name: _formKey.currentState?.value['name'],
-                            color: _selectedColorIndex,
-                            region: _formKey.currentState?.value['region']),
-                        saveToBike: false);
-                    Navigator.pop(context);
+                    final updatedBike = widget.bike.copyWith(
+                      name: _formKey.currentState?.value['name'],
+                      color: _selectedColorIndex,
+                      region: _formKey.currentState?.value['region'],
+                      isActive: _isActive,
+                    );
+                    Navigator.pop(context, updatedBike);
                   }
                 },
                 icon: const Icon(Icons.check, size: 18),
                 label: const Text('Save'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff441DFC).withAlpha(51),
+                  backgroundColor: const Color(0xff441DFC).withOpacity(0.2),
                   foregroundColor: const Color(0xff441DFC),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -434,7 +473,7 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                           boxShadow: [
                             if (index == currentIndex)
                               BoxShadow(
-                                color: Colors.white.withAlpha(60),
+                                color: Colors.white.withOpacity(0.2),
                                 blurRadius: 4,
                                 spreadRadius: 2,
                               ),
