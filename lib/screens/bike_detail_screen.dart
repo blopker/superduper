@@ -108,7 +108,7 @@ class BikeDetailScreen extends ConsumerWidget {
         }
 
         return Container(
-          color: statusColor.withOpacity(0.2),
+          color: statusColor.withAlpha((0.2 * 255).floor()),
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: Row(
             children: [

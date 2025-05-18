@@ -143,6 +143,37 @@ The app uses a modern, decoupled architecture that allows connecting to multiple
 
 This architecture enables users to seamlessly switch between multiple bikes while maintaining connections to all active bikes.
 
+#### Migration from Previous Versions
+
+When upgrading from older versions of the app:
+
+1. The app automatically migrates bike data to the new format on first launch
+2. All previously saved bikes will be preserved with their settings
+3. Active status is automatically assigned to all migrated bikes
+
+If you experience any data migration issues, you can manually trigger migration:
+```dart
+final migrationUtil = ref.read(migrationUtilProvider);
+await migrationUtil.migrateIfNeeded();
+```
+
+### Development
+
+#### Build and Run
+
+To build and run the app after cloning the repository:
+
+```bash
+# Install dependencies
+flutter pub get
+
+# Generate code (required after cloning or making changes to models)
+flutter pub run build_runner build --delete-conflicting-outputs
+
+# Run the app
+flutter run
+```
+
 ### Releases
 
 1. Update version, save. Don't commit.

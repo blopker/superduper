@@ -17,10 +17,11 @@ part 'bike_repository.g.dart';
 class BikeRepository {
   final Ref _ref;
   final Map<String, BikeService> _bikeServices = {};
-  final StreamController<List<BikeModel>> _bikesController =
+  final StreamController<List<BikeModel>> _bikesController = 
       StreamController<List<BikeModel>>.broadcast();
   List<BikeModel> _bikes = [];
-
+  bool _initialized = false;
+  
   /// Creates a new bike repository.
   BikeRepository(this._ref) {
     _loadBikes();
@@ -63,6 +64,7 @@ class BikeRepository {
     // Create and store bike service
     final bluetoothService = _ref.read(bluetoothServiceProvider);
     final bikeService = BikeService(_ref, newBike, bluetoothService);
+    log.i(SDLogger.DB, 'Created new bike service for: ${newBike.name}');
     _bikeServices[bikeId] = bikeService;
 
     // Save bike to storage
@@ -159,52 +161,62 @@ class BikeRepository {
 
   /// Loads bikes from storage.
   Future<void> _loadBikes() async {
+    if (_initialized) return;
+    
     try {
       final file = await _getBikesFile();
       if (!await file.exists()) {
         log.d(SDLogger.DB, 'No bikes file found');
         _bikesController.add(_bikes);
+        _initialized = true;
         return;
       }
-
+      
       final contents = await file.readAsString();
       if (contents.isEmpty) {
         log.d(SDLogger.DB, 'Empty bikes file');
         _bikesController.add(_bikes);
+        _initialized = true;
         return;
       }
-
-      final bikesList = jsonDecode(contents) as List;
-      _bikes = bikesList
-          .map((json) => BikeModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-
-      log.d(SDLogger.DB, 'Loaded ${_bikes.length} bikes');
-
-      // Create services for each bike
-      final bluetoothService = _ref.read(bluetoothServiceProvider);
-      for (final bike in _bikes) {
-        final bikeService = BikeService(_ref, bike, bluetoothService);
-        _bikeServices[bike.id] = bikeService;
+      
+      try {
+        final bikesList = jsonDecode(contents) as List;
+        _bikes = bikesList
+            .map((json) => BikeModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+        
+        log.d(SDLogger.DB, 'Loaded ${_bikes.length} bikes from disk');
+        
+        // Create services for each bike
+        final bluetoothService = _ref.read(bluetoothServiceProvider);
+        for (final bike in _bikes) {
+          final bikeService = BikeService(_ref, bike, bluetoothService);
+          _bikeServices[bike.id] = bikeService;
+          log.d(SDLogger.DB, 'Loaded bike service for: ${bike.name}');
+        }
+      } catch (parseError) {
+        log.e(SDLogger.DB, 'Error parsing bikes data', parseError);
       }
-
+      
       _bikesController.add(_bikes);
     } catch (e) {
       log.e(SDLogger.DB, 'Error loading bikes', e);
-      _bikesController.add(_bikes);
+    } finally {
+      _initialized = true;
     }
   }
 
   /// Saves bikes to storage.
   Future<void> _saveBikes() async {
+    if (!_initialized) await _loadBikes();
+    
     try {
       final file = await _getBikesFile();
       final jsonData = jsonEncode(_bikes);
       await file.writeAsString(jsonData);
-
-      if (kDebugMode) {
-        log.d(SDLogger.DB, 'Saved ${_bikes.length} bikes');
-      }
+      
+      log.d(SDLogger.DB, 'Saved ${_bikes.length} bikes to disk');
     } catch (e) {
       log.e(SDLogger.DB, 'Error saving bikes', e);
     }
@@ -218,19 +230,24 @@ class BikeRepository {
 
   /// Disposes resources.
   void dispose() {
-    for (final service in _bikeServices.values) {
-      service.dispose();
-    }
-    _bikeServices.clear();
-    _bikesController.close();
+    // Save bikes one last time before disposing
+    _saveBikes().then((_) {
+      for (final service in _bikeServices.values) {
+        service.dispose();
+      }
+      _bikeServices.clear();
+      _bikesController.close();
+    });
   }
 }
 
 /// Provider for the bike repository.
 @Riverpod(keepAlive: true)
 BikeRepository bikeRepository(Ref ref) {
+  log.i(SDLogger.DB, 'Initializing bike repository');
   final repository = BikeRepository(ref);
   ref.onDispose(() {
+    log.i(SDLogger.DB, 'Disposing bike repository');
     repository.dispose();
   });
   return repository;

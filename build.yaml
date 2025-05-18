@@ -5,9 +5,8 @@ targets:
       freezed:
         generate_for:
           include:
-            - lib/models/**.dart
-            - lib/services/**.dart
-      
+            - lib/**.dart
+
       # Configure the JSON Serializable builder
       json_serializable:
         options:
@@ -15,15 +14,13 @@ targets:
           include_if_null: false
         generate_for:
           include:
-            - lib/models/**.dart
-            - lib/services/**.dart
-      
+            - lib/**.dart
+
       # Configure the Riverpod Generator builder
       riverpod_generator:
         generate_for:
           include:
-            - lib/providers/**.dart
-            - lib/services/**.dart
+            - lib/**.dart
 
 builders:
   # Add any custom builder configurations here

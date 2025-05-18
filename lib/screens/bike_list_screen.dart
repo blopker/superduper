@@ -3,7 +3,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:superduper/models/bike_model.dart';
 import 'package:superduper/models/connection_state.dart';
-import 'package:superduper/screens/bike_detail_screen.dart';
+import 'package:superduper/router.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bike_service.dart';
 import 'package:superduper/services/bluetooth_service.dart';
@@ -11,7 +11,7 @@ import 'package:superduper/utils/logger.dart';
 
 /// Screen that displays a list of all saved bikes and allows scanning for new ones.
 class BikeListScreen extends ConsumerWidget {
-  const BikeListScreen({Key? key}) : super(key: key);
+  const BikeListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +36,8 @@ class BikeListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBikesList(BuildContext context, WidgetRef ref, List<BikeModel> bikes) {
+  Widget _buildBikesList(
+      BuildContext context, WidgetRef ref, List<BikeModel> bikes) {
     if (bikes.isEmpty) {
       return const Center(
         child: Column(
@@ -78,7 +79,7 @@ class BikeListScreen extends ConsumerWidget {
 class _BikeListTile extends ConsumerWidget {
   final BikeModel bike;
 
-  const _BikeListTile({Key? key, required this.bike}) : super(key: key);
+  const _BikeListTile({super.key, required this.bike});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -88,11 +89,13 @@ class _BikeListTile extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: StreamBuilder<BikeConnectionState>(
         stream: bikeService?.connectionStateStream,
-        initialData: bikeService?.connectionState ?? BikeConnectionState.disconnected,
+        initialData:
+            bikeService?.connectionState ?? BikeConnectionState.disconnected,
         builder: (context, snapshot) {
-          final connectionState = snapshot.data ?? BikeConnectionState.disconnected;
+          final connectionState =
+              snapshot.data ?? BikeConnectionState.disconnected;
           final isConnected = connectionState == BikeConnectionState.connected;
-          
+
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -105,7 +108,9 @@ class _BikeListTile extends ConsumerWidget {
             subtitle: Row(
               children: [
                 Icon(
-                  isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                  isConnected
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
                   size: 14,
                   color: isConnected ? Colors.green : Colors.grey,
                 ),
@@ -134,11 +139,7 @@ class _BikeListTile extends ConsumerWidget {
               },
             ),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => BikeDetailScreen(bikeId: bike.id),
-                ),
-              );
+              AppRouter.navigateToBikeDetail(context, bike.id);
             },
           );
         },
@@ -148,7 +149,7 @@ class _BikeListTile extends ConsumerWidget {
 }
 
 class _ScanDialog extends ConsumerStatefulWidget {
-  const _ScanDialog({Key? key}) : super(key: key);
+  const _ScanDialog();
 
   @override
   ConsumerState<_ScanDialog> createState() => _ScanDialogState();
@@ -178,8 +179,8 @@ class _ScanDialogState extends ConsumerState<_ScanDialog> {
 
     try {
       await ref.read(bluetoothServiceProvider).startScan(
-        timeout: const Duration(seconds: 15),
-      );
+            timeout: const Duration(seconds: 15),
+          );
     } catch (e) {
       log.e(SDLogger.BLUETOOTH, 'Error scanning for bikes', e);
     } finally {
@@ -210,8 +211,8 @@ class _ScanDialogState extends ConsumerState<_ScanDialog> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
-                isScanning 
-                    ? 'Scanning for bikes nearby...' 
+                isScanning
+                    ? 'Scanning for bikes nearby...'
                     : 'Select a bike to add:',
                 style: TextStyle(
                   color: Colors.grey[600],
@@ -229,16 +230,16 @@ class _ScanDialogState extends ConsumerState<_ScanDialog> {
                       ),
                     );
                   }
-                  
+
                   return ListView.builder(
                     itemCount: results.length,
                     itemBuilder: (context, index) {
                       final result = results[index];
                       final device = result.device;
-                      final name = device.platformName.isNotEmpty 
-                          ? device.platformName 
+                      final name = device.platformName.isNotEmpty
+                          ? device.platformName
                           : device.remoteId.str;
-                      
+
                       return ListTile(
                         title: Text(name),
                         subtitle: Text(device.remoteId.str),
@@ -275,15 +276,15 @@ class _ScanDialogState extends ConsumerState<_ScanDialog> {
   void _addBike(BluetoothDevice device, String name) async {
     try {
       final bike = await ref.read(bikeRepositoryProvider).addBike(
-        device.remoteId.str,
-        device.remoteId.str,
-      );
-      
+            device.remoteId.str,
+            device.remoteId.str,
+          );
+
       log.i(SDLogger.BIKE, 'Added new bike: ${bike.name} (${bike.id})');
-      
+
       if (mounted) {
         Navigator.of(context).pop();
-        
+
         // Show a success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

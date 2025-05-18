@@ -6,15 +6,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:superduper/select_page.dart';
+import 'package:superduper/router.dart';
+import 'package:superduper/screens/bike_list_screen.dart';
 import 'package:superduper/services/bike_connection_manager.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
+import 'package:superduper/utils/migration.dart';
 
 void main() async {
+  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
+  
+  // Create a ProviderContainer to run migration before the app starts
+  final container = ProviderContainer();
+  
+  try {
+    // Run the migration before initializing the app
+    log.i(SDLogger.DB, 'Running data migration if needed');
+    await container.read(runMigrationProvider.future);
+    log.i(SDLogger.DB, 'Migration completed successfully');
+  } catch (e) {
+    log.e(SDLogger.DB, 'Error during migration', e);
+    // Continue with app startup even if migration fails
+  } finally {
+    // Dispose the container when done
+    container.dispose();
+  }
+  
+  // Start the app
   runApp(
     const ProviderScope(
       child: SuperDuper(),
@@ -56,6 +77,9 @@ class SuperDuper extends ConsumerWidget {
     // automatically manage bike connections in the background
     ref.watch(ensureBikeConnectionManagerInitializedProvider);
     
+    // Run migration if it hasn't been run yet (as fallback)
+    ref.watch(runMigrationProvider);
+    
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         statusBarIconBrightness: Brightness.light,
         statusBarColor: Colors.transparent,
@@ -81,7 +105,9 @@ class SuperDuper extends ConsumerWidget {
               fontSize: 14),
         ),
       ),
-      home: const HomePage(),
+      initialRoute: AppRouter.home,
+      routes: AppRouter.getRoutes(),
+      onGenerateRoute: AppRouter.generateRoute,
     );
   }
 }
@@ -127,7 +153,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               log.i(SDLogger.BIKE, 'Permission denied: ${snapshot.data}');
               return const PermissionPage();
             }
-            return const BikeSelectWidget();
+            return const BikeListScreen();
           },
         )));
   }

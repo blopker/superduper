@@ -129,7 +129,7 @@ class BikeConnectionManager {
 
 /// Provider for the bike connection manager.
 @Riverpod(keepAlive: true)
-BikeConnectionManager bikeConnectionManager(BikeConnectionManagerRef ref) {
+BikeConnectionManager bikeConnectionManager(Ref ref) {
   final manager = BikeConnectionManager(ref);
   ref.onDispose(() {
     manager.dispose();
@@ -142,7 +142,7 @@ BikeConnectionManager bikeConnectionManager(BikeConnectionManagerRef ref) {
 /// This provider doesn't return any value, but ensures the connection manager
 /// is created and starts monitoring bikes as soon as the app starts.
 @Riverpod(keepAlive: true)
-void ensureBikeConnectionManagerInitialized(EnsureBikeConnectionManagerInitializedRef ref) {
+void ensureBikeConnectionManagerInitialized(Ref ref) {
   // Just watching the provider ensures it gets created
   ref.watch(bikeConnectionManagerProvider);
 }

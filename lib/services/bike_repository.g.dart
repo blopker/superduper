@@ -6,7 +6,7 @@ part of 'bike_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$bikeRepositoryHash() => r'3c9ece4b2d28fadaeb36c92d8e768f0293f7334e';
+String _$bikeRepositoryHash() => r'51048119a882ac6d6a4a7975ee55562ecac75d56';
 
 /// Provider for the bike repository.
 ///

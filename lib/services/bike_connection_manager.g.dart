@@ -7,7 +7,7 @@ part of 'bike_connection_manager.dart';
 // **************************************************************************
 
 String _$bikeConnectionManagerHash() =>
-    r'50a9f9e0479d0387695dd837339b5fede6b99ecb';
+    r'2f5690aea111b0f1c1d7f3eb2a78432b1f5d1b21';
 
 /// Provider for the bike connection manager.
 ///
@@ -27,7 +27,7 @@ final bikeConnectionManagerProvider = Provider<BikeConnectionManager>.internal(
 // ignore: unused_element
 typedef BikeConnectionManagerRef = ProviderRef<BikeConnectionManager>;
 String _$ensureBikeConnectionManagerInitializedHash() =>
-    r'54eece474e2a0e4a3b02b9dd4767e57d99eb5725';
+    r'439ca80036c7aff8b8cfd0bb57bbc0f0e3becf70';
 
 /// Provider that ensures the bike connection manager is initialized.
 ///
