@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import 'package:superduper/router.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
+import 'package:superduper/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Screen that displays a list of all saved bikes and allows scanning for new ones.
 class BikeListScreen extends ConsumerWidget {
@@ -15,275 +18,543 @@ class BikeListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bikesAsync = ref.watch(bikesProvider);
+    final isScanning = ref.watch(isScanningStatusProvider);
+    final bleStatus = ref.watch(adapterStateProvider);
+    final ScrollController scrollController = ScrollController();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Bikes'),
-      ),
-      body: bikesAsync.when(
-        data: (bikes) => _buildBikesList(context, ref, bikes),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text('Error loading bikes: ${err.toString()}'),
+      backgroundColor: Colors.black,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xff441DFC),
+        onPressed: () {
+          if (isScanning.valueOrNull ?? false) {
+            ref.read(bluetoothServiceProvider).stopScan();
+          } else {
+            ref.read(bluetoothServiceProvider).startScan();
+          }
+        },
+        child: Icon(
+          isScanning.valueOrNull ?? false ? Icons.stop : Icons.bluetooth_searching,
+          color: Colors.white,
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showScanDialog(context, ref),
-        icon: const Icon(Icons.bluetooth_searching),
-        label: const Text('SCAN'),
+      body: SafeArea(
+        child: Container(
+          color: Colors.black,
+          child: bikesAsync.when(
+            data: (bikes) => _buildBikesList(context, ref, bikes, scrollController, isScanning, bleStatus),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(
+              child: Text('Error loading bikes: ${err.toString()}', style: const TextStyle(color: Colors.white)),
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildBikesList(
-      BuildContext context, WidgetRef ref, List<BikeModel> bikes) {
-    if (bikes.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No bikes added yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      BuildContext context, 
+      WidgetRef ref, 
+      List<BikeModel> bikes, 
+      ScrollController scrollController,
+      AsyncValue<bool> isScanning,
+      AsyncValue<BluetoothAdapterState> bleStatus) {
+        
+    final scanResults = ref.watch(scanResultsProvider);
+    
+    List<BikeModel> foundBikes = [];
+    for (var result in scanResults.valueOrNull ?? []) {
+      if (bikes.any((bike) => bike.bluetoothAddress == result.device.remoteId.str)) {
+        continue;
+      }
+      foundBikes.add(BikeModel.defaultBike(
+        result.device.remoteId.str, 
+        result.device.remoteId.str
+      ));
+    }
+
+    return CustomScrollView(
+      controller: scrollController,
+      slivers: [
+        // App Bar with SUPERDUPER title
+        SliverAppBar(
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: Colors.black,
+          pinned: true,
+          expandedHeight: 80,
+          stretch: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(color: Colors.black),
+            title: Text(
+              'SUPERDUPER',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            SizedBox(height: 8),
-            Text(
-              'Tap the SCAN button to find bikes',
-              style: TextStyle(color: Colors.grey),
+            centerTitle: true,
+            collapseMode: CollapseMode.pin,
+            stretchModes: const [],
+          ),
+        ),
+
+        // Bluetooth Status Indicator
+        SliverToBoxAdapter(
+          child: bleStatus.when(
+            data: (state) {
+              if (state == BluetoothAdapterState.on) {
+                return const SizedBox.shrink();
+              }
+
+              String message = switch (state) {
+                BluetoothAdapterState.off => 'Bluetooth is turned off',
+                BluetoothAdapterState.unauthorized => 'Bluetooth permissions are needed',
+                _ => 'Bluetooth unavailable'
+              };
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        message,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ),
+
+        // Scanning Status Indicator
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: 40,
+              decoration: BoxDecoration(
+                color: isScanning.valueOrNull ?? false
+                    ? const Color(0xff441DFC).withOpacity(0.2)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: isScanning.valueOrNull ?? false
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2)),
+                          const SizedBox(width: 10),
+                          Text('Scanning for bikes...',
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
-          ],
+          ),
+        ),
+
+        // My Bikes Section
+        if (bikes.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 0.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'My Bikes',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.red.withOpacity(0.2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    icon: const Icon(Icons.bluetooth_disabled,
+                        color: Colors.red, size: 16),
+                    onPressed: () {
+                      ref.read(bikeRepositoryProvider).disconnectAllBikes();
+                    },
+                    label: Text(
+                      'Disconnect All',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: _BikeCard(bike: bikes[index]),
+                  );
+                },
+                childCount: bikes.length,
+              ),
+            ),
+          ),
+        ],
+
+        // Found Bikes Section
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 30.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Found Bikes',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const _NotConnectingButton(),
+              ],
+            ),
+          ),
+        ),
+
+        // Found Bikes List or Empty State
+        foundBikes.isEmpty
+            ? SliverToBoxAdapter(
+                child: Container(
+                  height: 200,
+                  padding: const EdgeInsets.only(top: 30),
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.bluetooth_searching,
+                        size: 50,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No bikes found nearby',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color: Colors.grey[500],
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          ref.read(bluetoothServiceProvider).startScan();
+                        },
+                        child: Text(
+                          'TAP TO SCAN',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: const Color(0xff441DFC),
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      var bike = foundBikes[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: DiscoverCard(
+                          selected: false,
+                          onTap: () => _addBike(context, ref, bike),
+                          title: bike.name,
+                          subtitle: bike.bluetoothAddress,
+                          titleIcon: Icons.bluetooth,
+                          colorIndex: (index + 3) % 10,
+                        ),
+                      );
+                    },
+                    childCount: foundBikes.length,
+                  ),
+                ),
+              ),
+
+        // Debug Button in Debug Mode
+        if (kDebugMode)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  vertical: 40.0, horizontal: 20.0),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/debug');
+                },
+                child: const Text('DEBUG CONSOLE'),
+              ),
+            ),
+          ),
+
+        // Bottom Padding
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+
+  void _addBike(BuildContext context, WidgetRef ref, BikeModel bike) async {
+    try {
+      final addedBike = await ref.read(bikeRepositoryProvider).addBike(
+            bike.id,
+            bike.bluetoothAddress,
+          );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added bike: ${addedBike.name}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      
+      AppRouter.navigateToBikeDetail(context, addedBike.id);
+    } catch (e) {
+      log.e(SDLogger.BIKE, 'Error adding bike', e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding bike: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
-
-    return ListView.builder(
-      itemCount: bikes.length,
-      itemBuilder: (context, index) {
-        final bike = bikes[index];
-        return _BikeListTile(bike: bike);
-      },
-    );
-  }
-
-  void _showScanDialog(BuildContext context, WidgetRef ref) async {
-    await showDialog(
-      context: context,
-      builder: (context) => const _ScanDialog(),
-    );
-    ref.read(bluetoothServiceProvider).stopScan();
   }
 }
 
-class _BikeListTile extends ConsumerWidget {
+class _BikeCard extends ConsumerWidget {
   final BikeModel bike;
 
-  const _BikeListTile({required this.bike});
+  const _BikeCard({required this.bike});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bikeService = ref.watch(bikeServiceProvider(bike.id));
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: StreamBuilder<BikeConnectionState>(
-        stream: bikeService?.connectionStateStream,
-        initialData:
-            bikeService?.connectionState ?? BikeConnectionState.disconnected,
-        builder: (context, snapshot) {
-          final connectionState =
-              snapshot.data ?? BikeConnectionState.disconnected;
-          final isConnected = connectionState == BikeConnectionState.connected;
+    return StreamBuilder<BikeConnectionState>(
+      stream: bikeService?.connectionStateStream,
+      initialData:
+          bikeService?.connectionState ?? BikeConnectionState.disconnected,
+      builder: (context, snapshot) {
+        final connectionState =
+            snapshot.data ?? BikeConnectionState.disconnected;
+        final isConnected = connectionState == BikeConnectionState.connected;
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: const Icon(Icons.electric_bike),
-            ),
-            title: Text(
-              bike.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Row(
-              children: [
-                Icon(
-                  isConnected
-                      ? Icons.bluetooth_connected
-                      : Icons.bluetooth_disabled,
-                  size: 14,
-                  color: isConnected ? Colors.green : Colors.grey,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  isConnected ? 'Connected' : 'Disconnected',
-                  style: TextStyle(
-                    color: isConnected ? Colors.green : Colors.grey,
-                  ),
-                ),
-                if (bike.isActive) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.autorenew, size: 14, color: Colors.blue),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Auto-connect',
-                    style: TextStyle(color: Colors.blue),
-                  ),
-                ],
-              ],
-            ),
-            trailing: Switch(
+        return DiscoverCard(
+          selected: isConnected,
+          onTap: () {
+            AppRouter.navigateToBikeDetail(context, bike.id);
+          },
+          onLongPress: () {
+            _showBikeOptionsDialog(context, ref, bike);
+          },
+          title: bike.name,
+          subtitle: "${bike.isActive ? '🔄 Auto-connect • ' : ''}${isConnected ? '🟢 Connected' : '🔴 Disconnected'}",
+          titleIcon: Icons.directions_bike,
+          colorIndex: bike.color,
+        );
+      },
+    );
+  }
+
+  void _showBikeOptionsDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(bike.name, style: const TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Auto-connect', style: TextStyle(color: Colors.white)),
+              subtitle: const Text('Connect when app starts', style: TextStyle(color: Colors.grey)),
               value: bike.isActive,
               onChanged: (value) {
                 ref.read(bikeRepositoryProvider).setBikeActive(bike.id, value);
+                Navigator.pop(context);
               },
             ),
-            onTap: () {
-              AppRouter.navigateToBikeDetail(context, bike.id);
+            const Divider(color: Colors.grey),
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text('Rename', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _showRenameDialog(context, ref, bike);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteConfirmationDialog(context, ref, bike);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Color(0xff441DFC))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRenameDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
+    final textController = TextEditingController(text: bike.name);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Rename Bike', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Bike Name',
+            labelStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xff441DFC)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              if (textController.text.trim().isNotEmpty) {
+                final updatedBike = bike.copyWith(name: textController.text.trim());
+                ref.read(bikeRepositoryProvider).updateBike(updatedBike);
+                Navigator.pop(context);
+              }
             },
-          );
-        },
+            child: const Text('SAVE', style: TextStyle(color: Color(0xff441DFC))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref, BikeModel bike) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Delete Bike', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to delete "${bike.name}"?',
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () {
+              ref.read(bikeRepositoryProvider).deleteBike(bike.id);
+              Navigator.pop(context);
+            },
+            child: const Text('DELETE'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ScanDialog extends ConsumerStatefulWidget {
-  const _ScanDialog();
-
-  @override
-  ConsumerState<_ScanDialog> createState() => _ScanDialogState();
-}
-
-class _ScanDialogState extends ConsumerState<_ScanDialog> {
-  @override
-  void initState() {
-    super.initState();
-    _startScan();
-  }
-
-  void _startScan() async {
-    try {
-      await ref.read(bluetoothServiceProvider).startScan(
-            timeout: const Duration(seconds: 15),
-          );
-    } catch (e) {
-      log.e(SDLogger.BLUETOOTH, 'Error scanning for bikes', e);
-    }
-  }
+class _NotConnectingButton extends StatelessWidget {
+  const _NotConnectingButton();
 
   @override
   Widget build(BuildContext context) {
-    final scanResultsAsync = ref.watch(scanResultsProvider);
-    final isScanning = ref.watch(isScanningStatusProvider).valueOrNull ?? false;
-
-    return AlertDialog(
-      title: const Text('Scan for Bikes'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 300,
-        child: Column(
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (isScanning)
-              const LinearProgressIndicator()
-            else
-              const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                isScanning
-                    ? 'Scanning for bikes nearby...'
-                    : 'Select a bike to add:',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                ),
-              ),
+            const Icon(
+              Icons.help_outline,
+              size: 16,
+              color: Colors.grey,
             ),
-            Expanded(
-              child: scanResultsAsync.when(
-                data: (results) {
-                  if (results.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No bikes found. Make sure your bike is turned on.',
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: results.length,
-                    itemBuilder: (context, index) {
-                      final result = results[index];
-                      final device = result.device;
-                      final name = device.platformName.isNotEmpty
-                          ? device.platformName
-                          : device.remoteId.str;
-
-                      return ListTile(
-                        title: Text(name),
-                        subtitle: Text(device.remoteId.str),
-                        leading: const Icon(Icons.bluetooth),
-                        trailing: const Icon(Icons.add_circle_outline),
-                        onTap: () => _addBike(device, name),
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(
-                  child: Text('Error: ${err.toString()}'),
-                ),
-              ),
+            const SizedBox(width: 4),
+            Text(
+              'Not connecting?',
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: Colors.grey,
+                  ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('CANCEL'),
-        ),
-        if (!isScanning)
-          TextButton(
-            onPressed: _startScan,
-            child: const Text('SCAN AGAIN'),
-          ),
-      ],
+      onTap: () async {
+        final Uri url = Uri.parse('https://github.com/blopker/superduper#faq');
+        launchUrl(url, mode: LaunchMode.externalApplication);
+      },
     );
-  }
-
-  void _addBike(BluetoothDevice device, String name) async {
-    try {
-      final bike = await ref.read(bikeRepositoryProvider).addBike(
-            device.remoteId.str,
-            device.remoteId.str,
-          );
-
-      log.i(SDLogger.BIKE, 'Added new bike: ${bike.name} (${bike.id})');
-
-      if (mounted) {
-        Navigator.of(context).pop();
-
-        // Show a success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added bike: ${bike.name}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      log.e(SDLogger.BIKE, 'Error adding bike', e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error adding bike: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
   }
 }
