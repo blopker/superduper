@@ -195,7 +195,38 @@ class BikeRepository {
             _bikes = bikesList
                 .map((json) {
                   try {
-                    return BikeModel.fromJson(json as Map<String, dynamic>);
+                    if (json is Map) {
+                      // Ensure required fields are present and of the right type
+                      final Map<String, dynamic> bikeData = {};
+                      
+                      // Convert to proper Map<String, dynamic> with type safety
+                      for (var entry in json.entries) {
+                        if (entry.key is String) {
+                          bikeData[entry.key as String] = entry.value;
+                        }
+                      }
+                      
+                      // Check and fix required String fields
+                      if (bikeData['id'] == null || bikeData['id'] is! String) {
+                        log.w(SDLogger.DB, 'Bike is missing valid id, skipping');
+                        return null;
+                      }
+                      
+                      if (bikeData['name'] == null || bikeData['name'] is! String) {
+                        // Try to fix by generating a name from ID
+                        log.w(SDLogger.DB, 'Bike is missing name, generating one');
+                        bikeData['name'] = 'Bike ${bikeData['id']}';
+                      }
+                      
+                      if (bikeData['bluetoothAddress'] == null || bikeData['bluetoothAddress'] is! String) {
+                        // If missing or invalid bluetooth address, use ID as fallback
+                        log.w(SDLogger.DB, 'Bike is missing bluetoothAddress, using id as fallback');
+                        bikeData['bluetoothAddress'] = bikeData['id'];
+                      }
+                      
+                      return BikeModel.fromJson(bikeData);
+                    }
+                    return null;
                   } catch (e) {
                     log.e(SDLogger.DB, 'Error parsing bike data', e);
                     return null;

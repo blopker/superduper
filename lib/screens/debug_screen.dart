@@ -3,11 +3,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:superduper/screens/bike_edit_sheet.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 /// A debug screen with various tools and information for development.
 class DebugScreen extends ConsumerStatefulWidget {
@@ -25,46 +25,60 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAppInfo();
     _setupLogCapture();
-    
-    // Simulate some log entries for demonstration
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _logs.add('[INFO] Loaded bike settings');
-          _logs.add('[INFO] Bluetooth service initialized');
-        });
-      }
-    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadAppInfo() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      setState(() {
-        _appVersion = packageInfo.version;
-        _buildNumber = packageInfo.buildNumber;
-      });
+      if (mounted) {
+        setState(() {
+          _appVersion = packageInfo.version;
+          _buildNumber = packageInfo.buildNumber;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _appVersion = 'Error loading version';
-      });
+      if (mounted) {
+        setState(() {
+          _appVersion = 'Error loading version';
+        });
+      }
     }
   }
 
   void _setupLogCapture() {
-    // Since we can't directly subscribe to logger events,
-    // we'll just add an initial log entry
-    log.i(SDLogger.UI, 'Debug screen initialized');
+    // Add initial logs for demonstration
+    _addLog('[INFO] Debug screen initialized');
     
-    // Add the initial log to our display list
-    setState(() {
-      _logs.add('[INFO] Debug screen initialized');
+    // Add a log message using the logger to demonstrate
+    log.i(SDLogger.UI, 'Debug screen opened');
+    
+    // Add more example logs after a delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _addLog('[INFO] Loaded bike settings');
+        _addLog('[INFO] Bluetooth service initialized');
+      }
     });
-    
-    // We could implement a more robust log capture mechanism here
-    // by extending the logger functionality, but for now this is sufficient
+  }
+  
+  void _addLog(String message) {
+    if (mounted) {
+      setState(() {
+        if (_logs.length > 100) {
+          _logs.removeAt(0);
+        }
+        _logs.add(message);
+      });
+    }
   }
 
   // Function to generate a random MAC address
@@ -74,13 +88,6 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
     return parts
         .map((part) => part.toRadixString(16).padLeft(2, '0'))
         .join(':');
-  }
-
-  @override
-  void dispose() {
-    // Clean up any resources
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
   }
 
   @override
@@ -100,6 +107,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
             onPressed: () {
               setState(() {
                 _logs.clear();
+                _addLog('[INFO] Logs cleared');
               });
             },
           ),
@@ -118,9 +126,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                 'Platform: ${defaultTargetPlatform.name}',
                 'Debug Mode: ${kDebugMode ? 'Yes' : 'No'}',
               ]),
-
+              
               const SizedBox(height: 24),
-
+              
               // Bikes Section
               _buildSectionHeader('Bikes (${bikes.length})'),
               Container(
@@ -140,7 +148,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                           children: [
                             Expanded(
                               child: Text(
-                                '${bike.name} (${bike.id.substring(0, 8)})',
+                                '${bike.name} (${bike.id.substring(0, min(8, bike.id.length))})',
                                 style: const TextStyle(color: Colors.white),
                               ),
                             ),
@@ -180,6 +188,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                         final randomId =
                             'debug_${DateTime.now().millisecondsSinceEpoch}';
                         repository.addBike(randomId, mac);
+                        _addLog('[INFO] Added test bike with ID: $randomId');
                       },
                       icon: const Icon(Icons.add),
                       label: const Text('Add Test Bike'),
@@ -191,9 +200,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                   ],
                 ),
               ),
-
+              
               const SizedBox(height: 24),
-
+              
               // Bluetooth Section
               _buildSectionHeader('Bluetooth'),
               Container(
@@ -220,8 +229,10 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                           onPressed: () {
                             if (isScanning) {
                               ref.read(bluetoothServiceProvider).stopScan();
+                              _addLog('[INFO] Bluetooth scan stopped');
                             } else {
                               ref.read(bluetoothServiceProvider).startScan();
+                              _addLog('[INFO] Bluetooth scan started');
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -242,6 +253,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                           child: ElevatedButton.icon(
                             onPressed: () {
                               repository.connectToActiveBikes();
+                              _addLog('[INFO] Connecting to all active bikes');
                             },
                             icon: const Icon(Icons.bluetooth_connected),
                             label: const Text('Connect All Active'),
@@ -256,6 +268,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                           child: ElevatedButton.icon(
                             onPressed: () {
                               repository.disconnectAllBikes();
+                              _addLog('[INFO] Disconnecting all bikes');
                             },
                             icon: const Icon(Icons.bluetooth_disabled),
                             label: const Text('Disconnect All'),
@@ -270,11 +283,21 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                   ],
                 ),
               ),
-
+              
               const SizedBox(height: 24),
-
+              
               // Log Section
               _buildSectionHeader('Logs (${_logs.length})'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  'Log messages from the app are displayed here',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
               Container(
                 height: 300,
                 width: double.infinity,
@@ -311,7 +334,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                   },
                 ),
               ),
-
+              
               const SizedBox(height: 40),
             ],
           ),
