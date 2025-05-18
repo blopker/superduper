@@ -71,8 +71,8 @@ class BikeRepository {
     // Create and store bike service
     final bluetoothService = _ref.read(bluetoothServiceProvider);
     final bikeService = BikeService(
-      _ref, 
-      newBike, 
+      _ref,
+      newBike,
       bluetoothService,
       onBikeUpdated: updateBike,
     );
@@ -102,8 +102,11 @@ class BikeRepository {
 
     // Update the bike service if it exists
     final service = _bikeServices[updatedBike.id];
-    if (service != null && service.bike.isActive != updatedBike.isActive) {
-      service.isActive = updatedBike.isActive;
+    if (service != null) {
+      // Update active state which triggers connection logic
+      if (service.bike.isActive != updatedBike.isActive) {
+        service.isActive = updatedBike.isActive;
+      }
     }
 
     await _saveBikes();
@@ -204,8 +207,8 @@ class BikeRepository {
             final bluetoothService = _ref.read(bluetoothServiceProvider);
             for (final bike in _bikes) {
               final bikeService = BikeService(
-                _ref, 
-                bike, 
+                _ref,
+                bike,
                 bluetoothService,
                 onBikeUpdated: updateBike,
               );

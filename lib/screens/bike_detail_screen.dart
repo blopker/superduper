@@ -7,6 +7,8 @@ import 'package:superduper/models/connection_state.dart';
 import 'package:superduper/screens/bike_edit_sheet.dart';
 import 'package:superduper/services/bike_repository.dart';
 import 'package:superduper/services/bike_service.dart';
+import 'package:superduper/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Screen for controlling and viewing details of a specific bike.
 class BikeDetailScreen extends ConsumerWidget {
@@ -21,9 +23,16 @@ class BikeDetailScreen extends ConsumerWidget {
 
     if (bikeServiceAsync == null || bikeAsync == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Bike Not Found')),
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          title: const Text('Bike Not Found'),
+        ),
         body: const Center(
-          child: Text('The selected bike could not be found.'),
+          child: Text(
+            'The selected bike could not be found.',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
       );
     }
@@ -31,106 +40,149 @@ class BikeDetailScreen extends ConsumerWidget {
     final bikeService = bikeServiceAsync;
     final bike = bikeAsync;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(bike.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _showEditBikeDialog(context, ref, bike),
-          ),
-        ],
-      ),
-      body: StreamBuilder<BikeModel>(
-        stream: bikeService.bikeModelStream,
-        initialData: bike,
-        builder: (context, snapshot) {
-          final currentBike = snapshot.data ?? bike;
+    return StreamBuilder<BikeModel>(
+      stream: bikeService.bikeModelStream,
+      initialData: bike,
+      builder: (context, snapshot) {
+        final currentBike = snapshot.data ?? bike;
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildConnectionStatus(context, bikeService),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Modern App Bar without bike name
+              SliverAppBar(
+                backgroundColor: Colors.black,
+                pinned: true,
+                expandedHeight: 60, // Reduced height without the title
+                stretch: true,
+                leading: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                actions: [
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.settings, color: Colors.white),
+                    ),
+                    onPressed: () => _showEditBikeDialog(context, ref, currentBike),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(color: Colors.black),
+                  collapseMode: CollapseMode.pin,
+                  stretchModes: const [],
+                ),
+              ),
+
+              // Bike name as a header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
                     children: [
-                      _buildLightControl(context, bikeService, currentBike),
-                      const SizedBox(height: 24),
-                      _buildModeControl(context, bikeService, currentBike),
-                      const SizedBox(height: 24),
-                      _buildAssistControl(context, bikeService, currentBike),
-                      const SizedBox(height: 24),
-                      if (Platform.isAndroid)
-                        _buildBackgroundLockControl(
-                            context, bikeService, currentBike),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentBike.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                _buildConnectionChip(context, bikeService),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildConnectionStatus(BuildContext context, BikeService bikeService) {
-    return StreamBuilder<BikeConnectionState>(
-      stream: bikeService.connectionStateStream,
-      initialData: bikeService.connectionState,
-      builder: (context, snapshot) {
-        final connectionState =
-            snapshot.data ?? BikeConnectionState.disconnected;
-
-        Color statusColor;
-        String statusText;
-
-        switch (connectionState) {
-          case BikeConnectionState.connected:
-            statusColor = Colors.green;
-            statusText = 'Connected';
-            break;
-          case BikeConnectionState.connecting:
-            statusColor = Colors.orange;
-            statusText = 'Connecting...';
-            break;
-          case BikeConnectionState.disconnecting:
-            statusColor = Colors.orange;
-            statusText = 'Disconnecting...';
-            break;
-          case BikeConnectionState.disconnected:
-            statusColor = Colors.red;
-            statusText = 'Disconnected';
-            break;
-        }
-
-        return Container(
-          color: statusColor.withAlpha((0.2 * 255).floor()),
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          child: Row(
-            children: [
-              Icon(Icons.circle, color: statusColor, size: 12),
-              const SizedBox(width: 8),
-              Text(
-                statusText,
-                style:
-                    TextStyle(color: statusColor, fontWeight: FontWeight.bold),
               ),
-              const Spacer(),
-              if (connectionState == BikeConnectionState.disconnected)
-                TextButton(
-                  onPressed: () => bikeService.connect(),
-                  child: const Text('CONNECT'),
-                )
-              else if (connectionState == BikeConnectionState.connected)
-                TextButton(
-                  onPressed: () => bikeService.disconnect(),
-                  child: const Text('DISCONNECT'),
+
+              // Controls Section
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Light Control
+                    _buildLightControl(context, bikeService, currentBike),
+                    const SizedBox(height: 16),
+
+                    // Mode Control
+                    _buildModeControl(context, bikeService, currentBike),
+                    const SizedBox(height: 16),
+
+                    // Assist Control
+                    _buildAssistControl(context, bikeService, currentBike),
+
+                    // Background Lock (Android only)
+                    if (Platform.isAndroid) ...[
+                      const SizedBox(height: 16),
+                      _buildBackgroundLockControl(context, bikeService, currentBike),
+                    ],
+
+                    // Help Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32.0),
+                      child: Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final Uri url = Uri.parse(
+                                'https://github.com/blopker/superduper/?tab=readme-ov-file#getting-started');
+                            launchUrl(url, mode: LaunchMode.externalApplication);
+                          },
+                          icon: const Icon(Icons.help_outline, size: 18),
+                          label: Text(
+                            "HELP & TIPS",
+                            style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff4A80F0).withOpacity(0.2),
+                            foregroundColor: const Color(0xff4A80F0),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
                 ),
+              ),
+
+              // Bottom Padding
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ),
         );
@@ -138,71 +190,199 @@ class BikeDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildConnectionChip(BuildContext context, BikeService bikeService) {
+    return StreamBuilder<BikeConnectionState>(
+      stream: bikeService.connectionStateStream,
+      initialData: bikeService.connectionState,
+      builder: (context, snapshot) {
+        final connectionState = snapshot.data ?? BikeConnectionState.disconnected;
+
+        String text = 'Connecting...';
+        IconData icon = Icons.sync;
+        Color textColor = Colors.grey;
+        bool disabled = true;
+        Color bgColor = Colors.grey.withOpacity(0.2);
+
+        if (connectionState == BikeConnectionState.connected) {
+          text = 'Connected';
+          icon = Icons.bluetooth_connected;
+          textColor = Colors.green;
+          bgColor = Colors.green.withOpacity(0.15);
+          disabled = true;
+        } else if (connectionState == BikeConnectionState.disconnected) {
+          text = 'Connect';
+          icon = Icons.bluetooth;
+          textColor = const Color(0xff4A80F0);
+          bgColor = const Color(0xff4A80F0).withOpacity(0.15);
+          disabled = false;
+        }
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: disabled
+              ? null
+              : () {
+                  bikeService.connect();
+                },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: textColor),
+                const SizedBox(width: 4),
+                Text(
+                  text,
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: textColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLockWidget({
+    required bool locked,
+    required VoidCallback onTap,
+    Color activeColor = Colors.white,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        color: locked ? Colors.grey.withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: IconButton(
+        iconSize: 24,
+        padding: const EdgeInsets.all(12),
+        onPressed: onTap,
+        icon: Icon(
+          locked ? Icons.lock : Icons.lock_open,
+          color: locked ? activeColor : Colors.grey[600],
+        ),
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLightControl(
       BuildContext context, BikeService bikeService, BikeModel bike) {
-    return _SettingControl(
-      title: 'Light',
-      subtitle: bike.light ? 'On' : 'Off',
-      icon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
-      isLocked: bike.lightLocked,
-      onPressed: () => bikeService.toggleLight(),
-      onLongPress: () => bikeService.toggleLightLocked(),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(
+          child: DiscoverCard(
+            colorIndex: bike.color,
+            title: "Light",
+            metric: bike.light ? "On" : "Off",
+            titleIcon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
+            selected: bike.light,
+            onTap: () => bikeService.toggleLight(),
+          ),
+        ),
+        _buildLockWidget(
+          locked: bike.lightLocked,
+          onTap: () => bikeService.toggleLightLocked(),
+          activeColor: Colors.white,
+        )
+      ],
     );
   }
 
   Widget _buildModeControl(
       BuildContext context, BikeService bikeService, BikeModel bike) {
-    String subtitle;
-    switch (bike.mode) {
-      case 0:
-        subtitle = 'Class 1 (20 mph, PAS only)';
-        break;
-      case 1:
-        subtitle = 'Class 2 (20 mph, PAS & Throttle)';
-        break;
-      case 2:
-        subtitle = 'Class 3 (28 mph, PAS only)';
-        break;
-      case 3:
-        subtitle = 'Off-Road (unlimited)';
-        break;
-      default:
-        subtitle = 'Unknown';
-    }
+    final bool isActiveMode = bike.mode != 0;
 
-    return _SettingControl(
-      title: 'Mode ${bike.viewMode}',
-      subtitle: subtitle,
-      icon: Icons.electric_bike,
-      isLocked: bike.modeLocked,
-      onPressed: () => bikeService.toggleMode(),
-      onLongPress: () => bikeService.toggleModeLocked(),
+    return Row(
+      children: [
+        Expanded(
+          child: DiscoverCard(
+            colorIndex: bike.color,
+            title: "Mode",
+            metric: "${bike.viewMode}/4",
+            titleIcon: Icons.electric_bike,
+            selected: isActiveMode,
+            onTap: () => bikeService.toggleMode(),
+          ),
+        ),
+        _buildLockWidget(
+          locked: bike.modeLocked,
+          onTap: () => bikeService.toggleModeLocked(),
+          activeColor: Colors.white,
+        )
+      ],
     );
   }
 
   Widget _buildAssistControl(
       BuildContext context, BikeService bikeService, BikeModel bike) {
-    return _SettingControl(
-      title: 'Assist Level ${bike.assist}',
-      subtitle: 'Level ${bike.assist} of 4',
-      icon: Icons.power,
-      isLocked: bike.assistLocked,
-      onPressed: () => bikeService.toggleAssist(),
-      onLongPress: () => bikeService.toggleAssistLocked(),
+    final bool isActiveAssist = bike.assist > 0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: DiscoverCard(
+            colorIndex: bike.color,
+            title: "Assist",
+            metric: "${bike.assist}/4",
+            titleIcon: Icons.autorenew,
+            selected: isActiveAssist,
+            onTap: () => bikeService.toggleAssist(),
+          ),
+        ),
+        _buildLockWidget(
+          locked: bike.assistLocked,
+          onTap: () => bikeService.toggleAssistLocked(),
+          activeColor: Colors.white,
+        )
+      ],
     );
   }
 
   Widget _buildBackgroundLockControl(
       BuildContext context, BikeService bikeService, BikeModel bike) {
-    return _SettingControl(
-      title: 'Background Lock',
-      subtitle: bike.backgroundLock ? 'Active (uses more battery)' : 'Inactive',
-      icon: bike.backgroundLock ? Icons.lock : Icons.lock_open,
-      isLocked: false,
-      onPressed: () => bikeService.toggleBackgroundLock(),
-      onLongPress: null,
-      isToggle: true,
-      toggleValue: bike.backgroundLock,
+    return Column(
+      children: [
+        DiscoverCard(
+          title: "Background Lock",
+          metric: bike.backgroundLock ? "On" : "Off",
+          titleIcon: Icons.phonelink_lock,
+          selected: bike.backgroundLock,
+          colorIndex: bike.color,
+          onTap: () => bikeService.toggleBackgroundLock(),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12.0, left: 8.0, right: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  "Background Lock may cause phone battery drain. See Help for more info.",
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -213,98 +393,6 @@ class BikeDetailScreen extends ConsumerWidget {
         ref.read(bikeRepositoryProvider).updateBike(updatedBike);
       }
     });
-  }
-}
-
-class _SettingControl extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool isLocked;
-  final VoidCallback onPressed;
-  final VoidCallback? onLongPress;
-  final bool isToggle;
-  final bool toggleValue;
-
-  const _SettingControl({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.isLocked,
-    required this.onPressed,
-    required this.onLongPress,
-    this.isToggle = false,
-    this.toggleValue = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isLocked ? Colors.blue : Colors.transparent,
-          width: isLocked ? 2 : 0,
-        ),
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Icon(icon, size: 32),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                    if (onLongPress != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          isLocked
-                              ? 'Long press to unlock'
-                              : 'Long press to lock',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (isToggle)
-                Switch(
-                  value: toggleValue,
-                  onChanged: (_) => onPressed(),
-                )
-              else if (isLocked)
-                const Icon(Icons.lock, color: Colors.blue),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

@@ -166,11 +166,16 @@ class BikeService {
     _connectionStateController.add(state);
   }
 
-  /// Updates the bike model, notifies listeners, and triggers the update callback.
-  void _updateBikeModel(BikeModel updatedBike) {
+  /// Updates the bike model, notifies listeners, and optionally triggers the update callback.
+  /// 
+  /// If skipCallback is true, the update callback will not be called. This is used
+  /// to prevent infinite loops when the repository updates the bike model.
+  void _updateBikeModel(BikeModel updatedBike, {bool skipCallback = false}) {
     _bike = updatedBike;
     _bikeModelController.add(_bike);
-    _onBikeUpdated(updatedBike);
+    if (!skipCallback) {
+      _onBikeUpdated(updatedBike);
+    }
   }
 
   /// Updates specific properties of the bike model.
@@ -402,25 +407,43 @@ class BikeService {
   /// Toggles whether light setting is locked.
   void toggleLightLocked() {
     log.d(SDLogger.BIKE, 'Toggling light lock: ${!_bike.lightLocked}');
-    _updateBikeModelProperty(lightLocked: !_bike.lightLocked);
+    final updatedBike = _bike.copyWith(lightLocked: !_bike.lightLocked);
+    _updateBikeModel(updatedBike);
   }
 
   /// Toggles whether mode setting is locked.
   void toggleModeLocked() {
     log.d(SDLogger.BIKE, 'Toggling mode lock: ${!_bike.modeLocked}');
-    _updateBikeModelProperty(modeLocked: !_bike.modeLocked);
+    final updatedBike = _bike.copyWith(modeLocked: !_bike.modeLocked);
+    _updateBikeModel(updatedBike);
   }
 
   /// Toggles whether assist setting is locked.
   void toggleAssistLocked() {
     log.d(SDLogger.BIKE, 'Toggling assist lock: ${!_bike.assistLocked}');
-    _updateBikeModelProperty(assistLocked: !_bike.assistLocked);
+    final updatedBike = _bike.copyWith(assistLocked: !_bike.assistLocked);
+    _updateBikeModel(updatedBike);
   }
 
   /// Toggles background lock.
   void toggleBackgroundLock() {
     log.d(SDLogger.BIKE, 'Toggling background lock: ${!_bike.backgroundLock}');
-    _updateBikeModelProperty(backgroundLock: !_bike.backgroundLock);
+    final updatedBike = _bike.copyWith(backgroundLock: !_bike.backgroundLock);
+    _updateBikeModel(updatedBike);
+  }
+
+  /// Updates the bike model with a new instance.
+  /// This method is public and can be called from outside the service.
+  /// 
+  /// The skipCallback parameter controls whether the update callback is called.
+  /// Set to true when updating from the repository to avoid infinite loops.
+  void updateBikeModel(BikeModel updatedBike, {bool skipCallback = true}) {
+    if (_disposed) return;
+    if (updatedBike.id != _bike.id) {
+      log.e(SDLogger.BIKE, 'Cannot update bike with different ID', null);
+      return;
+    }
+    _updateBikeModel(updatedBike, skipCallback: skipCallback);
   }
 
   /// Disposes resources.
