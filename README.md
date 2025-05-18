@@ -1,9 +1,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
     <img src="assets/superduper-nobg.png" alt="Logo" width="80" height="80">
-  </a>
 
   <h3 align="center">SuperDuper App</h3>
 
@@ -124,6 +122,26 @@ Superduper can only add automation around what the official app already does. It
 I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
 
 ## Developers
+
+### Architecture
+
+The app uses a modern, decoupled architecture that allows connecting to multiple bikes simultaneously:
+
+#### Key Components
+
+- **BikeModel**: Data class representing a bike's state and settings
+- **BikeService**: Manages connection and communication with a single bike
+- **BikeRepository**: Stores bike data and manages BikeService instances
+- **BikeConnectionManager**: Orchestrates connections to multiple bikes
+
+#### How It Works
+
+1. The app maintains independent BikeService instances for each bike
+2. Active bikes automatically connect when the app starts
+3. Bike connections are managed in the background, independent of UI
+4. Each bike service manages its own connection lifecycle
+
+This architecture enables users to seamlessly switch between multiple bikes while maintaining connections to all active bikes.
 
 ### Releases
 

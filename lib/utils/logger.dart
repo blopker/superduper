@@ -65,7 +65,7 @@ class SDLogger {
 
   /// Verbose level log - only shown in debug mode, lowest priority
   void v(String tag, String message) {
-    _logger.v('[$tag] $message');
+    _logger.t('[$tag] $message');
   }
 }
 

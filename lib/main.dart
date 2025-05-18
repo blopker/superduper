@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:superduper/repository.dart';
 import 'package:superduper/select_page.dart';
+import 'package:superduper/services/bike_connection_manager.dart';
+import 'package:superduper/services/bike_repository.dart';
+import 'package:superduper/services/bluetooth_service.dart';
 import 'package:superduper/utils/logger.dart';
 
 void main() async {
@@ -46,10 +48,14 @@ Future<Map<Permission, PermissionStatus>> getPermissions() async {
   return perms.request();
 }
 
-class SuperDuper extends StatelessWidget {
+class SuperDuper extends ConsumerWidget {
   const SuperDuper({super.key});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize the bike connection manager which will
+    // automatically manage bike connections in the background
+    ref.watch(ensureBikeConnectionManagerInitializedProvider);
+    
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         statusBarIconBrightness: Brightness.light,
         statusBarColor: Colors.transparent,
@@ -98,7 +104,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(bluetoothRepositoryProvider);
+    // Initialize the bike repository and bluetooth service
+    ref.watch(bikeRepositoryProvider);
+    ref.watch(bluetoothServiceProvider);
+    
     return Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(

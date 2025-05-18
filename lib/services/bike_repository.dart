@@ -1,0 +1,267 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:superduper/models/bike_model.dart';
+import 'package:superduper/services/bike_service.dart';
+import 'package:superduper/services/bluetooth_service.dart';
+import 'package:superduper/utils/logger.dart';
+
+part 'bike_repository.g.dart';
+
+/// Repository for managing bike data persistence and bike services.
+class BikeRepository {
+  final Ref _ref;
+  final Map<String, BikeService> _bikeServices = {};
+  final StreamController<List<BikeModel>> _bikesController =
+      StreamController<List<BikeModel>>.broadcast();
+  List<BikeModel> _bikes = [];
+
+  /// Creates a new bike repository.
+  BikeRepository(this._ref) {
+    _loadBikes();
+  }
+
+  /// Returns a stream of all bikes.
+  Stream<List<BikeModel>> get bikesStream => _bikesController.stream;
+
+  /// Returns a list of all bikes.
+  List<BikeModel> get bikes => List.unmodifiable(_bikes);
+
+  /// Returns a list of all active bikes.
+  List<BikeModel> get activeBikes =>
+      _bikes.where((bike) => bike.isActive).toList();
+
+  /// Returns the bike service for the specified bike ID.
+  BikeService? getBikeService(String bikeId) => _bikeServices[bikeId];
+
+  /// Returns all bike services.
+  List<BikeService> get allBikeServices => _bikeServices.values.toList();
+
+  /// Returns all active bike services.
+  List<BikeService> get activeBikeServices =>
+      _bikeServices.values.where((service) => service.isActive).toList();
+
+  /// Adds a new bike from a scan result.
+  Future<BikeModel> addBike(String bikeId, String deviceAddress) async {
+    // Check if bike already exists
+    final existingIndex = _bikes.indexWhere((bike) => bike.id == bikeId);
+
+    if (existingIndex >= 0) {
+      // Bike already exists, return it
+      return _bikes[existingIndex];
+    }
+
+    // Create new bike
+    final newBike = BikeModel.defaultBike(bikeId, deviceAddress);
+    _bikes.add(newBike);
+
+    // Create and store bike service
+    final bluetoothService = _ref.read(bluetoothServiceProvider);
+    final bikeService = BikeService(_ref, newBike, bluetoothService);
+    _bikeServices[bikeId] = bikeService;
+
+    // Save bike to storage
+    await _saveBikes();
+
+    // Notify listeners
+    _bikesController.add(_bikes);
+
+    log.i(SDLogger.DB, 'Added new bike: ${newBike.name} (${newBike.id})');
+    return newBike;
+  }
+
+  /// Updates an existing bike.
+  Future<void> updateBike(BikeModel updatedBike) async {
+    final index = _bikes.indexWhere((bike) => bike.id == updatedBike.id);
+
+    if (index < 0) {
+      log.w(SDLogger.DB, 'Cannot update non-existent bike: ${updatedBike.id}');
+      return;
+    }
+
+    _bikes[index] = updatedBike;
+
+    // Update the bike service if it exists
+    final service = _bikeServices[updatedBike.id];
+    if (service != null && service.bike.isActive != updatedBike.isActive) {
+      service.isActive = updatedBike.isActive;
+    }
+
+    await _saveBikes();
+    _bikesController.add(_bikes);
+
+    log.d(SDLogger.DB, 'Updated bike: ${updatedBike.name} (${updatedBike.id})');
+  }
+
+  /// Deletes a bike.
+  Future<void> deleteBike(String bikeId) async {
+    final service = _bikeServices[bikeId];
+    if (service != null) {
+      await service.disconnect();
+      service.dispose();
+      _bikeServices.remove(bikeId);
+    }
+
+    _bikes.removeWhere((bike) => bike.id == bikeId);
+    await _saveBikes();
+    _bikesController.add(_bikes);
+
+    log.i(SDLogger.DB, 'Deleted bike with ID: $bikeId');
+  }
+
+  /// Sets whether a bike is active.
+  Future<void> setBikeActive(String bikeId, bool isActive) async {
+    final index = _bikes.indexWhere((bike) => bike.id == bikeId);
+
+    if (index < 0) {
+      log.w(SDLogger.DB,
+          'Cannot set active state for non-existent bike: $bikeId');
+      return;
+    }
+
+    final bike = _bikes[index];
+    if (bike.isActive == isActive) return;
+
+    _bikes[index] = bike.copyWith(isActive: isActive);
+
+    // Update the bike service
+    final service = _bikeServices[bikeId];
+    if (service != null) {
+      service.isActive = isActive;
+    }
+
+    await _saveBikes();
+    _bikesController.add(_bikes);
+
+    log.d(SDLogger.DB, 'Set bike active state: $bikeId -> $isActive');
+  }
+
+  /// Connects to all active bikes.
+  Future<void> connectToActiveBikes() async {
+    for (final service in _bikeServices.values) {
+      if (service.isActive) {
+        await service.connect();
+      }
+    }
+  }
+
+  /// Disconnects from all bikes.
+  Future<void> disconnectAllBikes() async {
+    for (final service in _bikeServices.values) {
+      await service.disconnect();
+    }
+  }
+
+  /// Loads bikes from storage.
+  Future<void> _loadBikes() async {
+    try {
+      final file = await _getBikesFile();
+      if (!await file.exists()) {
+        log.d(SDLogger.DB, 'No bikes file found');
+        _bikesController.add(_bikes);
+        return;
+      }
+
+      final contents = await file.readAsString();
+      if (contents.isEmpty) {
+        log.d(SDLogger.DB, 'Empty bikes file');
+        _bikesController.add(_bikes);
+        return;
+      }
+
+      final bikesList = jsonDecode(contents) as List;
+      _bikes = bikesList
+          .map((json) => BikeModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      log.d(SDLogger.DB, 'Loaded ${_bikes.length} bikes');
+
+      // Create services for each bike
+      final bluetoothService = _ref.read(bluetoothServiceProvider);
+      for (final bike in _bikes) {
+        final bikeService = BikeService(_ref, bike, bluetoothService);
+        _bikeServices[bike.id] = bikeService;
+      }
+
+      _bikesController.add(_bikes);
+    } catch (e) {
+      log.e(SDLogger.DB, 'Error loading bikes', e);
+      _bikesController.add(_bikes);
+    }
+  }
+
+  /// Saves bikes to storage.
+  Future<void> _saveBikes() async {
+    try {
+      final file = await _getBikesFile();
+      final jsonData = jsonEncode(_bikes);
+      await file.writeAsString(jsonData);
+
+      if (kDebugMode) {
+        log.d(SDLogger.DB, 'Saved ${_bikes.length} bikes');
+      }
+    } catch (e) {
+      log.e(SDLogger.DB, 'Error saving bikes', e);
+    }
+  }
+
+  /// Gets the bikes file.
+  Future<File> _getBikesFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/bikes.json');
+  }
+
+  /// Disposes resources.
+  void dispose() {
+    for (final service in _bikeServices.values) {
+      service.dispose();
+    }
+    _bikeServices.clear();
+    _bikesController.close();
+  }
+}
+
+/// Provider for the bike repository.
+@Riverpod(keepAlive: true)
+BikeRepository bikeRepository(Ref ref) {
+  final repository = BikeRepository(ref);
+  ref.onDispose(() {
+    repository.dispose();
+  });
+  return repository;
+}
+
+/// Provider for all bikes.
+@riverpod
+Stream<List<BikeModel>> bikes(Ref ref) {
+  return ref.watch(bikeRepositoryProvider).bikesStream;
+}
+
+/// Provider for active bikes.
+@riverpod
+List<BikeModel> activeBikes(Ref ref) {
+  return ref.watch(bikeRepositoryProvider).activeBikes;
+}
+
+/// Provider for a specific bike by ID.
+@riverpod
+BikeModel? bike(Ref ref, String bikeId) {
+  final allBikes = ref.watch(bikesProvider).valueOrNull ?? [];
+  for (final bike in allBikes) {
+    if (bike.id == bikeId) {
+      return bike;
+    }
+  }
+  return null;
+}
+
+/// Provider for a bike service by bike ID.
+@riverpod
+BikeService? bikeService(Ref ref, String bikeId) {
+  return ref.watch(bikeRepositoryProvider).getBikeService(bikeId);
+}
