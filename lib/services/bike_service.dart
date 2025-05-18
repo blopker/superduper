@@ -15,6 +15,7 @@ import 'package:superduper/utils/uuids.dart';
 class BikeService {
   final Ref _ref;
   final SDBluetoothService _bluetoothService;
+  final Function(BikeModel) _onBikeUpdated;
 
   // Stream controllers
   final _connectionStateController =
@@ -37,10 +38,18 @@ class BikeService {
   bool _disposed = false;
 
   /// Creates a new bike service.
-  BikeService(this._ref, initialBike, this._bluetoothService)
-      : _bike = initialBike {
+  BikeService(
+    this._ref,
+    initialBike,
+    this._bluetoothService, {
+    Function(BikeModel)? onBikeUpdated,
+  })  : _bike = initialBike,
+        _onBikeUpdated = onBikeUpdated ?? _defaultBikeUpdatedCallback {
     _initialize();
   }
+  
+  // Default callback that does nothing when bike is updated
+  static void _defaultBikeUpdatedCallback(BikeModel _) {}
 
   /// Stream of connection state changes.
   Stream<BikeConnectionState> get connectionStateStream =>
@@ -154,10 +163,11 @@ class BikeService {
     _connectionStateController.add(state);
   }
 
-  /// Updates the bike model and notifies listeners.
+  /// Updates the bike model, notifies listeners, and triggers the update callback.
   void _updateBikeModel(BikeModel updatedBike) {
     _bike = updatedBike;
     _bikeModelController.add(_bike);
+    _onBikeUpdated(updatedBike);
   }
 
   /// Updates specific properties of the bike model.

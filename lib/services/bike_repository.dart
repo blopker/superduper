@@ -70,7 +70,12 @@ class BikeRepository {
 
     // Create and store bike service
     final bluetoothService = _ref.read(bluetoothServiceProvider);
-    final bikeService = BikeService(_ref, newBike, bluetoothService);
+    final bikeService = BikeService(
+      _ref, 
+      newBike, 
+      bluetoothService,
+      onBikeUpdated: updateBike,
+    );
     log.i(SDLogger.DB, 'Created new bike service for: ${newBike.name}');
     _bikeServices[bikeId] = bikeService;
 
@@ -198,7 +203,12 @@ class BikeRepository {
             // Create services for each bike
             final bluetoothService = _ref.read(bluetoothServiceProvider);
             for (final bike in _bikes) {
-              final bikeService = BikeService(_ref, bike, bluetoothService);
+              final bikeService = BikeService(
+                _ref, 
+                bike, 
+                bluetoothService,
+                onBikeUpdated: updateBike,
+              );
               _bikeServices[bike.id] = bikeService;
               log.d(SDLogger.DB, 'Loaded bike service for: ${bike.name}');
             }
