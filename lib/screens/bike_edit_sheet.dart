@@ -209,7 +209,7 @@ class _BikeEditFormState extends ConsumerState<_BikeEditForm> {
                     labelText: 'Name',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.grey[800]!.withOpacity(0.4),
+                    fillColor: Colors.grey[800]!.withAlpha(102),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -232,7 +232,7 @@ class _BikeEditFormState extends ConsumerState<_BikeEditForm> {
                     labelText: 'Region',
                     labelStyle: TextStyle(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.grey[800]!.withOpacity(0.4),
+                    fillColor: Colors.grey[800]!.withAlpha(102),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -261,8 +261,9 @@ class _BikeEditFormState extends ConsumerState<_BikeEditForm> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 8),
+                  height: 60,
                   decoration: BoxDecoration(
-                    color: Colors.grey[800]!.withOpacity(0.4),
+                    color: Colors.grey[800]!.withAlpha(102),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: SwitchListTile(
@@ -473,7 +474,7 @@ Future<int> _showColorPicker(BuildContext context, int currentIndex) async {
                           boxShadow: [
                             if (index == currentIndex)
                               BoxShadow(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withAlpha(51),
                                 blurRadius: 4,
                                 spreadRadius: 2,
                               ),

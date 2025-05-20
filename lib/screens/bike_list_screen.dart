@@ -120,7 +120,7 @@ class BikeListScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
+                  color: Colors.amber.withAlpha(51),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -155,7 +155,7 @@ class BikeListScreen extends ConsumerWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: isScanning.valueOrNull ?? false
-                    ? const Color(0xff441DFC).withOpacity(0.2)
+                    ? const Color(0xff441DFC).withAlpha(51)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -338,6 +338,8 @@ class BikeListScreen extends ConsumerWidget {
             bike.bluetoothAddress,
           );
 
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Added bike: ${addedBike.name}'),
@@ -348,6 +350,8 @@ class BikeListScreen extends ConsumerWidget {
       AppRouter.navigateToBikeDetail(context, addedBike.id);
     } catch (e) {
       log.e(SDLogger.BIKE, 'Error adding bike', e);
+
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error adding bike: ${e.toString()}'),

@@ -63,7 +63,7 @@ class BikeDetailScreen extends ConsumerWidget {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withAlpha(51),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.arrow_back, color: Colors.white),
@@ -77,7 +77,7 @@ class BikeDetailScreen extends ConsumerWidget {
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withAlpha(51),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.settings, color: Colors.white),
@@ -169,7 +169,7 @@ class BikeDetailScreen extends ConsumerWidget {
                                 ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xff4A80F0).withOpacity(0.2),
+                            backgroundColor: const Color(0xff4A80F0).withAlpha(51),
                             foregroundColor: const Color(0xff4A80F0),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
@@ -203,19 +203,19 @@ class BikeDetailScreen extends ConsumerWidget {
         IconData icon = Icons.sync;
         Color textColor = Colors.grey;
         bool disabled = true;
-        Color bgColor = Colors.grey.withOpacity(0.2);
+        Color bgColor = Colors.grey.withAlpha(51);
 
         if (connectionState == BikeConnectionState.connected) {
           text = 'Connected';
           icon = Icons.bluetooth_connected;
           textColor = Colors.green;
-          bgColor = Colors.green.withOpacity(0.15);
+          bgColor = Colors.green.withAlpha(38);
           disabled = true;
         } else if (connectionState == BikeConnectionState.disconnected) {
           text = 'Connect';
           icon = Icons.bluetooth;
           textColor = const Color(0xff4A80F0);
-          bgColor = const Color(0xff4A80F0).withOpacity(0.15);
+          bgColor = const Color(0xff4A80F0).withAlpha(38);
           disabled = false;
         }
 
@@ -260,7 +260,7 @@ class BikeDetailScreen extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(left: 8),
       decoration: BoxDecoration(
-        color: locked ? Colors.grey.withOpacity(0.15) : Colors.transparent,
+        color: locked ? Colors.grey.withAlpha(38) : Colors.transparent,
         borderRadius: BorderRadius.circular(50),
       ),
       child: IconButton(

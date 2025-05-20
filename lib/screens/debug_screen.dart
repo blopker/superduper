@@ -193,7 +193,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                       icon: const Icon(Icons.add),
                       label: const Text('Add Test Bike'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.withOpacity(0.2),
+                        backgroundColor: Colors.green.withAlpha(51),
                         foregroundColor: Colors.green,
                       ),
                     ),
@@ -237,8 +237,8 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isScanning
-                                ? Colors.red.withOpacity(0.2)
-                                : Colors.blue.withOpacity(0.2),
+                                ? Colors.red.withAlpha(51)
+                                : Colors.blue.withAlpha(51),
                             foregroundColor:
                                 isScanning ? Colors.red : Colors.blue,
                           ),
@@ -258,7 +258,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                             icon: const Icon(Icons.bluetooth_connected),
                             label: const Text('Connect All Active'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.withOpacity(0.2),
+                              backgroundColor: Colors.green.withAlpha(51),
                               foregroundColor: Colors.green,
                             ),
                           ),
@@ -273,7 +273,7 @@ class _DebugScreenState extends ConsumerState<DebugScreen> with WidgetsBindingOb
                             icon: const Icon(Icons.bluetooth_disabled),
                             label: const Text('Disconnect All'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.withOpacity(0.2),
+                              backgroundColor: Colors.red.withAlpha(51),
                               foregroundColor: Colors.red,
                             ),
                           ),
