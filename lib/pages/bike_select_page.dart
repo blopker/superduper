@@ -261,7 +261,6 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                             onTap: () => selectBike(bikeList[index]),
                             title: bikeList[index].name,
                             subtitle: bikeList[index].id,
-                            titleIcon: Icons.directions_bike,
                             colorIndex: bikeList[index]
                                 .color, // Vary colors based on index
                           ),
@@ -354,7 +353,6 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                                 onTap: () => selectBike(bike),
                                 title: bike.name,
                                 subtitle: bike.id,
-                                titleIcon: Icons.bluetooth,
                                 colorIndex: (index + 3) %
                                     10, // Different color range for found bikes
                               ),
