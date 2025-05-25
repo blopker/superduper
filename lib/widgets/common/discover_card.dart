@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:superduper/colors.dart';
+import 'package:superduper/app/colors.dart';
 
 class DiscoverCard extends StatelessWidget {
   final String? title;

@@ -1,7 +1,7 @@
 // ignore_for_file: non_constant_identifier_names
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:superduper/utils.dart';
+import 'package:superduper/core/utils/utils.dart';
 
 final UUID_SECURITY_SERVICE =
     Guid.fromString("00002554-1212-efde-1523-785feabcd123");

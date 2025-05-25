@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:superduper/utils.dart';
+import 'package:superduper/core/utils/utils.dart';
 import 'package:unique_name_generator/unique_name_generator.dart';
 
 //2a26

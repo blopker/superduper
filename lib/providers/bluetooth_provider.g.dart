@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'repository.dart';
+part of 'bluetooth_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -95,7 +95,7 @@ final bluetoothRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
-String _$connectionHandlerHash() => r'150d37e72b3f50e35bc3d75aa6addb52cab27d40';
+String _$connectionHandlerHash() => r'1516b50106526dd23b6c0a2811559998b08bd4f2';
 
 /// Copied from Dart SDK
 class _SystemHash {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
-import 'bike.dart';
-import 'edit_bike.dart';
+import '../providers/bike_provider.dart';
+import 'edit_bike_page.dart';
 
 class DebugPage extends StatelessWidget {
   const DebugPage({super.key});

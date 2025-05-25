@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:superduper/names.dart';
+import 'package:superduper/models/names.dart';
 
 part 'models.freezed.dart';
 part 'models.g.dart';

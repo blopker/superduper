@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/services.dart';
-import 'package:superduper/utils/logger.dart'; // Import the logger
+import 'package:superduper/core/services/bluetooth_constants.dart';
+import 'package:superduper/core/utils/logger.dart'; // Import the logger
 
-part 'repository.g.dart';
+part 'bluetooth_provider.g.dart';
 
 enum SDBluetoothConnectionState {
   disconnected,
@@ -93,6 +93,24 @@ class ConnectionHandler extends _$ConnectionHandler {
       await _device.discoverServices();
     } catch (e) {
       log.e(SDLogger.BLUETOOTH, 'Error connecting', e);
+      state = SDBluetoothConnectionState.disconnected;
+    }
+  }
+
+  disconnect() async {
+    log.d(SDLogger.BLUETOOTH, "Disconnecting from ${_device.remoteId}");
+    if (!_device.isConnected) {
+      state = SDBluetoothConnectionState.disconnected;
+      return;
+    }
+
+    state = SDBluetoothConnectionState.disconnecting;
+    try {
+      await _device.disconnect();
+      log.i(SDLogger.BLUETOOTH, 'Disconnected from ${_device.remoteId.str}');
+      state = SDBluetoothConnectionState.disconnected;
+    } catch (e) {
+      log.e(SDLogger.BLUETOOTH, 'Error disconnecting', e);
       state = SDBluetoothConnectionState.disconnected;
     }
   }

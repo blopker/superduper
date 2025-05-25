@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/models.dart';
-import 'package:superduper/utils/logger.dart';
+import 'package:superduper/models/models.dart';
+import 'package:superduper/core/utils/logger.dart';
 
-part 'db.freezed.dart';
-part 'db.g.dart';
+part 'database.freezed.dart';
+part 'database.g.dart';
 
 @freezed
 abstract class SettingsModel with _$SettingsModel {

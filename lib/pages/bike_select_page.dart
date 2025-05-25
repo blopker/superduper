@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:superduper/bike.dart';
-import 'package:superduper/db.dart';
-import 'package:superduper/debug.dart';
-import 'package:superduper/repository.dart';
-import 'package:superduper/widgets.dart';
+import 'package:superduper/providers/bike_provider.dart';
+import 'package:superduper/database/database.dart';
+import 'package:superduper/pages/debug_page.dart';
+import 'package:superduper/providers/bluetooth_provider.dart';
+import 'package:superduper/widgets/common/discover_card.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'bike_control_page.dart';
 
 class BikeSelectWidget extends ConsumerStatefulWidget {
   const BikeSelectWidget({super.key});
