@@ -9,6 +9,7 @@ import 'package:superduper/database/database.dart';
 import 'package:superduper/pages/debug_page.dart';
 import 'package:superduper/providers/bluetooth_provider.dart';
 import 'package:superduper/widgets/common/discover_card.dart';
+import 'package:superduper/widgets/common/connection_status_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'bike_control_page.dart';
 
@@ -260,7 +261,12 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                                 connectedDevices, bikeList[index].id),
                             onTap: () => selectBike(bikeList[index]),
                             title: bikeList[index].name,
-                            subtitle: bikeList[index].id,
+                            subtitleWidget: ConnectionStatusChip(
+                              connectionState: isConnected(
+                                  connectedDevices, bikeList[index].id)
+                                  ? BikeConnectionState.connected
+                                  : BikeConnectionState.disconnected,
+                            ),
                             colorIndex: bikeList[index]
                                 .color, // Vary colors based on index
                           ),

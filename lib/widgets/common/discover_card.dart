@@ -4,6 +4,7 @@ import 'package:superduper/app/colors.dart';
 class DiscoverCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
+  final Widget? subtitleWidget;
   final String? metric;
   final int colorIndex;
   final double? height;
@@ -20,6 +21,7 @@ class DiscoverCard extends StatelessWidget {
       {super.key,
       this.title,
       this.subtitle,
+      this.subtitleWidget,
       this.height,
       this.width,
       this.vectorBottom,
@@ -92,13 +94,13 @@ class DiscoverCard extends StatelessWidget {
                             ),
                         ],
                       ),
-                      if (subtitle != null)
+                      if (subtitleWidget != null || subtitle != null)
                         Column(
                           children: [
                             const SizedBox(
                               height: 5,
                             ),
-                            Text(
+                            subtitleWidget ?? (subtitle != null ? Text(
                               subtitle!,
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
@@ -106,7 +108,7 @@ class DiscoverCard extends StatelessWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w300,
                               ).copyWith(color: textColor),
-                            ),
+                            ) : const SizedBox.shrink()),
                           ],
                         )
                     ],

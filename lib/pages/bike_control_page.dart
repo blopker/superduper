@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'edit_bike_page.dart' as edit;
 import '../providers/bluetooth_provider.dart';
 import '../widgets/common/discover_card.dart';
+import '../widgets/common/connection_status_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/bike_provider.dart';
 import '../database/database.dart';
@@ -157,7 +158,33 @@ class BikePageState extends ConsumerState<BikePage> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                EnhancedConnectionWidget(bike: bike),
+                                Consumer(
+                                  builder: (context, ref, _) {
+                                    var connectionProvider = connectionHandlerProvider(bike.id);
+                                    var connectionStatus = ref.watch(connectionProvider);
+                                    var connectionHandler = ref.watch(connectionProvider.notifier);
+                                    var isScanning = ref.watch(isScanningStatusProvider).value == true;
+                                    
+                                    BikeConnectionState state;
+                                    VoidCallback? onTap;
+                                    
+                                    if (connectionStatus == SDBluetoothConnectionState.connected) {
+                                      state = BikeConnectionState.connected;
+                                      onTap = null;
+                                    } else if (connectionStatus == SDBluetoothConnectionState.disconnected && !isScanning) {
+                                      state = BikeConnectionState.disconnected;
+                                      onTap = () => connectionHandler.connect();
+                                    } else {
+                                      state = BikeConnectionState.connecting;
+                                      onTap = null;
+                                    }
+                                    
+                                    return ConnectionStatusChip(
+                                      connectionState: state,
+                                      onTap: onTap,
+                                    );
+                                  },
+                                ),
                               ],
                             ),
                           ],
@@ -233,71 +260,7 @@ class BikePageState extends ConsumerState<BikePage> {
   }
 }
 
-class EnhancedConnectionWidget extends ConsumerWidget {
-  const EnhancedConnectionWidget({super.key, required this.bike});
-  final BikeState bike;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    var connectionProvider = connectionHandlerProvider(bike.id);
-    var connectionStatus = ref.watch(connectionProvider);
-    var connectionHandler = ref.watch(connectionProvider.notifier);
-    var isScanning = ref.watch(isScanningStatusProvider).value == true;
-
-    String text = 'Connecting...';
-    IconData icon = Icons.sync;
-    Color textColor = Colors.grey;
-    bool disabled = true;
-    Color bgColor =
-        Colors.grey.withAlpha(51); // 0.2 opacity equals alpha 51 (0.2 * 255)
-
-    if (connectionStatus == SDBluetoothConnectionState.connected) {
-      text = 'Connected';
-      icon = Icons.bluetooth_connected;
-      textColor = Colors.green;
-      bgColor = Colors.green
-          .withAlpha(38); // 0.15 opacity equals alpha 38 (0.15 * 255)
-      disabled = true;
-    } else if (connectionStatus == SDBluetoothConnectionState.disconnected &&
-        !isScanning) {
-      text = 'Connect';
-      icon = Icons.bluetooth;
-      textColor = const Color(0xff4A80F0);
-      bgColor = const Color(0xff4A80F0).withAlpha(38); // 0.15 opacity
-      disabled = false;
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: disabled
-          ? null
-          : () {
-              connectionHandler.connect();
-            },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: textColor),
-            const SizedBox(width: 4),
-            Text(
-              text,
-              style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class EnhancedLockWidget extends StatelessWidget {
   const EnhancedLockWidget(
