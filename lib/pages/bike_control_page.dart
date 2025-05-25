@@ -5,14 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import 'edit_bike_page.dart' as edit;
-import '../models/models.dart';
 import '../providers/bluetooth_provider.dart';
-import '../core/utils/logger.dart';
 import '../widgets/common/discover_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/bike_provider.dart';
+import '../database/database.dart';
 
 class BikePage extends ConsumerStatefulWidget {
   const BikePage({super.key, required this.bikeID});
@@ -33,7 +31,18 @@ class ForegroundNotificationWrapper extends StatelessWidget {
     if (Platform.isMacOS) {
       return child;
     }
-    return WithForegroundTask(
+    return WillStartForegroundTask(
+      onWillStart: onWillStart,
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'notification_channel_id',
+        channelName: 'Background Lock Notification',
+        priority: NotificationPriority.LOW,
+        channelImportance: NotificationChannelImportance.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: const ForegroundTaskOptions(),
+      notificationTitle: 'SuperDuper Background Lock On',
+      notificationText: 'Tap to return to the app',
       child: child,
     );
   }
@@ -50,7 +59,7 @@ class BikePageState extends ConsumerState<BikePage> {
           ref.read(connectionHandlerProvider(widget.bikeID));
 
       if (connectionState == SDBluetoothConnectionState.connected) {
-        bikeControl.updateStateData();
+        bikeControl.updateStateDataNow(force: true);
       }
     });
   }
@@ -59,118 +68,167 @@ class BikePageState extends ConsumerState<BikePage> {
   Widget build(BuildContext context) {
     var bike = ref.watch(bikeProvider(widget.bikeID));
     var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
-
+    ref.listen(connectionHandlerProvider(bike.id), (previous, next) {
+      if (previous != SDBluetoothConnectionState.connected &&
+          next == SDBluetoothConnectionState.connected) {
+        // add a delay
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          bikeControl.updateStateDataNow(force: true);
+        });
+      }
+    });
     return ForegroundNotificationWrapper(
       onWillStart: () async {
-        var notificationStatus = await Permission.notification.status;
-        log.i(SDLogger.BIKE, 'Notification status: $notificationStatus');
-        if (notificationStatus == PermissionStatus.denied) {
-          await Permission.notification.request();
-        }
-
-        if (await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
-          return true;
-        } else {
-          await FlutterForegroundTask.requestIgnoreBatteryOptimization();
-          return FlutterForegroundTask.isIgnoringBatteryOptimizations;
-        }
+        return bike.modeLock;
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
           backgroundColor: Colors.black,
-          title: Row(
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                bike.name,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white),
-              onPressed: () {
-                edit.show(context, bike);
-              },
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                EnhancedConnectionWidget(bike: bike),
-                const SizedBox(height: 16),
-                EnhancedLightControlWidget(bike: bike),
-                const SizedBox(height: 16),
-                EnhancedModeControlWidget(bike: bike),
-                const SizedBox(height: 16),
-                EnhancedAssistControlWidget(bike: bike),
-                const SizedBox(height: 16),
-                if (Platform.isAndroid)
-                  EnhancedBackgroundLockWidget(bike: bike),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DiscoverCard(
-                        colorIndex: bike.color,
-                        title: "Support",
-                        subtitle: "Discord",
-                        titleIcon: Icons.support_agent,
-                        onTap: () async {
-                          final Uri url =
-                              Uri.parse('https://discord.gg/STvgARZYaw');
-                          if (!await launchUrl(url)) {
-                            throw Exception('Could not launch $url');
-                          }
-                        },
-                      ),
+          body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Modern App Bar without bike name
+              SliverAppBar(
+                backgroundColor: Colors.black,
+                pinned: true,
+                expandedHeight: 60, // Reduced height without the title
+                stretch: true,
+                leading: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(51), // 0.2 opacity
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DiscoverCard(
-                        colorIndex: bike.color,
-                        title: "Bugs",
-                        subtitle: "GitHub",
-                        titleIcon: Icons.bug_report,
-                        onTap: () async {
-                          final Uri url = Uri.parse(
-                              'https://github.com/blopker/superduper/issues');
-                          if (!await launchUrl(url)) {
-                            throw Exception('Could not launch $url');
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                DiscoverCard(
-                  colorIndex: bike.color,
-                  title: "Color",
-                  subtitle: "Tap to change",
-                  titleIcon: Icons.color_lens,
-                  onTap: () {
-                    bikeControl.changeColor();
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  onPressed: () {
+                    var settings = ref.read(settingsDBProvider);
+                    ref
+                        .read(settingsDBProvider.notifier)
+                        .save(settings.copyWith(currentBike: null));
+                    Navigator.pop(context);
                   },
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                actions: [
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(51), // 0.2 opacity
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.settings, color: Colors.white),
+                    ),
+                    onPressed: () {
+                      edit.show(context, bike);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(color: Colors.black),
+                  collapseMode: CollapseMode.pin,
+                  stretchModes: const [],
+                ),
+              ),
+
+              // Bike name as a header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              bike.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                EnhancedConnectionWidget(bike: bike),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Controls Section
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // Light Control
+                    EnhancedLightControlWidget(bike: bike),
+                    const SizedBox(height: 16),
+
+                    // Mode Control
+                    EnhancedModeControlWidget(bike: bike),
+                    const SizedBox(height: 16),
+
+                    // Assist Control
+                    EnhancedAssistControlWidget(bike: bike),
+
+                    // Background Lock (Android only)
+                    if (Platform.isAndroid) ...[
+                      const SizedBox(height: 16),
+                      EnhancedBackgroundLockWidget(bike: bike),
+                    ],
+
+                    // Help Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32.0),
+                      child: Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final Uri url = Uri.parse(
+                                'https://github.com/blopker/superduper/?tab=readme-ov-file#getting-started');
+                            launchUrl(url,
+                                mode: LaunchMode.externalApplication);
+                          },
+                          icon: const Icon(Icons.help_outline, size: 18),
+                          label: Text(
+                            "HELP & TIPS",
+                            style:
+                                Theme.of(context).textTheme.bodySmall!.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff4A80F0)
+                                .withAlpha(51), // 0.2 opacity
+                            foregroundColor: const Color(0xff4A80F0),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+
+              // Bottom Padding
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            ],
+          )),
     );
   }
 }
@@ -186,42 +244,57 @@ class EnhancedConnectionWidget extends ConsumerWidget {
     var connectionHandler = ref.watch(connectionProvider.notifier);
     var isScanning = ref.watch(isScanningStatusProvider).value == true;
 
-    String connectionText = "Disconnected";
-    IconData connectionIcon = Icons.bluetooth_disabled;
+    String text = 'Connecting...';
+    IconData icon = Icons.sync;
+    Color textColor = Colors.grey;
+    bool disabled = true;
+    Color bgColor =
+        Colors.grey.withAlpha(51); // 0.2 opacity equals alpha 51 (0.2 * 255)
 
-    switch (connectionStatus) {
-      case SDBluetoothConnectionState.connected:
-        connectionText = "Connected";
-        connectionIcon = Icons.bluetooth_connected;
-        break;
-      case SDBluetoothConnectionState.connecting:
-        connectionText = "Connecting...";
-        connectionIcon = Icons.bluetooth_searching;
-        break;
-      case SDBluetoothConnectionState.disconnecting:
-        connectionText = "Disconnecting...";
-        connectionIcon = Icons.bluetooth_disabled;
-        break;
-      case SDBluetoothConnectionState.disconnected:
-        connectionText = isScanning ? "Scanning..." : "Disconnected";
-        connectionIcon =
-            isScanning ? Icons.bluetooth_searching : Icons.bluetooth_disabled;
-        break;
+    if (connectionStatus == SDBluetoothConnectionState.connected) {
+      text = 'Connected';
+      icon = Icons.bluetooth_connected;
+      textColor = Colors.green;
+      bgColor = Colors.green
+          .withAlpha(38); // 0.15 opacity equals alpha 38 (0.15 * 255)
+      disabled = true;
+    } else if (connectionStatus == SDBluetoothConnectionState.disconnected &&
+        !isScanning) {
+      text = 'Connect';
+      icon = Icons.bluetooth;
+      textColor = const Color(0xff4A80F0);
+      bgColor = const Color(0xff4A80F0).withAlpha(38); // 0.15 opacity
+      disabled = false;
     }
 
-    return DiscoverCard(
-      colorIndex: bike.color,
-      title: connectionText,
-      subtitle: bike.id,
-      titleIcon: connectionIcon,
-      onTap: () {
-        if (connectionStatus == SDBluetoothConnectionState.connected ||
-            connectionStatus == SDBluetoothConnectionState.connecting) {
-          connectionHandler.disconnect();
-        } else {
-          connectionHandler.connect();
-        }
-      },
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: disabled
+          ? null
+          : () {
+              connectionHandler.connect();
+            },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: textColor),
+            const SizedBox(width: 4),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: textColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -239,20 +312,26 @@ class EnhancedLockWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        margin: const EdgeInsets.only(left: 16),
-        decoration: BoxDecoration(
-          color: locked ? activeColor : Colors.grey,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        color: locked
+            ? Colors.grey.withAlpha(38)
+            : Colors.transparent, // 0.15 opacity
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: IconButton(
+        iconSize: 24,
+        padding: const EdgeInsets.all(12),
+        onPressed: onTap,
+        icon: Icon(
           locked ? Icons.lock : Icons.lock_open,
-          color: locked ? Colors.black : Colors.white,
-          size: 24,
+          color: locked ? activeColor : Colors.grey[600],
+        ),
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
         ),
       ),
     );
@@ -306,8 +385,8 @@ class EnhancedModeControlWidget extends ConsumerWidget {
           child: DiscoverCard(
             colorIndex: bike.color,
             title: "Mode",
-            metric: bike.viewMode,
-            titleIcon: Icons.directions_bike,
+            metric: "${bike.viewMode}/4",
+            titleIcon: Icons.electric_bike,
             selected: isActiveMode,
             onTap: () {
               bikeControl.toggleMode();
@@ -335,13 +414,35 @@ class EnhancedBackgroundLockWidget extends ConsumerWidget {
       children: [
         DiscoverCard(
           title: "Background Lock",
-          subtitle: bike.modeLock ? "On" : "Off",
-          titleIcon: bike.modeLock ? Icons.lock : Icons.lock_open,
-          colorIndex: bike.color,
+          metric: bike.modeLock ? "On" : "Off",
+          titleIcon: Icons.phonelink_lock,
           selected: bike.modeLock,
-          onTap: () {
+          colorIndex: bike.color,
+          onTap: () async {
+            await Permission.notification.request();
+            if (Platform.isAndroid) {
+              await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+            }
             bikeControl.toggleBackgroundLock();
           },
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12.0, left: 8.0, right: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  "Background Lock may cause phone battery drain. See Help for more info.",
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
