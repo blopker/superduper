@@ -3,8 +3,11 @@ words = [
     "ebike",
     "superduper",
     "riverpod",
-    "freezed"
+    "freezed",
+    "ble"
 ]
 flag_words = []
 ignore_paths = []
-ignore_patterns = []
+ignore_patterns = [
+"\\b0[xX][0-9a-fA-F]+\\b"
+]

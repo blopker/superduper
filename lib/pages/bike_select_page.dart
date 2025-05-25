@@ -41,6 +41,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     ref
         .read(settingsDBProvider.notifier)
         .save(settings.copyWith(currentBike: bike.id));
+    // stop any scanning that's happening
+    ref.read(bluetoothRepositoryProvider).stopScan();
     Navigator.push(context, MaterialPageRoute(builder: (_) {
       return BikePage(bikeID: bike.id);
     }));
