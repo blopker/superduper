@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:superduper/services/background_bike_service.dart';
 import '../core/services/permissions_service.dart';
 import '../providers/bluetooth_provider.dart';
 import '../pages/bike_select_page.dart';
@@ -34,7 +35,8 @@ class _SuperDuperAppState extends ConsumerState<SuperDuperApp> {
         statusBarBrightness: Brightness.dark));
 
     ref.watch(bluetoothRepositoryProvider);
-    
+    // Watch for background service state changes
+    ref.watch(backgroundBikeServiceProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SuperDuper',

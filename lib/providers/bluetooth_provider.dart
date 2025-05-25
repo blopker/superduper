@@ -72,11 +72,11 @@ class ConnectionHandler extends _$ConnectionHandler {
   }
 
   connect() async {
-    log.d(SDLogger.BLUETOOTH, "Connecting to ${_device.remoteId}");
     if (_device.isConnected) {
       state = SDBluetoothConnectionState.connected;
       return;
     }
+    log.d(SDLogger.BLUETOOTH, "Connecting to ${_device.remoteId}");
 
     state = SDBluetoothConnectionState.connecting;
 

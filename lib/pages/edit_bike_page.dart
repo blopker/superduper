@@ -310,7 +310,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ElevatedButton.icon(
                 onPressed: () async {
                   if (await _showMyDialog() ?? false) {
-                    bikeNotifier.deleteStateData(widget.bike);
+                    bikeNotifier.delete(widget.bike);
                     if (context.mounted) {
                       Navigator.pop(context);
                     }

@@ -8,6 +8,7 @@ import 'package:superduper/providers/bike_provider.dart';
 import 'package:superduper/database/database.dart';
 import 'package:superduper/pages/debug_page.dart';
 import 'package:superduper/providers/bluetooth_provider.dart';
+import 'package:superduper/services/background_bike_service.dart';
 import 'package:superduper/widgets/common/discover_card.dart';
 import 'package:superduper/widgets/common/connection_status_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -228,8 +229,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                                 color: Colors.red, size: 16),
                             onPressed: () {
                               ref
-                                  .read(bluetoothRepositoryProvider)
-                                  .disconnect();
+                                  .read(backgroundBikeServiceProvider.notifier)
+                                  .deactivateAndDisconnectAllBikes();
                             },
                             label: Text(
                               'Disconnect',

@@ -95,7 +95,7 @@ final bluetoothRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
-String _$connectionHandlerHash() => r'48539c6521deb41ff7c54e92f48af6d794b6a63c';
+String _$connectionHandlerHash() => r'820a022dc86afad9789e30e4b39d0bbcecf86bf5';
 
 /// Copied from Dart SDK
 class _SystemHash {

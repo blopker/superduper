@@ -7,7 +7,7 @@ part of 'background_bike_service.dart';
 // **************************************************************************
 
 String _$backgroundBikeServiceHash() =>
-    r'75276da36c8429925ee3766310a6d5fc33a08daa';
+    r'840ed026e8d15bad4905f97a9c42d0e71adcd598';
 
 /// See also [BackgroundBikeService].
 @ProviderFor(BackgroundBikeService)
