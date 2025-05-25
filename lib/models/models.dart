@@ -5,10 +5,8 @@ part 'models.freezed.dart';
 part 'models.g.dart';
 
 enum BikeRegion {
-  // R,RX
   @JsonValue(200)
   us('US'),
-  // S2
   @JsonValue(201)
   eu('EU');
 
