@@ -81,6 +81,9 @@ class ConnectionHandler extends _$ConnectionHandler {
     state = SDBluetoothConnectionState.connecting;
 
     try {
+      await FlutterBluePlus.adapterState
+          .where((val) => val == BluetoothAdapterState.on)
+          .first;
       await _device.connect(mtu: null);
       await _device.connectionState
           .where((val) => val == BluetoothConnectionState.connected)
@@ -154,6 +157,9 @@ class BluetoothRepository {
       }
     }
     try {
+      await FlutterBluePlus.adapterState
+          .where((val) => val == BluetoothAdapterState.on)
+          .first;
       await FlutterBluePlus.startScan(
           timeout: const Duration(seconds: 100),
           withKeywords: ['SUPER${70 + 3}']);

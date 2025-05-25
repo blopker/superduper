@@ -11,6 +11,7 @@ import '../widgets/common/discover_card.dart';
 import '../widgets/common/connection_status_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/bike_provider.dart';
+import '../services/background_bike_service.dart';
 import '../database/database.dart';
 
 class BikePage extends ConsumerStatefulWidget {
@@ -53,14 +54,14 @@ class BikePageState extends ConsumerState<BikePage> {
   @override
   void initState() {
     super.initState();
-    // Schedule a post-frame callback to ensure providers are initialized
+    // Schedule a post-frame callback to ensure background service is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final bikeControl = ref.read(bikeProvider(widget.bikeID).notifier);
-      final connectionState =
-          ref.read(connectionHandlerProvider(widget.bikeID));
-
-      if (connectionState == SDBluetoothConnectionState.connected) {
-        bikeControl.updateStateDataNow(force: true);
+      final bikeNotifier = ref.read(bikeProvider(widget.bikeID).notifier);
+      final backgroundService = ref.read(backgroundBikeServiceProvider.notifier);
+      
+      // Auto-activate bike if it has any locked settings
+      if (bikeNotifier.shouldAutoActivate && !bikeNotifier.isBackgroundActive) {
+        backgroundService.activateBike(widget.bikeID);
       }
     });
   }
@@ -68,16 +69,9 @@ class BikePageState extends ConsumerState<BikePage> {
   @override
   Widget build(BuildContext context) {
     var bike = ref.watch(bikeProvider(widget.bikeID));
-    var bikeControl = ref.watch(bikeProvider(widget.bikeID).notifier);
-    ref.listen(connectionHandlerProvider(bike.id), (previous, next) {
-      if (previous != SDBluetoothConnectionState.connected &&
-          next == SDBluetoothConnectionState.connected) {
-        // add a delay
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          bikeControl.updateStateDataNow(force: true);
-        });
-      }
-    });
+    
+    // Watch for background service state changes
+    ref.watch(backgroundBikeServiceProvider);
     return ForegroundNotificationWrapper(
       onWillStart: () async {
         return bike.modeLock;
@@ -160,10 +154,9 @@ class BikePageState extends ConsumerState<BikePage> {
                               children: [
                                 Consumer(
                                   builder: (context, ref, _) {
-                                    var connectionProvider = connectionHandlerProvider(bike.id);
-                                    var connectionStatus = ref.watch(connectionProvider);
-                                    var connectionHandler = ref.watch(connectionProvider.notifier);
-                                    var isScanning = ref.watch(isScanningStatusProvider).value == true;
+                                    final connectionStatus = ref.watch(connectionHandlerProvider(bike.id));
+                                    final isScanning = ref.watch(isScanningStatusProvider).value == true;
+                                    final backgroundService = ref.watch(backgroundBikeServiceProvider.notifier);
                                     
                                     BikeConnectionState state;
                                     VoidCallback? onTap;
@@ -171,9 +164,12 @@ class BikePageState extends ConsumerState<BikePage> {
                                     if (connectionStatus == SDBluetoothConnectionState.connected) {
                                       state = BikeConnectionState.connected;
                                       onTap = null;
+                                    } else if (!bike.active && !isScanning) {
+                                      state = BikeConnectionState.disconnected;
+                                      onTap = () => backgroundService.activateBike(bike.id);
                                     } else if (connectionStatus == SDBluetoothConnectionState.disconnected && !isScanning) {
                                       state = BikeConnectionState.disconnected;
-                                      onTap = () => connectionHandler.connect();
+                                      onTap = () => ref.read(connectionHandlerProvider(bike.id).notifier).connect();
                                     } else {
                                       state = BikeConnectionState.connecting;
                                       onTap = null;

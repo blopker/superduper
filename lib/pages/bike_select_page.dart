@@ -25,12 +25,6 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
   final ScrollController _scrollController = ScrollController();
 
   @override
-  void initState() {
-    ref.read(bluetoothRepositoryProvider).scan();
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _scanSubscription?.cancel();
     _scrollController.dispose();
@@ -263,7 +257,7 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                             title: bikeList[index].name,
                             subtitleWidget: ConnectionStatusChip(
                               connectionState: isConnected(
-                                  connectedDevices, bikeList[index].id)
+                                      connectedDevices, bikeList[index].id)
                                   ? BikeConnectionState.connected
                                   : BikeConnectionState.disconnected,
                             ),

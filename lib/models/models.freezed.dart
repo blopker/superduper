@@ -26,6 +26,7 @@ mixin _$BikeState {
   BikeRegion? get region;
   bool get modeLock;
   int get color;
+  bool get active;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
@@ -56,17 +57,18 @@ mixin _$BikeState {
             (identical(other.region, region) || other.region == region) &&
             (identical(other.modeLock, modeLock) ||
                 other.modeLock == modeLock) &&
-            (identical(other.color, color) || other.color == color));
+            (identical(other.color, color) || other.color == color) &&
+            (identical(other.active, active) || other.active == active));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
-      lightLocked, assist, assistLocked, name, region, modeLock, color);
+      lightLocked, assist, assistLocked, name, region, modeLock, color, active);
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, active: $active)';
   }
 }
 
@@ -86,7 +88,8 @@ abstract mixin class $BikeStateCopyWith<$Res> {
       String name,
       BikeRegion? region,
       bool modeLock,
-      int color});
+      int color,
+      bool active});
 }
 
 /// @nodoc
@@ -112,6 +115,7 @@ class _$BikeStateCopyWithImpl<$Res> implements $BikeStateCopyWith<$Res> {
     Object? region = freezed,
     Object? modeLock = null,
     Object? color = null,
+    Object? active = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -158,6 +162,10 @@ class _$BikeStateCopyWithImpl<$Res> implements $BikeStateCopyWith<$Res> {
           ? _self.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
+      active: null == active
+          ? _self.active
+          : active // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -176,7 +184,8 @@ class _BikeState extends BikeState {
       required this.name,
       this.region,
       this.modeLock = false,
-      this.color = 0})
+      this.color = 0,
+      this.active = false})
       : assert(mode <= 3),
         assert(mode >= 0),
         assert(assist >= 0),
@@ -213,6 +222,9 @@ class _BikeState extends BikeState {
   @override
   @JsonKey()
   final int color;
+  @override
+  @JsonKey()
+  final bool active;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
@@ -248,17 +260,18 @@ class _BikeState extends BikeState {
             (identical(other.region, region) || other.region == region) &&
             (identical(other.modeLock, modeLock) ||
                 other.modeLock == modeLock) &&
-            (identical(other.color, color) || other.color == color));
+            (identical(other.color, color) || other.color == color) &&
+            (identical(other.active, active) || other.active == active));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
-      lightLocked, assist, assistLocked, name, region, modeLock, color);
+      lightLocked, assist, assistLocked, name, region, modeLock, color, active);
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color)';
+    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, active: $active)';
   }
 }
 
@@ -281,7 +294,8 @@ abstract mixin class _$BikeStateCopyWith<$Res>
       String name,
       BikeRegion? region,
       bool modeLock,
-      int color});
+      int color,
+      bool active});
 }
 
 /// @nodoc
@@ -307,6 +321,7 @@ class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
     Object? region = freezed,
     Object? modeLock = null,
     Object? color = null,
+    Object? active = null,
   }) {
     return _then(_BikeState(
       id: null == id
@@ -353,6 +368,10 @@ class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
           ? _self.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
+      active: null == active
+          ? _self.active
+          : active // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }

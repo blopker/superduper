@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../database/database.dart';
 import '../models/models.dart';
@@ -15,6 +16,8 @@ class Bike extends _$Bike {
   Timer? _updateDebounce;
   Timer? _updateTimer;
   bool _writing = false;
+  bool _isBackgroundActive = false;
+  bool _hasTriedAutoConnect = false;
 
   @override
   BikeState build(String id) {
@@ -22,13 +25,29 @@ class Bike extends _$Bike {
       _updateTimer?.cancel();
       _updateDebounce?.cancel();
     });
-    _resetReadTimer();
+
     var bike = ref.watch(bikesDBProvider.notifier).getBike(id);
-    ref.watch(connectionHandlerProvider(id));
-    if (bike != null) {
-      return bike;
+    bike ??= BikeState.defaultState(id);
+
+    // Check if this bike should be background active
+    _isBackgroundActive = bike.active;
+
+    _resetReadTimer();
+
+    // Watch connection state and handle auto-connection + immediate settings push
+    ref.listen(connectionHandlerProvider(id), (previous, next) {
+      _handleConnectionStateChange(previous, next);
+    });
+
+    // Auto-connect on first build if bike should be active
+    if (!_hasTriedAutoConnect && (_isBackgroundActive || shouldAutoActivate)) {
+      _hasTriedAutoConnect = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoConnect();
+      });
     }
-    return BikeState.defaultState(id);
+
+    return bike;
   }
 
   _resetReadTimer() {
@@ -146,6 +165,32 @@ class Bike extends _$Bike {
         saveToBike: false);
   }
 
+  // Background service integration
+  void activateBackground() async {
+    log.i(
+        SDLogger.BIKE, 'Activating background service for bike: ${state.name}');
+    final activeBike = state.copyWith(active: true);
+    writeStateData(activeBike, saveToBike: false);
+    _isBackgroundActive = true;
+  }
+
+  void deactivateBackground() async {
+    log.i(SDLogger.BIKE,
+        'Deactivating background service for bike: ${state.name}');
+    final inactiveBike = state.copyWith(active: false);
+    writeStateData(inactiveBike, saveToBike: false);
+    _isBackgroundActive = false;
+  }
+
+  bool get isBackgroundActive => _isBackgroundActive;
+
+  // Enhanced for background operation
+  bool get shouldAutoActivate =>
+      state.lightLocked ||
+      state.modeLocked ||
+      state.assistLocked ||
+      state.modeLock;
+
   void changeColor() async {
     final newColor = (state.color + 1) % 6;
     log.d(SDLogger.BIKE, 'Changing color to: $newColor');
@@ -155,5 +200,63 @@ class Bike extends _$Bike {
   void deleteStateData(BikeState bike) {
     log.i(SDLogger.BIKE, 'Deleting bike: ${bike.name}');
     ref.read(bikesDBProvider.notifier).deleteBike(bike);
+  }
+
+  // Auto-connection logic
+  void _autoConnect() {
+    final connectionHandler =
+        ref.read(connectionHandlerProvider(state.id).notifier);
+    final connectionState = ref.read(connectionHandlerProvider(state.id));
+
+    if (connectionState == SDBluetoothConnectionState.disconnected) {
+      log.i(SDLogger.BIKE, 'Auto-connecting to bike: ${state.name}');
+      connectionHandler.connect();
+    }
+  }
+
+  // Handle connection state changes
+  void _handleConnectionStateChange(
+      SDBluetoothConnectionState? previous, SDBluetoothConnectionState next) {
+    log.d(SDLogger.BIKE,
+        'Connection state change for ${state.name}: $previous -> $next');
+
+    // When we connect, immediately push current settings after 1 second
+    if (next == SDBluetoothConnectionState.connected) {
+      log.i(SDLogger.BIKE,
+          'Connected to ${state.name} - will push settings in 1 second');
+
+      Future.delayed(const Duration(seconds: 1), () {
+        _pushCurrentSettings();
+      });
+    }
+  }
+
+  // Push current settings to bike immediately
+  void _pushCurrentSettings() async {
+    final connectionState = ref.read(connectionHandlerProvider(state.id));
+    if (connectionState != SDBluetoothConnectionState.connected) {
+      log.w(SDLogger.BIKE,
+          'Cannot push settings - bike ${state.name} not connected');
+      return;
+    }
+
+    log.i(SDLogger.BIKE, 'Pushing current settings to bike: ${state.name}');
+
+    try {
+      _writing = true;
+      final repo = ref.read(connectionHandlerProvider(state.id).notifier);
+      await repo.write(state.toWriteData());
+      log.i(SDLogger.BIKE,
+          'Successfully pushed settings to ${state.name}: ${state.toWriteData()}');
+
+      // Also trigger a read to sync state after push
+      Future.delayed(const Duration(milliseconds: 500), () {
+        updateStateDataNow(force: true);
+      });
+    } catch (e) {
+      log.e(SDLogger.BIKE, 'Failed to push settings to ${state.name}', e);
+    } finally {
+      _writing = false;
+    }
   }
 }
