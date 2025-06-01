@@ -53,10 +53,7 @@ class BikePageState extends ConsumerState<BikePage> {
   @override
   void initState() {
     super.initState();
-    // Schedule a post-frame callback to set bike to active
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      activateBike();
-    });
+    activateBike();
   }
 
   void activateBike() {

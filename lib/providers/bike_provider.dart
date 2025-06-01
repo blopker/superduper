@@ -164,6 +164,12 @@ class Bike extends _$Bike {
     writeStateData(state, saveToBike: false);
   }
 
+  void disconnect() async {
+    state = state.copyWith(active: false);
+    writeStateData(state, saveToBike: false);
+    await ref.read(connectionHandlerProvider(state.id).notifier).disconnect();
+  }
+
   void delete(BikeState bike) {
     log.i(SDLogger.BIKE, 'Deleting bike: ${bike.name}');
     ref.read(bikesDBProvider.notifier).deleteBike(bike);
