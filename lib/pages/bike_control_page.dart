@@ -53,30 +53,30 @@ class BikePageState extends ConsumerState<BikePage> {
   @override
   void initState() {
     super.initState();
-    activateBike();
+    // activateBike();
   }
 
-  void activateBike() {
-    ref.read(bikeProvider(widget.bikeID).notifier).active = true;
-  }
+  // void activateBike() {
+  //   ref.read(bikeProvider(widget.bikeID).notifier).active = true;
+  // }
 
   @override
   Widget build(BuildContext context) {
     var bike = ref.watch(bikeProvider(widget.bikeID));
+    var bikeSettings = ref.watch(bikeDBProvider(widget.bikeID))!;
     return ForegroundNotificationWrapper(
       onWillStart: () async {
-        return bike.modeLock;
+        return bikeSettings.modeLock;
       },
       child: Scaffold(
           backgroundColor: Colors.black,
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // Modern App Bar without bike name
               SliverAppBar(
                 backgroundColor: Colors.black,
                 pinned: true,
-                expandedHeight: 60, // Reduced height without the title
+                expandedHeight: 60,
                 stretch: true,
                 leading: IconButton(
                   icon: Container(
@@ -88,7 +88,7 @@ class BikePageState extends ConsumerState<BikePage> {
                     child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   onPressed: () {
-                    var settings = ref.read(settingsDBProvider);
+                    var settings = ref.read(settingsDBProvider).value!;
                     ref
                         .read(settingsDBProvider.notifier)
                         .save(settings.copyWith(currentBike: null));
@@ -106,7 +106,7 @@ class BikePageState extends ConsumerState<BikePage> {
                       child: const Icon(Icons.settings, color: Colors.white),
                     ),
                     onPressed: () {
-                      edit.show(context, bike);
+                      edit.show(context, bikeSettings);
                     },
                   ),
                   const SizedBox(width: 8),
@@ -129,7 +129,7 @@ class BikePageState extends ConsumerState<BikePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              bike.name,
+                              bikeSettings.name,
                               style: Theme.of(context)
                                   .textTheme
                                   .headlineSmall
@@ -159,9 +159,10 @@ class BikePageState extends ConsumerState<BikePage> {
                                         SDBluetoothConnectionState.connected) {
                                       state = BikeConnectionState.connected;
                                       onTap = null;
-                                    } else if (!bike.active && !isScanning) {
+                                    } else if (!(bikeSettings.active ??
+                                            false) &&
+                                        !isScanning) {
                                       state = BikeConnectionState.disconnected;
-                                      onTap = () => activateBike();
                                     } else if (connectionStatus ==
                                             SDBluetoothConnectionState
                                                 .disconnected &&
@@ -303,13 +304,14 @@ class EnhancedLightControlWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    final bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    final bikeSettings = ref.watch(bikeDBProvider(bike.id));
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Expanded(
           child: DiscoverCard(
-            colorIndex: bike.color,
+            colorIndex: bikeSettings?.color ?? 0,
             title: "Light",
             metric: bike.light ? "On" : "Off",
             titleIcon: bike.light ? Icons.lightbulb : Icons.lightbulb_outline,
@@ -320,7 +322,7 @@ class EnhancedLightControlWidget extends ConsumerWidget {
           ),
         ),
         EnhancedLockWidget(
-          locked: bike.lightLocked,
+          locked: bikeSettings?.lockedLight != null,
           onTap: bikeControl.toggleLightLocked,
           activeColor: Colors.white,
         )
@@ -336,13 +338,14 @@ class EnhancedModeControlWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    final bikeSettings = ref.watch(bikeDBProvider(bike.id));
     final bool isActiveMode = bike.viewMode != '1';
 
     return Row(
       children: [
         Expanded(
           child: DiscoverCard(
-            colorIndex: bike.color,
+            colorIndex: bikeSettings?.color ?? 0,
             title: "Mode",
             metric: "${bike.viewMode}/4",
             titleIcon: Icons.electric_bike,
@@ -353,7 +356,7 @@ class EnhancedModeControlWidget extends ConsumerWidget {
           ),
         ),
         EnhancedLockWidget(
-          locked: bike.modeLocked,
+          locked: bikeSettings?.lockedMode != null,
           onTap: bikeControl.toggleModeLocked,
           activeColor: Colors.white,
         )
@@ -369,14 +372,16 @@ class EnhancedBackgroundLockWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    final bikeSettings = ref.watch(bikeDBProvider(bike.id));
+    final modeLocked = bikeSettings?.modeLock ?? false;
     return Column(
       children: [
         DiscoverCard(
           title: "Background Lock",
-          metric: bike.modeLock ? "On" : "Off",
+          metric: modeLocked ? "On" : "Off",
           titleIcon: Icons.phonelink_lock,
-          selected: bike.modeLock,
-          colorIndex: bike.color,
+          selected: modeLocked,
+          colorIndex: bikeSettings?.color ?? 0,
           onTap: () async {
             await Permission.notification.request();
             if (Platform.isAndroid) {
@@ -415,13 +420,14 @@ class EnhancedAssistControlWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var bikeControl = ref.watch(bikeProvider(bike.id).notifier);
+    final bikeSettings = ref.watch(bikeDBProvider(bike.id));
     final bool isActiveAssist = bike.assist > 0;
 
     return Row(
       children: [
         Expanded(
           child: DiscoverCard(
-            colorIndex: bike.color,
+            colorIndex: bikeSettings?.color ?? 0,
             title: "Assist",
             metric: "${bike.assist}/4",
             titleIcon: Icons.autorenew,
@@ -432,7 +438,7 @@ class EnhancedAssistControlWidget extends ConsumerWidget {
           ),
         ),
         EnhancedLockWidget(
-          locked: bike.assistLocked,
+          locked: bikeSettings?.lockedAssist != null,
           onTap: bikeControl.toggleAssistLocked,
           activeColor: Colors.white,
         )

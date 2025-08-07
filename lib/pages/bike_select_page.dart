@@ -8,7 +8,6 @@ import 'package:superduper/providers/bike_provider.dart';
 import 'package:superduper/database/database.dart';
 import 'package:superduper/pages/debug_page.dart';
 import 'package:superduper/providers/bluetooth_provider.dart';
-import 'package:superduper/services/background_bike_service.dart';
 import 'package:superduper/widgets/common/discover_card.dart';
 import 'package:superduper/widgets/common/connection_status_chip.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -32,8 +31,8 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
     super.dispose();
   }
 
-  void selectBike(BikeState bike) {
-    var settings = ref.read(settingsDBProvider);
+  void selectBike(BikeSettings bike) {
+    var settings = ref.read(settingsDBProvider).value!;
     ref
         .read(settingsDBProvider.notifier)
         .save(settings.copyWith(currentBike: bike.id));
@@ -51,18 +50,20 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
 
   @override
   Widget build(BuildContext context) {
-    var bikeList = ref.watch(bikesDBProvider);
+    var bikeList = ref.watch(settingsDBProvider).value?.bikeSettings ?? [];
     var connectedDevices = ref.watch(connectedDevicesProvider);
-    var bikeNotifier = ref.watch(bikesDBProvider.notifier);
+    // var bikeNotifier = ref.watch(bikesDBProvider.notifier);
     var scanResults = ref.watch(scanResultsProvider);
     var isScanning = ref.watch(isScanningStatusProvider);
 
-    List<BikeState> foundBikes = [];
+    List<BikeSettings> foundBikes = [];
+    final myIDs = bikeList.map((bike) => bike.id).toList();
     for (var result in scanResults.value ?? []) {
-      if (bikeNotifier.getBike(result.device.remoteId.str) != null) {
+      final id = result.device.remoteId.str;
+      if (myIDs.contains(id)) {
         continue;
       }
-      foundBikes.add(BikeState.defaultState(result.device.remoteId.str));
+      foundBikes.add(BikeSettings.defaultSettings(id));
     }
 
     return Scaffold(
@@ -228,9 +229,9 @@ class BikeSelectWidgetState extends ConsumerState<BikeSelectWidget> {
                             icon: const Icon(Icons.bluetooth_disabled,
                                 color: Colors.red, size: 16),
                             onPressed: () {
-                              ref
-                                  .read(backgroundBikeServiceProvider.notifier)
-                                  .deactivateAndDisconnectAllBikes();
+                              // ref
+                              //     .read(backgroundBikeServiceProvider.notifier)
+                              //     .deactivateAndDisconnectAllBikes();
                             },
                             label: Text(
                               'Disconnect',

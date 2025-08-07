@@ -37,7 +37,8 @@ class DebugPage extends StatelessWidget {
                   context: context,
                   builder: (BuildContext context) {
                     return BikeSettingsWidget(
-                        bike: BikeState.defaultState(_generateRandomMac()));
+                        bike:
+                            BikeSettings.defaultSettings(_generateRandomMac()));
                   });
             },
             child: const Text('Form'),

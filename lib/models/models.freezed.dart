@@ -17,16 +17,8 @@ T _$identity<T>(T value) => value;
 mixin _$BikeState {
   String get id;
   int get mode;
-  bool get modeLocked;
   bool get light;
-  bool get lightLocked;
   int get assist;
-  bool get assistLocked;
-  String get name;
-  BikeRegion? get region;
-  bool get modeLock;
-  int get color;
-  bool get active;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
@@ -45,30 +37,17 @@ mixin _$BikeState {
             other is BikeState &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.mode, mode) || other.mode == mode) &&
-            (identical(other.modeLocked, modeLocked) ||
-                other.modeLocked == modeLocked) &&
             (identical(other.light, light) || other.light == light) &&
-            (identical(other.lightLocked, lightLocked) ||
-                other.lightLocked == lightLocked) &&
-            (identical(other.assist, assist) || other.assist == assist) &&
-            (identical(other.assistLocked, assistLocked) ||
-                other.assistLocked == assistLocked) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.region, region) || other.region == region) &&
-            (identical(other.modeLock, modeLock) ||
-                other.modeLock == modeLock) &&
-            (identical(other.color, color) || other.color == color) &&
-            (identical(other.active, active) || other.active == active));
+            (identical(other.assist, assist) || other.assist == assist));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
-      lightLocked, assist, assistLocked, name, region, modeLock, color, active);
+  int get hashCode => Object.hash(runtimeType, id, mode, light, assist);
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, active: $active)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist)';
   }
 }
 
@@ -77,19 +56,7 @@ abstract mixin class $BikeStateCopyWith<$Res> {
   factory $BikeStateCopyWith(BikeState value, $Res Function(BikeState) _then) =
       _$BikeStateCopyWithImpl;
   @useResult
-  $Res call(
-      {String id,
-      int mode,
-      bool modeLocked,
-      bool light,
-      bool lightLocked,
-      int assist,
-      bool assistLocked,
-      String name,
-      BikeRegion? region,
-      bool modeLock,
-      int color,
-      bool active});
+  $Res call({String id, int mode, bool light, int assist});
 }
 
 /// @nodoc
@@ -106,16 +73,8 @@ class _$BikeStateCopyWithImpl<$Res> implements $BikeStateCopyWith<$Res> {
   $Res call({
     Object? id = null,
     Object? mode = null,
-    Object? modeLocked = null,
     Object? light = null,
-    Object? lightLocked = null,
     Object? assist = null,
-    Object? assistLocked = null,
-    Object? name = null,
-    Object? region = freezed,
-    Object? modeLock = null,
-    Object? color = null,
-    Object? active = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -126,46 +85,14 @@ class _$BikeStateCopyWithImpl<$Res> implements $BikeStateCopyWith<$Res> {
           ? _self.mode
           : mode // ignore: cast_nullable_to_non_nullable
               as int,
-      modeLocked: null == modeLocked
-          ? _self.modeLocked
-          : modeLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
       light: null == light
           ? _self.light
           : light // ignore: cast_nullable_to_non_nullable
-              as bool,
-      lightLocked: null == lightLocked
-          ? _self.lightLocked
-          : lightLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       assist: null == assist
           ? _self.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      assistLocked: null == assistLocked
-          ? _self.assistLocked
-          : assistLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
-      name: null == name
-          ? _self.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      region: freezed == region
-          ? _self.region
-          : region // ignore: cast_nullable_to_non_nullable
-              as BikeRegion?,
-      modeLock: null == modeLock
-          ? _self.modeLock
-          : modeLock // ignore: cast_nullable_to_non_nullable
-              as bool,
-      color: null == color
-          ? _self.color
-          : color // ignore: cast_nullable_to_non_nullable
-              as int,
-      active: null == active
-          ? _self.active
-          : active // ignore: cast_nullable_to_non_nullable
-              as bool,
     ));
   }
 }
@@ -176,21 +103,12 @@ class _BikeState extends BikeState {
   const _BikeState(
       {required this.id,
       required this.mode,
-      this.modeLocked = false,
       required this.light,
-      this.lightLocked = false,
-      required this.assist,
-      this.assistLocked = false,
-      required this.name,
-      this.region,
-      this.modeLock = false,
-      this.color = 0,
-      this.active = false})
-      : assert(mode <= 3),
+      required this.assist})
+      : assert(mode <= 7),
         assert(mode >= 0),
         assert(assist >= 0),
         assert(assist <= 4),
-        assert(color >= 0),
         super._();
   factory _BikeState.fromJson(Map<String, dynamic> json) =>
       _$BikeStateFromJson(json);
@@ -200,31 +118,9 @@ class _BikeState extends BikeState {
   @override
   final int mode;
   @override
-  @JsonKey()
-  final bool modeLocked;
-  @override
   final bool light;
   @override
-  @JsonKey()
-  final bool lightLocked;
-  @override
   final int assist;
-  @override
-  @JsonKey()
-  final bool assistLocked;
-  @override
-  final String name;
-  @override
-  final BikeRegion? region;
-  @override
-  @JsonKey()
-  final bool modeLock;
-  @override
-  @JsonKey()
-  final int color;
-  @override
-  @JsonKey()
-  final bool active;
 
   /// Create a copy of BikeState
   /// with the given fields replaced by the non-null parameter values.
@@ -248,30 +144,17 @@ class _BikeState extends BikeState {
             other is _BikeState &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.mode, mode) || other.mode == mode) &&
-            (identical(other.modeLocked, modeLocked) ||
-                other.modeLocked == modeLocked) &&
             (identical(other.light, light) || other.light == light) &&
-            (identical(other.lightLocked, lightLocked) ||
-                other.lightLocked == lightLocked) &&
-            (identical(other.assist, assist) || other.assist == assist) &&
-            (identical(other.assistLocked, assistLocked) ||
-                other.assistLocked == assistLocked) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.region, region) || other.region == region) &&
-            (identical(other.modeLock, modeLock) ||
-                other.modeLock == modeLock) &&
-            (identical(other.color, color) || other.color == color) &&
-            (identical(other.active, active) || other.active == active));
+            (identical(other.assist, assist) || other.assist == assist));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, mode, modeLocked, light,
-      lightLocked, assist, assistLocked, name, region, modeLock, color, active);
+  int get hashCode => Object.hash(runtimeType, id, mode, light, assist);
 
   @override
   String toString() {
-    return 'BikeState(id: $id, mode: $mode, modeLocked: $modeLocked, light: $light, lightLocked: $lightLocked, assist: $assist, assistLocked: $assistLocked, name: $name, region: $region, modeLock: $modeLock, color: $color, active: $active)';
+    return 'BikeState(id: $id, mode: $mode, light: $light, assist: $assist)';
   }
 }
 
@@ -283,19 +166,7 @@ abstract mixin class _$BikeStateCopyWith<$Res>
       __$BikeStateCopyWithImpl;
   @override
   @useResult
-  $Res call(
-      {String id,
-      int mode,
-      bool modeLocked,
-      bool light,
-      bool lightLocked,
-      int assist,
-      bool assistLocked,
-      String name,
-      BikeRegion? region,
-      bool modeLock,
-      int color,
-      bool active});
+  $Res call({String id, int mode, bool light, int assist});
 }
 
 /// @nodoc
@@ -312,16 +183,8 @@ class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
   $Res call({
     Object? id = null,
     Object? mode = null,
-    Object? modeLocked = null,
     Object? light = null,
-    Object? lightLocked = null,
     Object? assist = null,
-    Object? assistLocked = null,
-    Object? name = null,
-    Object? region = freezed,
-    Object? modeLock = null,
-    Object? color = null,
-    Object? active = null,
   }) {
     return _then(_BikeState(
       id: null == id
@@ -332,25 +195,136 @@ class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
           ? _self.mode
           : mode // ignore: cast_nullable_to_non_nullable
               as int,
-      modeLocked: null == modeLocked
-          ? _self.modeLocked
-          : modeLocked // ignore: cast_nullable_to_non_nullable
-              as bool,
       light: null == light
           ? _self.light
           : light // ignore: cast_nullable_to_non_nullable
-              as bool,
-      lightLocked: null == lightLocked
-          ? _self.lightLocked
-          : lightLocked // ignore: cast_nullable_to_non_nullable
               as bool,
       assist: null == assist
           ? _self.assist
           : assist // ignore: cast_nullable_to_non_nullable
               as int,
-      assistLocked: null == assistLocked
-          ? _self.assistLocked
-          : assistLocked // ignore: cast_nullable_to_non_nullable
+    ));
+  }
+}
+
+/// @nodoc
+mixin _$BikeSettings {
+  String get id;
+  int? get lockedMode;
+  bool? get lockedLight;
+  int? get lockedAssist;
+  bool? get active;
+  bool get modeLock;
+  String get name;
+  BikeRegion? get region;
+  int get color;
+
+  /// Create a copy of BikeSettings
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $BikeSettingsCopyWith<BikeSettings> get copyWith =>
+      _$BikeSettingsCopyWithImpl<BikeSettings>(
+          this as BikeSettings, _$identity);
+
+  /// Serializes this BikeSettings to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is BikeSettings &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.lockedMode, lockedMode) ||
+                other.lockedMode == lockedMode) &&
+            (identical(other.lockedLight, lockedLight) ||
+                other.lockedLight == lockedLight) &&
+            (identical(other.lockedAssist, lockedAssist) ||
+                other.lockedAssist == lockedAssist) &&
+            (identical(other.active, active) || other.active == active) &&
+            (identical(other.modeLock, modeLock) ||
+                other.modeLock == modeLock) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.region, region) || other.region == region) &&
+            (identical(other.color, color) || other.color == color));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, lockedMode, lockedLight,
+      lockedAssist, active, modeLock, name, region, color);
+
+  @override
+  String toString() {
+    return 'BikeSettings(id: $id, lockedMode: $lockedMode, lockedLight: $lockedLight, lockedAssist: $lockedAssist, active: $active, modeLock: $modeLock, name: $name, region: $region, color: $color)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $BikeSettingsCopyWith<$Res> {
+  factory $BikeSettingsCopyWith(
+          BikeSettings value, $Res Function(BikeSettings) _then) =
+      _$BikeSettingsCopyWithImpl;
+  @useResult
+  $Res call(
+      {String id,
+      int? lockedMode,
+      bool? lockedLight,
+      int? lockedAssist,
+      bool? active,
+      bool modeLock,
+      String name,
+      BikeRegion? region,
+      int color});
+}
+
+/// @nodoc
+class _$BikeSettingsCopyWithImpl<$Res> implements $BikeSettingsCopyWith<$Res> {
+  _$BikeSettingsCopyWithImpl(this._self, this._then);
+
+  final BikeSettings _self;
+  final $Res Function(BikeSettings) _then;
+
+  /// Create a copy of BikeSettings
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? lockedMode = freezed,
+    Object? lockedLight = freezed,
+    Object? lockedAssist = freezed,
+    Object? active = freezed,
+    Object? modeLock = null,
+    Object? name = null,
+    Object? region = freezed,
+    Object? color = null,
+  }) {
+    return _then(_self.copyWith(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      lockedMode: freezed == lockedMode
+          ? _self.lockedMode
+          : lockedMode // ignore: cast_nullable_to_non_nullable
+              as int?,
+      lockedLight: freezed == lockedLight
+          ? _self.lockedLight
+          : lockedLight // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      lockedAssist: freezed == lockedAssist
+          ? _self.lockedAssist
+          : lockedAssist // ignore: cast_nullable_to_non_nullable
+              as int?,
+      active: freezed == active
+          ? _self.active
+          : active // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      modeLock: null == modeLock
+          ? _self.modeLock
+          : modeLock // ignore: cast_nullable_to_non_nullable
               as bool,
       name: null == name
           ? _self.name
@@ -360,18 +334,178 @@ class __$BikeStateCopyWithImpl<$Res> implements _$BikeStateCopyWith<$Res> {
           ? _self.region
           : region // ignore: cast_nullable_to_non_nullable
               as BikeRegion?,
-      modeLock: null == modeLock
-          ? _self.modeLock
-          : modeLock // ignore: cast_nullable_to_non_nullable
-              as bool,
       color: null == color
           ? _self.color
           : color // ignore: cast_nullable_to_non_nullable
               as int,
-      active: null == active
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _BikeSettings extends BikeSettings {
+  const _BikeSettings(
+      {required this.id,
+      required this.lockedMode,
+      required this.lockedLight,
+      required this.lockedAssist,
+      required this.active,
+      required this.modeLock,
+      required this.name,
+      required this.region,
+      this.color = 0})
+      : assert(color >= 0),
+        super._();
+  factory _BikeSettings.fromJson(Map<String, dynamic> json) =>
+      _$BikeSettingsFromJson(json);
+
+  @override
+  final String id;
+  @override
+  final int? lockedMode;
+  @override
+  final bool? lockedLight;
+  @override
+  final int? lockedAssist;
+  @override
+  final bool? active;
+  @override
+  final bool modeLock;
+  @override
+  final String name;
+  @override
+  final BikeRegion? region;
+  @override
+  @JsonKey()
+  final int color;
+
+  /// Create a copy of BikeSettings
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$BikeSettingsCopyWith<_BikeSettings> get copyWith =>
+      __$BikeSettingsCopyWithImpl<_BikeSettings>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$BikeSettingsToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _BikeSettings &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.lockedMode, lockedMode) ||
+                other.lockedMode == lockedMode) &&
+            (identical(other.lockedLight, lockedLight) ||
+                other.lockedLight == lockedLight) &&
+            (identical(other.lockedAssist, lockedAssist) ||
+                other.lockedAssist == lockedAssist) &&
+            (identical(other.active, active) || other.active == active) &&
+            (identical(other.modeLock, modeLock) ||
+                other.modeLock == modeLock) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.region, region) || other.region == region) &&
+            (identical(other.color, color) || other.color == color));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, lockedMode, lockedLight,
+      lockedAssist, active, modeLock, name, region, color);
+
+  @override
+  String toString() {
+    return 'BikeSettings(id: $id, lockedMode: $lockedMode, lockedLight: $lockedLight, lockedAssist: $lockedAssist, active: $active, modeLock: $modeLock, name: $name, region: $region, color: $color)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$BikeSettingsCopyWith<$Res>
+    implements $BikeSettingsCopyWith<$Res> {
+  factory _$BikeSettingsCopyWith(
+          _BikeSettings value, $Res Function(_BikeSettings) _then) =
+      __$BikeSettingsCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      int? lockedMode,
+      bool? lockedLight,
+      int? lockedAssist,
+      bool? active,
+      bool modeLock,
+      String name,
+      BikeRegion? region,
+      int color});
+}
+
+/// @nodoc
+class __$BikeSettingsCopyWithImpl<$Res>
+    implements _$BikeSettingsCopyWith<$Res> {
+  __$BikeSettingsCopyWithImpl(this._self, this._then);
+
+  final _BikeSettings _self;
+  final $Res Function(_BikeSettings) _then;
+
+  /// Create a copy of BikeSettings
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? lockedMode = freezed,
+    Object? lockedLight = freezed,
+    Object? lockedAssist = freezed,
+    Object? active = freezed,
+    Object? modeLock = null,
+    Object? name = null,
+    Object? region = freezed,
+    Object? color = null,
+  }) {
+    return _then(_BikeSettings(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      lockedMode: freezed == lockedMode
+          ? _self.lockedMode
+          : lockedMode // ignore: cast_nullable_to_non_nullable
+              as int?,
+      lockedLight: freezed == lockedLight
+          ? _self.lockedLight
+          : lockedLight // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      lockedAssist: freezed == lockedAssist
+          ? _self.lockedAssist
+          : lockedAssist // ignore: cast_nullable_to_non_nullable
+              as int?,
+      active: freezed == active
           ? _self.active
           : active // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      modeLock: null == modeLock
+          ? _self.modeLock
+          : modeLock // ignore: cast_nullable_to_non_nullable
               as bool,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      region: freezed == region
+          ? _self.region
+          : region // ignore: cast_nullable_to_non_nullable
+              as BikeRegion?,
+      color: null == color
+          ? _self.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }

@@ -5,16 +5,10 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:superduper/core/services/bluetooth_constants.dart';
-import 'package:superduper/core/utils/logger.dart'; // Import the logger
+import 'package:superduper/core/utils/logger.dart';
+import 'package:superduper/models/models.dart'; // Import the logger
 
 part 'bluetooth_provider.g.dart';
-
-enum SDBluetoothConnectionState {
-  disconnected,
-  connected,
-  connecting,
-  disconnecting
-}
 
 @riverpod
 Stream<BluetoothAdapterState> adapterState(Ref ref) =>

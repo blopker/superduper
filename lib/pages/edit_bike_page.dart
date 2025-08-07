@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:superduper/database/database.dart';
 import '../providers/bike_provider.dart';
 import '../app/colors.dart';
 
-show(BuildContext context, BikeState bike) {
+show(BuildContext context, BikeSettings bike) {
   showModalBottomSheet<void>(
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -17,7 +18,7 @@ show(BuildContext context, BikeState bike) {
 
 class BikeSettingsWidget extends ConsumerStatefulWidget {
   const BikeSettingsWidget({super.key, required this.bike});
-  final BikeState bike;
+  final BikeSettings bike;
 
   @override
   BikeSettingsWidgetState createState() => BikeSettingsWidgetState();
@@ -115,7 +116,7 @@ class BikeSettingsWidgetState extends ConsumerState<BikeSettingsWidget> {
 
 class CompleteForm extends ConsumerStatefulWidget {
   const CompleteForm({super.key, required this.bike});
-  final BikeState bike;
+  final BikeSettings bike;
 
   @override
   ConsumerState<CompleteForm> createState() {
@@ -176,7 +177,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
 
   @override
   Widget build(BuildContext context) {
-    var bikeNotifier = ref.watch(bikeProvider(widget.bike.id).notifier);
+    var bikeNotifier = ref.watch(bikeDBProvider(widget.bike.id).notifier);
     final colors = getColorList();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -310,7 +311,7 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ElevatedButton.icon(
                 onPressed: () async {
                   if (await _showMyDialog() ?? false) {
-                    bikeNotifier.delete(widget.bike);
+                    bikeNotifier.deleteBike(widget.bike.id);
                     if (context.mounted) {
                       Navigator.pop(context);
                     }
@@ -332,12 +333,12 @@ class _CompleteFormState extends ConsumerState<CompleteForm> {
               ElevatedButton.icon(
                 onPressed: () {
                   if (_formKey.currentState?.saveAndValidate() ?? false) {
-                    bikeNotifier.writeStateData(
-                        widget.bike.copyWith(
-                            name: _formKey.currentState?.value['name'],
-                            color: _selectedColorIndex,
-                            region: _formKey.currentState?.value['region']),
-                        saveToBike: false);
+                    bikeNotifier.saveBike(
+                      widget.bike.copyWith(
+                          name: _formKey.currentState?.value['name'],
+                          color: _selectedColorIndex,
+                          region: _formKey.currentState?.value['region']),
+                    );
                     Navigator.pop(context);
                   }
                 },

@@ -9,32 +9,42 @@ part of 'models.dart';
 _BikeState _$BikeStateFromJson(Map<String, dynamic> json) => _BikeState(
       id: json['id'] as String,
       mode: (json['mode'] as num).toInt(),
-      modeLocked: json['modeLocked'] as bool? ?? false,
       light: json['light'] as bool,
-      lightLocked: json['lightLocked'] as bool? ?? false,
       assist: (json['assist'] as num).toInt(),
-      assistLocked: json['assistLocked'] as bool? ?? false,
-      name: json['name'] as String,
-      region: $enumDecodeNullable(_$BikeRegionEnumMap, json['region']),
-      modeLock: json['modeLock'] as bool? ?? false,
-      color: (json['color'] as num?)?.toInt() ?? 0,
-      active: json['active'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$BikeStateToJson(_BikeState instance) =>
     <String, dynamic>{
       'id': instance.id,
       'mode': instance.mode,
-      'modeLocked': instance.modeLocked,
       'light': instance.light,
-      'lightLocked': instance.lightLocked,
       'assist': instance.assist,
-      'assistLocked': instance.assistLocked,
+    };
+
+_BikeSettings _$BikeSettingsFromJson(Map<String, dynamic> json) =>
+    _BikeSettings(
+      id: json['id'] as String,
+      lockedMode: (json['lockedMode'] as num?)?.toInt(),
+      lockedLight: json['lockedLight'] as bool?,
+      lockedAssist: (json['lockedAssist'] as num?)?.toInt(),
+      active: json['active'] as bool?,
+      modeLock: json['modeLock'] as bool,
+      name: json['name'] as String,
+      region: $enumDecodeNullable(_$BikeRegionEnumMap, json['region']),
+      color: (json['color'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$BikeSettingsToJson(_BikeSettings instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'lockedMode': instance.lockedMode,
+      'lockedLight': instance.lockedLight,
+      'lockedAssist': instance.lockedAssist,
+      'active': instance.active,
+      'modeLock': instance.modeLock,
       'name': instance.name,
       'region': _$BikeRegionEnumMap[instance.region],
-      'modeLock': instance.modeLock,
       'color': instance.color,
-      'active': instance.active,
     };
 
 const _$BikeRegionEnumMap = {

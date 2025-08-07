@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../database/database.dart';
 import '../models/models.dart';
@@ -24,23 +24,19 @@ class Bike extends _$Bike {
       _updateDebounce?.cancel();
     });
 
-    var bike = ref.watch(bikesDBProvider.notifier).getBike(id);
-    bike ??= BikeState.defaultState(id);
+    var bikeState = BikeState.defaultState(id);
 
     _resetReadTimer();
-
+    // final connectionState = ref.watch(connectionHandlerProvider(id));
     // Watch connection state and handle auto-connection + immediate settings push
     ref.listen(connectionHandlerProvider(id), (previous, next) {
       _handleConnectionStateChange(previous, next);
     });
+    ref.listen(bikeDBProvider(id), (_, next) {
+      _handleSettingsChange(next!);
+    });
 
-    // Auto-connect on first build
-    if (bike.active) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoConnect();
-      });
-    }
-    return bike;
+    return bikeState;
   }
 
   _resetReadTimer() {
@@ -51,7 +47,7 @@ class Bike extends _$Bike {
       if (_writing) {
         return;
       }
-      updateStateData();
+      readStateData();
     });
   }
 
@@ -60,7 +56,7 @@ class Bike extends _$Bike {
     _resetReadTimer();
   }
 
-  Future<void> updateStateData() async {
+  Future<void> readStateData() async {
     var status = ref.read(connectionHandlerProvider(state.id));
     if (status != SDBluetoothConnectionState.connected) {
       return;
@@ -79,7 +75,7 @@ class Bike extends _$Bike {
     if (data == null || data.isEmpty) {
       return;
     }
-    var newState = state.updateFromData(data);
+    var newState = state.updateFromRawData(data);
     if (newState == state && !force) {
       return;
     }
@@ -98,24 +94,21 @@ class Bike extends _$Bike {
     writeStateData(newState);
   }
 
-  void writeStateData(BikeState newState, {saveToBike = true}) async {
+  void writeStateData(BikeState newState) async {
     _resetDebounce();
     if (state.id != newState.id) {
       throw Exception('Bike id mismatch');
     }
     var status = ref.read(connectionHandlerProvider(state.id));
-    if (saveToBike) {
-      if (status != SDBluetoothConnectionState.connected) {
-        return;
-      }
-      _writing = true;
-      final repo = ref.read(connectionHandlerProvider(state.id).notifier);
-      await repo.write(newState.toWriteData());
-      log.d(SDLogger.BIKE, 'Wrote data to bike: ${newState.toWriteData()}');
+    if (status != SDBluetoothConnectionState.connected) {
+      return;
     }
-    ref.read(bikesDBProvider.notifier).saveBike(newState);
+    _writing = true;
+    final repo = ref.read(connectionHandlerProvider(state.id).notifier);
+    await repo.write(newState.toWriteRawData());
+    log.d(SDLogger.BIKE, 'Wrote data to bike: ${newState.toWriteRawData()}');
     state = newState;
-    updateStateData();
+    _writing = false;
   }
 
   void toggleLight() async {
@@ -135,76 +128,96 @@ class Bike extends _$Bike {
   }
 
   void toggleLightLocked() async {
-    log.d(SDLogger.BIKE, 'Toggling light lock: ${!state.lightLocked}');
-    writeStateData(state.copyWith(lightLocked: !state.lightLocked),
-        saveToBike: false);
+    log.d(SDLogger.BIKE, 'Toggling light lock: ${state.light}');
+    var settings = ref.read(bikeDBProvider(state.id))!;
+    if (settings.lockedLight == null) {
+      settings = settings.copyWith(lockedLight: state.light);
+    } else {
+      settings = settings.copyWith(lockedLight: null);
+    }
+    ref.read(bikeDBProvider(state.id).notifier).saveBike(settings);
   }
 
   void toggleModeLocked() async {
-    log.d(SDLogger.BIKE, 'Toggling mode lock: ${!state.modeLocked}');
-    writeStateData(state.copyWith(modeLocked: !state.modeLocked),
-        saveToBike: false);
+    log.d(SDLogger.BIKE, 'Toggling mode lock: ${state.mode}');
+    var settings = ref.read(bikeDBProvider(state.id))!;
+    if (settings.lockedMode == null) {
+      settings = settings.copyWith(lockedMode: state.mode);
+    } else {
+      settings = settings.copyWith(lockedMode: null);
+    }
+    ref.read(bikeDBProvider(state.id).notifier).saveBike(settings);
   }
 
   void toggleAssistLocked() async {
-    log.d(SDLogger.BIKE, 'Toggling assist lock: ${!state.assistLocked}');
-    writeStateData(state.copyWith(assistLocked: !state.assistLocked),
-        saveToBike: false);
+    log.d(SDLogger.BIKE, 'Toggling assist lock: ${state.assist}');
+    var settings = ref.read(bikeDBProvider(state.id))!;
+    if (settings.lockedAssist == null) {
+      settings = settings.copyWith(lockedAssist: state.assist);
+    } else {
+      settings = settings.copyWith(lockedAssist: null);
+    }
+    ref.read(bikeDBProvider(state.id).notifier).saveBike(settings);
   }
 
   void toggleBackgroundLock() async {
-    log.d(SDLogger.BIKE, 'Toggling background lock: ${!state.modeLock}');
-    writeStateData(state.copyWith(modeLock: !state.modeLock),
-        saveToBike: false);
-  }
-
-  set active(bool value) {
-    log.i(SDLogger.BIKE, 'Setting active state to: $value');
-    state = state.copyWith(active: value);
-    writeStateData(state, saveToBike: false);
+    log.d(SDLogger.BIKE, 'Toggling background lock');
+    var settings = ref.read(bikeDBProvider(state.id))!;
+    ref
+        .read(bikeDBProvider(state.id).notifier)
+        .saveBike(settings.copyWith(modeLock: !settings.modeLock));
   }
 
   void disconnect() async {
-    state = state.copyWith(active: false);
-    writeStateData(state, saveToBike: false);
+    final settings = ref.read(bikeDBProvider(state.id))!;
+    ref
+        .read(bikeDBProvider(state.id).notifier)
+        .saveBike(settings.copyWith(active: false));
     await ref.read(connectionHandlerProvider(state.id).notifier).disconnect();
   }
 
-  void delete(BikeState bike) {
-    log.i(SDLogger.BIKE, 'Deleting bike: ${bike.name}');
-    ref.read(bikesDBProvider.notifier).deleteBike(bike);
-  }
+  // void delete(BikeState bike) {
+  //   log.i(SDLogger.BIKE, 'Deleting bike: ${bike.name}');
+  //   ref.read(bikesDBProvider.notifier).deleteBike(bike);
+  // }
 
-  // Auto-connection logic
-  void _autoConnect() async {
-    final connectionHandler =
-        ref.read(connectionHandlerProvider(state.id).notifier);
-    final connectionState = ref.read(connectionHandlerProvider(state.id));
+  // // Auto-connection logic
+  // void _autoConnect() async {
+  //   final connectionHandler =
+  //       ref.read(connectionHandlerProvider(state.id).notifier);
+  //   final connectionState = ref.read(connectionHandlerProvider(state.id));
 
-    if (connectionState == SDBluetoothConnectionState.disconnected) {
-      log.i(SDLogger.BIKE, 'Auto-connecting to bike: ${state.name}');
-      await connectionHandler.connect();
-      await Future.delayed(const Duration(seconds: 1), () {
-        _updateStateDataNow(force: true);
-      });
-    }
-  }
+  //   if (connectionState == SDBluetoothConnectionState.disconnected) {
+  //     log.i(SDLogger.BIKE, 'Auto-connecting to bike: ${state.name}');
+  //     await connectionHandler.connect();
+  //     await Future.delayed(const Duration(seconds: 1), () {
+  //       _updateStateDataNow(force: true);
+  //     });
+  //   }
+  // }
 
   // Handle connection state changes
   void _handleConnectionStateChange(
       SDBluetoothConnectionState? previous, SDBluetoothConnectionState next) {
     log.d(SDLogger.BIKE,
-        'Connection state change for ${state.name}: $previous -> $next');
+        'Connection state change for ${state.id}: $previous -> $next');
 
     // When we connect, immediately push current settings after 1 second
     if (previous != SDBluetoothConnectionState.connected &&
         next == SDBluetoothConnectionState.connected) {
       log.i(SDLogger.BIKE,
-          'Connected to ${state.name} - will push settings in 1 second');
+          'Connected to ${state.id} - will push settings in 1 second');
 
       Future.delayed(const Duration(seconds: 1), () {
         _updateStateDataNow(force: true);
       });
+    }
+  }
+
+  void _handleSettingsChange(BikeSettings next) {
+    log.d(SDLogger.BIKE, 'Settings change for ${next.name}: $next');
+    if (next.needsBikeSync(state)) {
+      _updateStateDataNow(force: true);
     }
   }
 }

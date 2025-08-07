@@ -1,5 +1,4 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:superduper/providers/bluetooth_provider.dart';
 import '../database/database.dart';
 import '../providers/bike_provider.dart';
 import '../core/utils/logger.dart';
@@ -10,8 +9,14 @@ part 'background_bike_service.g.dart';
 class BackgroundBikeService extends _$BackgroundBikeService {
   @override
   int build() {
-    var db = ref.watch(bikesDBProvider);
-    final activeBikes = db.where((bike) => bike.active);
+    var db = ref.watch(settingsDBProvider);
+    if (!db.hasValue) {
+      log.i(
+          SDLogger.GENERAL, 'BackgroundBikeService: Settings not loaded yet.');
+      return 0;
+    }
+    final activeBikes =
+        db.value!.bikeSettings.where((bike) => bike.active ?? false);
     for (final bike in activeBikes) {
       ref.watch(bikeProvider(bike.id));
     }
@@ -20,12 +25,12 @@ class BackgroundBikeService extends _$BackgroundBikeService {
     return 0;
   }
 
-  void deactivateAndDisconnectAllBikes() async {
-    var bikes = ref.read(bikesDBProvider);
-    for (final bike in bikes) {
-      ref.read(bikeProvider(bike.id).notifier).active = false;
-    }
-    await Future.delayed(Duration(milliseconds: 100))
-        .then((_) => ref.read(bluetoothRepositoryProvider).disconnect());
-  }
+  // void deactivateAndDisconnectAllBikes() async {
+  //   var bikes = ref.read(bikesDBProvider);
+  //   for (final bike in bikes) {
+  //     ref.read(bikeProvider(bike.id).notifier).active = false;
+  //   }
+  //   await Future.delayed(Duration(milliseconds: 100))
+  //       .then((_) => ref.read(bluetoothRepositoryProvider).disconnect());
+  // }
 }

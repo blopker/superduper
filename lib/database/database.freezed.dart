@@ -16,6 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SettingsModel implements DiagnosticableTreeMixin {
   String? get currentBike;
+  List<BikeSettings> get bikeSettings;
 
   /// Create a copy of SettingsModel
   /// with the given fields replaced by the non-null parameter values.
@@ -32,7 +33,8 @@ mixin _$SettingsModel implements DiagnosticableTreeMixin {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     properties
       ..add(DiagnosticsProperty('type', 'SettingsModel'))
-      ..add(DiagnosticsProperty('currentBike', currentBike));
+      ..add(DiagnosticsProperty('currentBike', currentBike))
+      ..add(DiagnosticsProperty('bikeSettings', bikeSettings));
   }
 
   @override
@@ -41,16 +43,19 @@ mixin _$SettingsModel implements DiagnosticableTreeMixin {
         (other.runtimeType == runtimeType &&
             other is SettingsModel &&
             (identical(other.currentBike, currentBike) ||
-                other.currentBike == currentBike));
+                other.currentBike == currentBike) &&
+            const DeepCollectionEquality()
+                .equals(other.bikeSettings, bikeSettings));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, currentBike);
+  int get hashCode => Object.hash(runtimeType, currentBike,
+      const DeepCollectionEquality().hash(bikeSettings));
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'SettingsModel(currentBike: $currentBike)';
+    return 'SettingsModel(currentBike: $currentBike, bikeSettings: $bikeSettings)';
   }
 }
 
@@ -60,7 +65,7 @@ abstract mixin class $SettingsModelCopyWith<$Res> {
           SettingsModel value, $Res Function(SettingsModel) _then) =
       _$SettingsModelCopyWithImpl;
   @useResult
-  $Res call({String? currentBike});
+  $Res call({String? currentBike, List<BikeSettings> bikeSettings});
 }
 
 /// @nodoc
@@ -77,12 +82,17 @@ class _$SettingsModelCopyWithImpl<$Res>
   @override
   $Res call({
     Object? currentBike = freezed,
+    Object? bikeSettings = null,
   }) {
     return _then(_self.copyWith(
       currentBike: freezed == currentBike
           ? _self.currentBike
           : currentBike // ignore: cast_nullable_to_non_nullable
               as String?,
+      bikeSettings: null == bikeSettings
+          ? _self.bikeSettings
+          : bikeSettings // ignore: cast_nullable_to_non_nullable
+              as List<BikeSettings>,
     ));
   }
 }
@@ -90,12 +100,21 @@ class _$SettingsModelCopyWithImpl<$Res>
 /// @nodoc
 @JsonSerializable()
 class _SettingsModel with DiagnosticableTreeMixin implements SettingsModel {
-  const _SettingsModel({this.currentBike});
+  const _SettingsModel(
+      {this.currentBike, required final List<BikeSettings> bikeSettings})
+      : _bikeSettings = bikeSettings;
   factory _SettingsModel.fromJson(Map<String, dynamic> json) =>
       _$SettingsModelFromJson(json);
 
   @override
   final String? currentBike;
+  final List<BikeSettings> _bikeSettings;
+  @override
+  List<BikeSettings> get bikeSettings {
+    if (_bikeSettings is EqualUnmodifiableListView) return _bikeSettings;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_bikeSettings);
+  }
 
   /// Create a copy of SettingsModel
   /// with the given fields replaced by the non-null parameter values.
@@ -116,7 +135,8 @@ class _SettingsModel with DiagnosticableTreeMixin implements SettingsModel {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     properties
       ..add(DiagnosticsProperty('type', 'SettingsModel'))
-      ..add(DiagnosticsProperty('currentBike', currentBike));
+      ..add(DiagnosticsProperty('currentBike', currentBike))
+      ..add(DiagnosticsProperty('bikeSettings', bikeSettings));
   }
 
   @override
@@ -125,16 +145,19 @@ class _SettingsModel with DiagnosticableTreeMixin implements SettingsModel {
         (other.runtimeType == runtimeType &&
             other is _SettingsModel &&
             (identical(other.currentBike, currentBike) ||
-                other.currentBike == currentBike));
+                other.currentBike == currentBike) &&
+            const DeepCollectionEquality()
+                .equals(other._bikeSettings, _bikeSettings));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, currentBike);
+  int get hashCode => Object.hash(runtimeType, currentBike,
+      const DeepCollectionEquality().hash(_bikeSettings));
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'SettingsModel(currentBike: $currentBike)';
+    return 'SettingsModel(currentBike: $currentBike, bikeSettings: $bikeSettings)';
   }
 }
 
@@ -146,7 +169,7 @@ abstract mixin class _$SettingsModelCopyWith<$Res>
       __$SettingsModelCopyWithImpl;
   @override
   @useResult
-  $Res call({String? currentBike});
+  $Res call({String? currentBike, List<BikeSettings> bikeSettings});
 }
 
 /// @nodoc
@@ -163,12 +186,17 @@ class __$SettingsModelCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   $Res call({
     Object? currentBike = freezed,
+    Object? bikeSettings = null,
   }) {
     return _then(_SettingsModel(
       currentBike: freezed == currentBike
           ? _self.currentBike
           : currentBike // ignore: cast_nullable_to_non_nullable
               as String?,
+      bikeSettings: null == bikeSettings
+          ? _self._bikeSettings
+          : bikeSettings // ignore: cast_nullable_to_non_nullable
+              as List<BikeSettings>,
     ));
   }
 }
