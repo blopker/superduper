@@ -39,7 +39,7 @@ class Bike extends _$Bike {
     return BikeState.defaultState(id);
   }
 
-  _resetReadTimer() {
+  void _resetReadTimer() {
     if (_updateTimer?.isActive ?? false) {
       _updateTimer?.cancel();
     }
@@ -51,12 +51,12 @@ class Bike extends _$Bike {
     });
   }
 
-  _resetDebounce() {
+  void _resetDebounce() {
     if (_updateDebounce?.isActive ?? false) _updateDebounce?.cancel();
     _resetReadTimer();
   }
 
-  Future<void> updateStateData({force = false}) async {
+  Future<void> updateStateData({bool force = false}) async {
     var status = ref.read(connectionHandlerProvider(state.id));
     if (status != SDBluetoothConnectionState.connected) {
       return;
@@ -69,7 +69,7 @@ class Bike extends _$Bike {
     });
   }
 
-  Future<void> updateStateDataNow({force = false}) async {
+  Future<void> updateStateDataNow({bool force = false}) async {
     var data =
         await ref.read(connectionHandlerProvider(state.id).notifier).read();
     if (data == null || data.isEmpty) {

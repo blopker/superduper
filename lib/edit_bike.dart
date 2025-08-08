@@ -5,7 +5,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:superduper/bike.dart';
 import 'package:superduper/colors.dart';
 
-show(BuildContext context, BikeState bike) {
+void show(BuildContext context, BikeState bike) {
   showModalBottomSheet<void>(
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

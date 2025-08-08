@@ -62,11 +62,6 @@ class SDLogger {
       [dynamic error, StackTrace? stackTrace]) {
     _logger.f('[$tag] $message', error: error, stackTrace: stackTrace);
   }
-
-  /// Verbose level log - only shown in debug mode, lowest priority
-  void v(String tag, String message) {
-    _logger.v('[$tag] $message');
-  }
 }
 
 /// Global logger instance for easy access

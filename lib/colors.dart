@@ -5,7 +5,7 @@ class ColorRange {
   late Color end;
   late String name;
 
-  ColorRange({required start, required end, required this.name}) {
+  ColorRange({required int start, required int end, required this.name}) {
     this.start = Color(start);
     this.end = Color(end);
   }

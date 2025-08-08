@@ -71,7 +71,7 @@ class ConnectionHandler extends _$ConnectionHandler {
     _reconnectTimer?.cancel();
   }
 
-  connect() async {
+  Future<void> connect() async {
     log.d(SDLogger.BLUETOOTH, "Connecting to ${_device.remoteId}");
     if (_device.isConnected) {
       state = SDBluetoothConnectionState.connected;
@@ -97,7 +97,7 @@ class ConnectionHandler extends _$ConnectionHandler {
     }
   }
 
-  write(List<int> data) async {
+  Future<void> write(List<int> data) async {
     await ref.read(bluetoothRepositoryProvider).write(_device, data: data);
   }
 
@@ -147,7 +147,7 @@ class BluetoothRepository {
     }
   }
 
-  stopScan() async {
+  Future<void> stopScan() async {
     try {
       await FlutterBluePlus.stopScan();
       log.d(SDLogger.BLUETOOTH, 'Scan stopped manually');
@@ -156,7 +156,7 @@ class BluetoothRepository {
     }
   }
 
-  disconnect() async {
+  Future<void> disconnect() async {
     try {
       for (var device in FlutterBluePlus.connectedDevices) {
         await device.disconnect();

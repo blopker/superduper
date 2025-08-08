@@ -38,7 +38,7 @@ Future<File> get _bikesFile async {
 Future<File> _writeBikes(List<BikeState> bikes) async {
   log.d(SDLogger.DB, 'Writing bikes to file');
   if (kDebugMode) {
-    log.v(SDLogger.DB, 'Bike data: ${jsonEncode(bikes)}');
+    log.d(SDLogger.DB, 'Bike data: ${jsonEncode(bikes)}');
   }
   final file = await _bikesFile;
   return file.writeAsString(jsonEncode(bikes));
@@ -62,7 +62,7 @@ Future<List<BikeState>> _readBikes() async {
     final file = await _bikesFile;
     final contents = await file.readAsString();
     if (kDebugMode) {
-      log.v(SDLogger.DB, 'Read contents: $contents');
+      log.d(SDLogger.DB, 'Read contents: $contents');
     }
     final bikes = (jsonDecode(contents) as List)
         .map((e) => BikeState.fromJson(e as Map<String, Object?>))

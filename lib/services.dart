@@ -38,7 +38,7 @@ class StateData {
     return StateData(strToLis('03000000000000000000'));
   }
 
-  static isValid(List<int> maybeConfig) {
+  static bool isValid(List<int> maybeConfig) {
     // Read configs start with 3.
     return maybeConfig[0] == 3;
   }
