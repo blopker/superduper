@@ -36,9 +36,9 @@ Future<File> get _bikesFile async {
 }
 
 Future<File> _writeBikes(List<BikeState> bikes) async {
-  log.d(SDLogger.DB, 'Writing bikes to file');
+  log.d(SDLogger.db, 'Writing bikes to file');
   if (kDebugMode) {
-    log.d(SDLogger.DB, 'Bike data: ${jsonEncode(bikes)}');
+    log.d(SDLogger.db, 'Bike data: ${jsonEncode(bikes)}');
   }
   final file = await _bikesFile;
   return file.writeAsString(jsonEncode(bikes));
@@ -48,29 +48,29 @@ Future<SettingsModel> _readSettings() async {
   try {
     final file = await _settingsFile;
     final contents = await file.readAsString();
-    log.d(SDLogger.DB, 'Read settings');
+    log.d(SDLogger.db, 'Read settings');
     return SettingsModel.fromJson(jsonDecode(contents));
   } catch (e) {
-    log.w(SDLogger.DB, 'No settings found, using defaults');
+    log.w(SDLogger.db, 'No settings found, using defaults');
     return const SettingsModel();
   }
 }
 
 Future<List<BikeState>> _readBikes() async {
-  log.d(SDLogger.DB, 'Reading bikes from file');
+  log.d(SDLogger.db, 'Reading bikes from file');
   try {
     final file = await _bikesFile;
     final contents = await file.readAsString();
     if (kDebugMode) {
-      log.d(SDLogger.DB, 'Read contents: $contents');
+      log.d(SDLogger.db, 'Read contents: $contents');
     }
     final bikes = (jsonDecode(contents) as List)
         .map((e) => BikeState.fromJson(e as Map<String, Object?>))
         .toList();
-    log.d(SDLogger.DB, 'Read ${bikes.length} bikes');
+    log.d(SDLogger.db, 'Read ${bikes.length} bikes');
     return bikes;
   } catch (e) {
-    log.e(SDLogger.DB, 'Error reading bikes', e);
+    log.e(SDLogger.db, 'Error reading bikes', e);
     return [];
   }
 }
@@ -88,10 +88,10 @@ class BikesDB extends _$BikesDB {
     final index = bikes.indexWhere((element) => element.id == bike.id);
     if (index == -1) {
       bikes.add(bike);
-      log.i(SDLogger.DB, 'Added new bike: ${bike.name}');
+      log.i(SDLogger.db, 'Added new bike: ${bike.name}');
     } else {
       bikes[index] = bike;
-      log.d(SDLogger.DB, 'Updated bike: ${bike.name}');
+      log.d(SDLogger.db, 'Updated bike: ${bike.name}');
     }
     state = bikes;
     _writeBikes(state);
@@ -99,7 +99,7 @@ class BikesDB extends _$BikesDB {
 
   void deleteBike(BikeState bike) {
     state.removeWhere((element) => element.id == bike.id);
-    log.i(SDLogger.DB, 'Deleted bike: ${bike.name}');
+    log.i(SDLogger.db, 'Deleted bike: ${bike.name}');
     _writeBikes(state);
   }
 
@@ -107,7 +107,7 @@ class BikesDB extends _$BikesDB {
     try {
       return state.firstWhere((element) => element.id == id);
     } catch (e) {
-      log.d(SDLogger.DB, 'No bike found with ID: $id');
+      log.d(SDLogger.db, 'No bike found with ID: $id');
       return null;
     }
   }
@@ -123,7 +123,7 @@ class SettingsDB extends _$SettingsDB {
 
   void save(SettingsModel settings) {
     _settingsFile.then((file) => file.writeAsString(jsonEncode(settings)));
-    log.d(SDLogger.DB, 'Saved settings: $settings');
+    log.d(SDLogger.db, 'Saved settings: $settings');
     state = settings;
   }
 }

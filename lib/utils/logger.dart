@@ -12,11 +12,11 @@ class SDLogger {
   late Logger _logger;
 
   // Tag constants to categorize logs
-  static const String BLUETOOTH = 'Bluetooth';
-  static const String BIKE = 'Bike';
-  static const String UI = 'UI';
-  static const String DB = 'Database';
-  static const String GENERAL = 'App';
+  static const String bluetooth = 'Bluetooth';
+  static const String bike = 'Bike';
+  static const String ui = 'UI';
+  static const String db = 'Database';
+  static const String general = 'App';
 
   SDLogger._internal() {
     // Initialize with appropriate settings
