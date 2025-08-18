@@ -22,7 +22,6 @@ build-android:
 	open build/app/outputs/bundle/release/
 
 build-ios:
-	cd ios && pod update
 	flutter build ipa
 	open build/ios/ipa
 
@@ -31,7 +30,6 @@ tag:
 
 upgrade:
 	flutter pub upgrade --precompile --major-versions
-	cd ios && pod update
 
 release: tag build
 
