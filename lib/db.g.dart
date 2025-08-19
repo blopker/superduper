@@ -20,7 +20,7 @@ Map<String, dynamic> _$SettingsModelToJson(_SettingsModel instance) =>
 // RiverpodGenerator
 // **************************************************************************
 
-String _$bikesDBHash() => r'6cd7ea11ee3e778fe32b8881b85fe6fc8fbbf7aa';
+String _$bikesDBHash() => r'68d0f459b163bb1f35c5e2ae819318d5f26c786d';
 
 /// See also [BikesDB].
 @ProviderFor(BikesDB)
@@ -34,7 +34,7 @@ final bikesDBProvider = NotifierProvider<BikesDB, List<BikeState>>.internal(
 );
 
 typedef _$BikesDB = Notifier<List<BikeState>>;
-String _$settingsDBHash() => r'c1b81df023c89fc2298d471ebe01bbb4d21b411c';
+String _$settingsDBHash() => r'edad9433dc33333134820de0bd0ed8d2c60b67d2';
 
 /// See also [SettingsDB].
 @ProviderFor(SettingsDB)
