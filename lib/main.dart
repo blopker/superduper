@@ -13,11 +13,7 @@ import 'package:superduper/utils/logger.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: SuperDuper(),
-    ),
-  );
+  runApp(const ProviderScope(child: SuperDuper()));
 }
 
 Future<Map<Permission, PermissionStatus>> getPermissions() async {
@@ -50,29 +46,46 @@ class SuperDuper extends StatelessWidget {
   const SuperDuper({super.key});
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
         statusBarIconBrightness: Brightness.light,
         statusBarColor: Colors.transparent,
-        statusBarBrightness: Brightness.dark));
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SuperDuper',
       theme: ThemeData(
+        useMaterial3: true,
         colorSchemeSeed: Colors.black,
         brightness: Brightness.dark,
         textTheme: const TextTheme(
           headlineSmall: TextStyle(
-              fontSize: 30.0, color: Colors.white, fontWeight: FontWeight.bold),
+            fontSize: 30.0,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
           titleLarge: TextStyle(
-              fontSize: 26.0, color: Colors.white, fontWeight: FontWeight.bold),
+            fontSize: 26.0,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
           titleMedium: TextStyle(
-              fontSize: 20.0, color: Colors.white, fontWeight: FontWeight.bold),
+            fontSize: 20.0,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
           bodyMedium: TextStyle(
-              fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+            fontSize: 20,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
           labelMedium: TextStyle(
-              color: Color.fromARGB(255, 155, 162, 190),
-              fontWeight: FontWeight.w500,
-              fontSize: 14),
+            color: Color.fromARGB(255, 155, 162, 190),
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
         ),
       ),
       home: const HomePage(),
@@ -100,27 +113,33 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     ref.watch(bluetoothRepositoryProvider);
     return Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-            child: FutureBuilder(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: FutureBuilder(
           future: permFuture,
-          builder: (BuildContext context,
-              AsyncSnapshot<Map<Permission, PermissionStatus>> snapshot) {
-            if (snapshot.hasError) {
-              return ErrorPage(error: snapshot.error.toString());
-            }
-            if (!snapshot.hasData) {
-              return const LoadingPage();
-            }
-            var denied =
-                snapshot.data!.values.any((element) => element.isDenied);
-            if (denied) {
-              log.i(SDLogger.bike, 'Permission denied: ${snapshot.data}');
-              return const PermissionPage();
-            }
-            return const BikeSelectWidget();
-          },
-        )));
+          builder:
+              (
+                BuildContext context,
+                AsyncSnapshot<Map<Permission, PermissionStatus>> snapshot,
+              ) {
+                if (snapshot.hasError) {
+                  return ErrorPage(error: snapshot.error.toString());
+                }
+                if (!snapshot.hasData) {
+                  return const LoadingPage();
+                }
+                var denied = snapshot.data!.values.any(
+                  (element) => element.isDenied,
+                );
+                if (denied) {
+                  log.i(SDLogger.bike, 'Permission denied: ${snapshot.data}');
+                  return const PermissionPage();
+                }
+                return const BikeSelectWidget();
+              },
+        ),
+      ),
+    );
   }
 }
 
@@ -130,10 +149,7 @@ class ErrorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(
-        error,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
+      child: Text(error, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }
@@ -143,9 +159,7 @@ class LoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
@@ -154,9 +168,10 @@ class PermissionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-        child: Text(
-      'Please enable bluetooth and location permissions.',
-      style: Theme.of(context).textTheme.bodyMedium,
-    ));
+      child: Text(
+        'Please enable bluetooth and location permissions.',
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    );
   }
 }

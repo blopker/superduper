@@ -6,261 +6,311 @@ part of 'repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(adapterState)
+const adapterStateProvider = AdapterStateProvider._();
+
+final class AdapterStateProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<BluetoothAdapterState>,
+          BluetoothAdapterState,
+          Stream<BluetoothAdapterState>
+        >
+    with
+        $FutureModifier<BluetoothAdapterState>,
+        $StreamProvider<BluetoothAdapterState> {
+  const AdapterStateProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'adapterStateProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$adapterStateHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<BluetoothAdapterState> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<BluetoothAdapterState> create(Ref ref) {
+    return adapterState(ref);
+  }
+}
+
 String _$adapterStateHash() => r'b2664eace33ac0f397ed4d82636ba521673d9099';
 
-/// See also [adapterState].
-@ProviderFor(adapterState)
-final adapterStateProvider =
-    AutoDisposeStreamProvider<BluetoothAdapterState>.internal(
-  adapterState,
-  name: r'adapterStateProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$adapterStateHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+@ProviderFor(isScanningStatus)
+const isScanningStatusProvider = IsScanningStatusProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef AdapterStateRef = AutoDisposeStreamProviderRef<BluetoothAdapterState>;
+final class IsScanningStatusProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, Stream<bool>>
+    with $FutureModifier<bool>, $StreamProvider<bool> {
+  const IsScanningStatusProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'isScanningStatusProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$isScanningStatusHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<bool> create(Ref ref) {
+    return isScanningStatus(ref);
+  }
+}
+
 String _$isScanningStatusHash() => r'dfe37cf6ae13ad7180be16e508b6b6ae1eca4283';
 
-/// See also [isScanningStatus].
-@ProviderFor(isScanningStatus)
-final isScanningStatusProvider = AutoDisposeStreamProvider<bool>.internal(
-  isScanningStatus,
-  name: r'isScanningStatusProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$isScanningStatusHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+@ProviderFor(scanResults)
+const scanResultsProvider = ScanResultsProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef IsScanningStatusRef = AutoDisposeStreamProviderRef<bool>;
+final class ScanResultsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<ScanResult>>,
+          List<ScanResult>,
+          Stream<List<ScanResult>>
+        >
+    with $FutureModifier<List<ScanResult>>, $StreamProvider<List<ScanResult>> {
+  const ScanResultsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'scanResultsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$scanResultsHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<ScanResult>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<ScanResult>> create(Ref ref) {
+    return scanResults(ref);
+  }
+}
+
 String _$scanResultsHash() => r'bf071ca0d8662268581c447c2de7b7f4fc56a685';
 
-/// See also [scanResults].
-@ProviderFor(scanResults)
-final scanResultsProvider =
-    AutoDisposeStreamProvider<List<ScanResult>>.internal(
-  scanResults,
-  name: r'scanResultsProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$scanResultsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+@ProviderFor(connectedDevices)
+const connectedDevicesProvider = ConnectedDevicesProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef ScanResultsRef = AutoDisposeStreamProviderRef<List<ScanResult>>;
+final class ConnectedDevicesProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<BluetoothDevice>>,
+          List<BluetoothDevice>,
+          Stream<List<BluetoothDevice>>
+        >
+    with
+        $FutureModifier<List<BluetoothDevice>>,
+        $StreamProvider<List<BluetoothDevice>> {
+  const ConnectedDevicesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'connectedDevicesProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$connectedDevicesHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<BluetoothDevice>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<BluetoothDevice>> create(Ref ref) {
+    return connectedDevices(ref);
+  }
+}
+
 String _$connectedDevicesHash() => r'bad504c4de82eb01a975bc4812de5b49623a4720';
 
-/// See also [connectedDevices].
-@ProviderFor(connectedDevices)
-final connectedDevicesProvider =
-    AutoDisposeStreamProvider<List<BluetoothDevice>>.internal(
-  connectedDevices,
-  name: r'connectedDevicesProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$connectedDevicesHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef ConnectedDevicesRef
-    = AutoDisposeStreamProviderRef<List<BluetoothDevice>>;
-String _$bluetoothRepositoryHash() =>
-    r'f232e7f108085d98f2d484a8aa17addf2a62b39f';
-
-/// See also [bluetoothRepository].
-@ProviderFor(bluetoothRepository)
-final bluetoothRepositoryProvider =
-    AutoDisposeProvider<BluetoothRepository>.internal(
-  bluetoothRepository,
-  name: r'bluetoothRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$bluetoothRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef BluetoothRepositoryRef = AutoDisposeProviderRef<BluetoothRepository>;
-String _$connectionHandlerHash() => r'b0172b7e61d855d92b963b654e81308f76a429da';
-
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
-
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
-
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
-abstract class _$ConnectionHandler
-    extends BuildlessAutoDisposeNotifier<SDBluetoothConnectionState> {
-  late final String deviceId;
-
-  SDBluetoothConnectionState build(
-    String deviceId,
-  );
-}
-
-/// See also [ConnectionHandler].
 @ProviderFor(ConnectionHandler)
-const connectionHandlerProvider = ConnectionHandlerFamily();
+const connectionHandlerProvider = ConnectionHandlerFamily._();
 
-/// See also [ConnectionHandler].
-class ConnectionHandlerFamily extends Family<SDBluetoothConnectionState> {
-  /// See also [ConnectionHandler].
-  const ConnectionHandlerFamily();
+final class ConnectionHandlerProvider
+    extends $NotifierProvider<ConnectionHandler, SDBluetoothConnectionState> {
+  const ConnectionHandlerProvider._({
+    required ConnectionHandlerFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'connectionHandlerProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
-  /// See also [ConnectionHandler].
-  ConnectionHandlerProvider call(
-    String deviceId,
-  ) {
-    return ConnectionHandlerProvider(
-      deviceId,
-    );
+  @override
+  String debugGetCreateSourceHash() => _$connectionHandlerHash();
+
+  @override
+  String toString() {
+    return r'connectionHandlerProvider'
+        ''
+        '($argument)';
   }
 
+  @$internal
   @override
-  ConnectionHandlerProvider getProviderOverride(
-    covariant ConnectionHandlerProvider provider,
-  ) {
-    return call(
-      provider.deviceId,
-    );
-  }
+  ConnectionHandler create() => ConnectionHandler();
 
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'connectionHandlerProvider';
-}
-
-/// See also [ConnectionHandler].
-class ConnectionHandlerProvider extends AutoDisposeNotifierProviderImpl<
-    ConnectionHandler, SDBluetoothConnectionState> {
-  /// See also [ConnectionHandler].
-  ConnectionHandlerProvider(
-    String deviceId,
-  ) : this._internal(
-          () => ConnectionHandler()..deviceId = deviceId,
-          from: connectionHandlerProvider,
-          name: r'connectionHandlerProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$connectionHandlerHash,
-          dependencies: ConnectionHandlerFamily._dependencies,
-          allTransitiveDependencies:
-              ConnectionHandlerFamily._allTransitiveDependencies,
-          deviceId: deviceId,
-        );
-
-  ConnectionHandlerProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.deviceId,
-  }) : super.internal();
-
-  final String deviceId;
-
-  @override
-  SDBluetoothConnectionState runNotifierBuild(
-    covariant ConnectionHandler notifier,
-  ) {
-    return notifier.build(
-      deviceId,
-    );
-  }
-
-  @override
-  Override overrideWith(ConnectionHandler Function() create) {
-    return ProviderOverride(
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SDBluetoothConnectionState value) {
+    return $ProviderOverride(
       origin: this,
-      override: ConnectionHandlerProvider._internal(
-        () => create()..deviceId = deviceId,
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        deviceId: deviceId,
-      ),
+      providerOverride: $SyncValueProvider<SDBluetoothConnectionState>(value),
     );
-  }
-
-  @override
-  AutoDisposeNotifierProviderElement<ConnectionHandler,
-      SDBluetoothConnectionState> createElement() {
-    return _ConnectionHandlerProviderElement(this);
   }
 
   @override
   bool operator ==(Object other) {
-    return other is ConnectionHandlerProvider && other.deviceId == deviceId;
+    return other is ConnectionHandlerProvider && other.argument == argument;
   }
 
   @override
   int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, deviceId.hashCode);
-
-    return _SystemHash.finish(hash);
+    return argument.hashCode;
   }
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin ConnectionHandlerRef
-    on AutoDisposeNotifierProviderRef<SDBluetoothConnectionState> {
-  /// The parameter `deviceId` of this provider.
-  String get deviceId;
-}
+String _$connectionHandlerHash() => r'b0172b7e61d855d92b963b654e81308f76a429da';
 
-class _ConnectionHandlerProviderElement
-    extends AutoDisposeNotifierProviderElement<ConnectionHandler,
-        SDBluetoothConnectionState> with ConnectionHandlerRef {
-  _ConnectionHandlerProviderElement(super.provider);
+final class ConnectionHandlerFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          ConnectionHandler,
+          SDBluetoothConnectionState,
+          SDBluetoothConnectionState,
+          SDBluetoothConnectionState,
+          String
+        > {
+  const ConnectionHandlerFamily._()
+    : super(
+        retry: null,
+        name: r'connectionHandlerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  ConnectionHandlerProvider call(String deviceId) =>
+      ConnectionHandlerProvider._(argument: deviceId, from: this);
 
   @override
-  String get deviceId => (origin as ConnectionHandlerProvider).deviceId;
+  String toString() => r'connectionHandlerProvider';
 }
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+
+abstract class _$ConnectionHandler
+    extends $Notifier<SDBluetoothConnectionState> {
+  late final _$args = ref.$arg as String;
+  String get deviceId => _$args;
+
+  SDBluetoothConnectionState build(String deviceId);
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final created = build(_$args);
+    final ref =
+        this.ref
+            as $Ref<SDBluetoothConnectionState, SDBluetoothConnectionState>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                SDBluetoothConnectionState,
+                SDBluetoothConnectionState
+              >,
+              SDBluetoothConnectionState,
+              Object?,
+              Object?
+            >;
+    element.handleValue(ref, created);
+  }
+}
+
+@ProviderFor(bluetoothRepository)
+const bluetoothRepositoryProvider = BluetoothRepositoryProvider._();
+
+final class BluetoothRepositoryProvider
+    extends
+        $FunctionalProvider<
+          BluetoothRepository,
+          BluetoothRepository,
+          BluetoothRepository
+        >
+    with $Provider<BluetoothRepository> {
+  const BluetoothRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'bluetoothRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$bluetoothRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<BluetoothRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  BluetoothRepository create(Ref ref) {
+    return bluetoothRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BluetoothRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BluetoothRepository>(value),
+    );
+  }
+}
+
+String _$bluetoothRepositoryHash() =>
+    r'f232e7f108085d98f2d484a8aa17addf2a62b39f';
