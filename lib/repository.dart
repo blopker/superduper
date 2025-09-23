@@ -147,7 +147,10 @@ class BluetoothRepository {
     try {
       await FlutterBluePlus.startScan(
         timeout: const Duration(seconds: 100),
-        withKeywords: ['SUPER${70 + 3}'],
+        withKeywords: [
+          'SUPER${70 + 3}', // SUPER73
+          'S${70 + 3} FTEX', // Additional keyword
+        ],
       );
       log.d(SDLogger.bluetooth, 'Scan initiated with timeout: 100s');
       await FlutterBluePlus.isScanning.where((val) => val == false).first;
