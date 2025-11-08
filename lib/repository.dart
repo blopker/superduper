@@ -86,7 +86,7 @@ class ConnectionHandler extends _$ConnectionHandler {
     state = SDBluetoothConnectionState.connecting;
 
     try {
-      await _device.connect(mtu: null);
+      await _device.connect(mtu: null, license: License.free);
       await _device.connectionState
           .where((val) => val == BluetoothConnectionState.connected)
           .first;
