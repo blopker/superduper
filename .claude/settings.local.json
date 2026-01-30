@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__kagi__kagi_search_fetch"
+    ]
+  }
+}

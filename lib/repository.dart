@@ -79,6 +79,7 @@ class ConnectionHandler extends _$ConnectionHandler {
   Future<void> connect() async {
     log.d(SDLogger.bluetooth, "Connecting to ${_device.remoteId}");
     if (_device.isConnected) {
+      if (!ref.mounted) return;
       state = SDBluetoothConnectionState.connected;
       return;
     }
@@ -87,17 +88,21 @@ class ConnectionHandler extends _$ConnectionHandler {
 
     try {
       await _device.connect(mtu: null, license: License.free);
+      if (!ref.mounted) return;
       await _device.connectionState
           .where((val) => val == BluetoothConnectionState.connected)
           .first;
+      if (!ref.mounted) return;
       if (Platform.isAndroid) {
         await _device.requestMtu(512);
+        if (!ref.mounted) return;
       }
       log.i(SDLogger.bluetooth, 'Connected to ${_device.remoteId.str}');
       state = SDBluetoothConnectionState.connected;
       await _device.discoverServices();
     } catch (e) {
       log.e(SDLogger.bluetooth, 'Error connecting', e);
+      if (!ref.mounted) return;
       state = SDBluetoothConnectionState.disconnected;
     }
   }
