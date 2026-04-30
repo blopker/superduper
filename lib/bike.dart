@@ -229,7 +229,7 @@ class _ForegroundNotificationWrapperState
   @override
   void initState() {
     super.initState();
-    if (!Platform.isMacOS) {
+    if (Platform.isAndroid) {
       _initBackgroundLockService();
       _syncBackgroundLockService(widget.enabled);
     }
@@ -238,14 +238,14 @@ class _ForegroundNotificationWrapperState
   @override
   void didUpdateWidget(ForegroundNotificationWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!Platform.isMacOS && oldWidget.enabled != widget.enabled) {
+    if (Platform.isAndroid && oldWidget.enabled != widget.enabled) {
       _syncBackgroundLockService(widget.enabled);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isMacOS) {
+    if (!Platform.isAndroid) {
       return widget.child;
     }
     return WithForegroundTask(child: widget.child);
