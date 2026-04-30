@@ -7,14 +7,14 @@ dev:
 	flutter run --hot -d macos
 
 watch-runner:
-	dart run build_runner watch --delete-conflicting-outputs
+	dart run build_runner watch
 
 build: build-runner
 	make build-android
 	make build-ios
 
 build-runner:
-	dart run build_runner build --delete-conflicting-outputs
+	dart run build_runner build
 
 build-android:
 	flutter build appbundle

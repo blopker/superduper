@@ -10,10 +10,10 @@ part of 'bike.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(Bike)
-const bikeProvider = BikeFamily._();
+final bikeProvider = BikeFamily._();
 
 final class BikeProvider extends $NotifierProvider<Bike, BikeState> {
-  const BikeProvider._({
+  BikeProvider._({
     required BikeFamily super.from,
     required String super.argument,
   }) : super(
@@ -61,7 +61,7 @@ String _$bikeHash() => r'66df00f1c2391df26bc6f2fb51655bd9f4d49fd8';
 
 final class BikeFamily extends $Family
     with $ClassFamilyOverride<Bike, BikeState, BikeState, BikeState, String> {
-  const BikeFamily._()
+  BikeFamily._()
     : super(
         retry: null,
         name: r'bikeProvider',
@@ -84,7 +84,6 @@ abstract class _$Bike extends $Notifier<BikeState> {
   @$mustCallSuper
   @override
   void runBuild() {
-    final created = build(_$args);
     final ref = this.ref as $Ref<BikeState, BikeState>;
     final element =
         ref.element
@@ -94,6 +93,6 @@ abstract class _$Bike extends $Notifier<BikeState> {
               Object?,
               Object?
             >;
-    element.handleValue(ref, created);
+    element.handleCreate(ref, () => build(_$args));
   }
 }
