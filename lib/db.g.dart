@@ -20,11 +20,11 @@ Map<String, dynamic> _$SettingsModelToJson(_SettingsModel instance) =>
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(BikesDB)
-const bikesDBProvider = BikesDBProvider._();
+final bikesDBProvider = BikesDBProvider._();
 
 final class BikesDBProvider
     extends $NotifierProvider<BikesDB, List<BikeState>> {
-  const BikesDBProvider._()
+  BikesDBProvider._()
     : super(
         from: null,
         argument: null,
@@ -58,7 +58,6 @@ abstract class _$BikesDB extends $Notifier<List<BikeState>> {
   @$mustCallSuper
   @override
   void runBuild() {
-    final created = build();
     final ref = this.ref as $Ref<List<BikeState>, List<BikeState>>;
     final element =
         ref.element
@@ -68,16 +67,16 @@ abstract class _$BikesDB extends $Notifier<List<BikeState>> {
               Object?,
               Object?
             >;
-    element.handleValue(ref, created);
+    element.handleCreate(ref, build);
   }
 }
 
 @ProviderFor(SettingsDB)
-const settingsDBProvider = SettingsDBProvider._();
+final settingsDBProvider = SettingsDBProvider._();
 
 final class SettingsDBProvider
     extends $NotifierProvider<SettingsDB, SettingsModel> {
-  const SettingsDBProvider._()
+  SettingsDBProvider._()
     : super(
         from: null,
         argument: null,
@@ -111,7 +110,6 @@ abstract class _$SettingsDB extends $Notifier<SettingsModel> {
   @$mustCallSuper
   @override
   void runBuild() {
-    final created = build();
     final ref = this.ref as $Ref<SettingsModel, SettingsModel>;
     final element =
         ref.element
@@ -121,6 +119,6 @@ abstract class _$SettingsDB extends $Notifier<SettingsModel> {
               Object?,
               Object?
             >;
-    element.handleValue(ref, created);
+    element.handleCreate(ref, build);
   }
 }

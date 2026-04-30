@@ -10,7 +10,7 @@ part of 'repository.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(adapterState)
-const adapterStateProvider = AdapterStateProvider._();
+final adapterStateProvider = AdapterStateProvider._();
 
 final class AdapterStateProvider
     extends
@@ -22,7 +22,7 @@ final class AdapterStateProvider
     with
         $FutureModifier<BluetoothAdapterState>,
         $StreamProvider<BluetoothAdapterState> {
-  const AdapterStateProvider._()
+  AdapterStateProvider._()
     : super(
         from: null,
         argument: null,
@@ -51,12 +51,12 @@ final class AdapterStateProvider
 String _$adapterStateHash() => r'b2664eace33ac0f397ed4d82636ba521673d9099';
 
 @ProviderFor(isScanningStatus)
-const isScanningStatusProvider = IsScanningStatusProvider._();
+final isScanningStatusProvider = IsScanningStatusProvider._();
 
 final class IsScanningStatusProvider
     extends $FunctionalProvider<AsyncValue<bool>, bool, Stream<bool>>
     with $FutureModifier<bool>, $StreamProvider<bool> {
-  const IsScanningStatusProvider._()
+  IsScanningStatusProvider._()
     : super(
         from: null,
         argument: null,
@@ -84,7 +84,7 @@ final class IsScanningStatusProvider
 String _$isScanningStatusHash() => r'dfe37cf6ae13ad7180be16e508b6b6ae1eca4283';
 
 @ProviderFor(scanResults)
-const scanResultsProvider = ScanResultsProvider._();
+final scanResultsProvider = ScanResultsProvider._();
 
 final class ScanResultsProvider
     extends
@@ -94,7 +94,7 @@ final class ScanResultsProvider
           Stream<List<ScanResult>>
         >
     with $FutureModifier<List<ScanResult>>, $StreamProvider<List<ScanResult>> {
-  const ScanResultsProvider._()
+  ScanResultsProvider._()
     : super(
         from: null,
         argument: null,
@@ -123,7 +123,7 @@ final class ScanResultsProvider
 String _$scanResultsHash() => r'bf071ca0d8662268581c447c2de7b7f4fc56a685';
 
 @ProviderFor(connectedDevices)
-const connectedDevicesProvider = ConnectedDevicesProvider._();
+final connectedDevicesProvider = ConnectedDevicesProvider._();
 
 final class ConnectedDevicesProvider
     extends
@@ -135,7 +135,7 @@ final class ConnectedDevicesProvider
     with
         $FutureModifier<List<BluetoothDevice>>,
         $StreamProvider<List<BluetoothDevice>> {
-  const ConnectedDevicesProvider._()
+  ConnectedDevicesProvider._()
     : super(
         from: null,
         argument: null,
@@ -164,11 +164,11 @@ final class ConnectedDevicesProvider
 String _$connectedDevicesHash() => r'bad504c4de82eb01a975bc4812de5b49623a4720';
 
 @ProviderFor(ConnectionHandler)
-const connectionHandlerProvider = ConnectionHandlerFamily._();
+final connectionHandlerProvider = ConnectionHandlerFamily._();
 
 final class ConnectionHandlerProvider
     extends $NotifierProvider<ConnectionHandler, SDBluetoothConnectionState> {
-  const ConnectionHandlerProvider._({
+  ConnectionHandlerProvider._({
     required ConnectionHandlerFamily super.from,
     required String super.argument,
   }) : super(
@@ -223,7 +223,7 @@ final class ConnectionHandlerFamily extends $Family
           SDBluetoothConnectionState,
           String
         > {
-  const ConnectionHandlerFamily._()
+  ConnectionHandlerFamily._()
     : super(
         retry: null,
         name: r'connectionHandlerProvider',
@@ -248,7 +248,6 @@ abstract class _$ConnectionHandler
   @$mustCallSuper
   @override
   void runBuild() {
-    final created = build(_$args);
     final ref =
         this.ref
             as $Ref<SDBluetoothConnectionState, SDBluetoothConnectionState>;
@@ -263,12 +262,12 @@ abstract class _$ConnectionHandler
               Object?,
               Object?
             >;
-    element.handleValue(ref, created);
+    element.handleCreate(ref, () => build(_$args));
   }
 }
 
 @ProviderFor(bluetoothRepository)
-const bluetoothRepositoryProvider = BluetoothRepositoryProvider._();
+final bluetoothRepositoryProvider = BluetoothRepositoryProvider._();
 
 final class BluetoothRepositoryProvider
     extends
@@ -278,7 +277,7 @@ final class BluetoothRepositoryProvider
           BluetoothRepository
         >
     with $Provider<BluetoothRepository> {
-  const BluetoothRepositoryProvider._()
+  BluetoothRepositoryProvider._()
     : super(
         from: null,
         argument: null,

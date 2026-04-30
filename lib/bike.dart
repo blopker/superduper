@@ -168,31 +168,87 @@ class BikePage extends ConsumerStatefulWidget {
   BikePageState createState() => BikePageState();
 }
 
-class ForegroundNotificationWrapper extends StatelessWidget {
+@pragma('vm:entry-point')
+void _startBackgroundLockCallback() {
+  FlutterForegroundTask.setTaskHandler(_BackgroundLockTaskHandler());
+}
+
+class _BackgroundLockTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {}
+
+  @override
+  void onRepeatEvent(DateTime timestamp) {}
+
+  @override
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {}
+}
+
+void _initBackgroundLockService() {
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'notification_channel_id',
+      channelName: 'Background Lock Notification',
+      priority: NotificationPriority.LOW,
+      channelImportance: NotificationChannelImportance.LOW,
+    ),
+    iosNotificationOptions: const IOSNotificationOptions(),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      eventAction: ForegroundTaskEventAction.nothing(),
+    ),
+  );
+}
+
+Future<void> _syncBackgroundLockService(bool enabled) async {
+  final running = await FlutterForegroundTask.isRunningService;
+  if (enabled && !running) {
+    await FlutterForegroundTask.startService(
+      serviceId: 256,
+      notificationTitle: 'SuperDuper Background Lock On',
+      notificationText: 'Tap to return to the app',
+      callback: _startBackgroundLockCallback,
+    );
+  } else if (!enabled && running) {
+    await FlutterForegroundTask.stopService();
+  }
+}
+
+class ForegroundNotificationWrapper extends StatefulWidget {
   const ForegroundNotificationWrapper(
-      {super.key, required this.child, required this.onWillStart});
+      {super.key, required this.child, required this.enabled});
   final Widget child;
-  final Future<bool> Function() onWillStart;
+  final bool enabled;
+
+  @override
+  State<ForegroundNotificationWrapper> createState() =>
+      _ForegroundNotificationWrapperState();
+}
+
+class _ForegroundNotificationWrapperState
+    extends State<ForegroundNotificationWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    if (!Platform.isMacOS) {
+      _initBackgroundLockService();
+      _syncBackgroundLockService(widget.enabled);
+    }
+  }
+
+  @override
+  void didUpdateWidget(ForegroundNotificationWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!Platform.isMacOS && oldWidget.enabled != widget.enabled) {
+      _syncBackgroundLockService(widget.enabled);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     if (Platform.isMacOS) {
-      return child;
+      return widget.child;
     }
-    return WillStartForegroundTask(
-      onWillStart: onWillStart,
-      androidNotificationOptions: AndroidNotificationOptions(
-        channelId: 'notification_channel_id',
-        channelName: 'Background Lock Notification',
-        priority: NotificationPriority.LOW,
-        channelImportance: NotificationChannelImportance.LOW,
-      ),
-      iosNotificationOptions: const IOSNotificationOptions(),
-      foregroundTaskOptions: const ForegroundTaskOptions(),
-      notificationTitle: 'SuperDuper Background Lock On',
-      notificationText: 'Tap to return to the app',
-      child: child,
-    );
+    return WithForegroundTask(child: widget.child);
   }
 }
 
@@ -226,9 +282,7 @@ class BikePageState extends ConsumerState<BikePage> {
       }
     });
     return ForegroundNotificationWrapper(
-      onWillStart: () async {
-        return bike.modeLock;
-      },
+      enabled: bike.modeLock,
       child: Scaffold(
           backgroundColor: Colors.black,
           body: CustomScrollView(
