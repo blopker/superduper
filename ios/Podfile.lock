@@ -1,0 +1,28 @@
+PODS:
+  - Flutter (1.0.0)
+  - flutter_foreground_task (0.0.1):
+    - Flutter
+  - permission_handler_apple (9.3.0):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - flutter_foreground_task (from `.symlinks/plugins/flutter_foreground_task/ios`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  flutter_foreground_task:
+    :path: ".symlinks/plugins/flutter_foreground_task/ios"
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_foreground_task: a159d2c2173b33699ddb3e6c2a067045d7cebb89
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+
+PODFILE CHECKSUM: 5c8eb167e48255b7544ab290f70b4d6a1076ca06
+
+COCOAPODS: 1.16.2
