@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VER=v$(grep 'version:' pubspec.yaml | cut -d " " -f 2)
+VER=v$(grep 'version:' pubspec.yaml | cut -d " " -f 2 | tr -d '\r')
 git commit -am "$VER"
 git tag "$VER"
 git push --all
