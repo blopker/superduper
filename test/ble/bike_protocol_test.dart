@@ -31,7 +31,7 @@ void main() {
   });
 
   group('protocol identification', () {
-    test('uses only documented advertised names and firmware revisions', () {
+    test('uses only complete documented advertised names', () {
       expect(
         BikeProtocolVersion.fromAdvertisedName('SUPER73'),
         BikeProtocolVersion.v1,
@@ -41,15 +41,13 @@ void main() {
         BikeProtocolVersion.v2,
       );
       expect(BikeProtocolVersion.fromAdvertisedName('SUPER73-X'), isNull);
+      expect(BikeProtocolVersion.fromAdvertisedName(' SUPER73 '), isNull);
+      expect(BikeProtocolVersion.v1.isTestedFirmwareRevision('221122'), isTrue);
       expect(
-        BikeProtocolVersion.fromFirmwareRevision('221122'),
-        BikeProtocolVersion.v1,
+        BikeProtocolVersion.v1.isTestedFirmwareRevision('250426'),
+        isFalse,
       );
-      expect(
-        BikeProtocolVersion.fromFirmwareRevision('250426'),
-        BikeProtocolVersion.v2,
-      );
-      expect(BikeProtocolVersion.fromFirmwareRevision('250427'), isNull);
+      expect(BikeProtocolVersion.v2.isTestedFirmwareRevision('250426'), isTrue);
     });
   });
 

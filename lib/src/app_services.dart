@@ -43,6 +43,7 @@ final class AppServices {
             connection: resolvedTransport.openConnection(bike.bike.deviceId),
             preferredRegion: bike.bike.region,
             preferences: bike.preferences,
+            protocol: bike.bike.protocol,
             onConfigurationConfirmed: (configuration) {
               return resolvedBikeRepository.saveDesiredSettings(
                 bike.bike.deviceId,
@@ -104,10 +105,33 @@ final class AppServices {
   final StartupController startup;
 
   Future<void> dispose() async {
-    startup.dispose();
-    await activeBikeCoordinator.dispose();
-    await transport.dispose();
-    await database.close();
+    Object? firstError;
+    StackTrace? firstStackTrace;
+
+    void capture(Object error, StackTrace stackTrace) {
+      firstError ??= error;
+      firstStackTrace ??= stackTrace;
+    }
+
+    try {
+      startup.dispose();
+    } on Object catch (error, stackTrace) {
+      capture(error, stackTrace);
+    }
+    for (final cleanup in <Future<void> Function()>[
+      activeBikeCoordinator.dispose,
+      transport.dispose,
+      database.close,
+    ]) {
+      try {
+        await cleanup();
+      } on Object catch (error, stackTrace) {
+        capture(error, stackTrace);
+      }
+    }
+    if (firstError case final error?) {
+      Error.throwWithStackTrace(error, firstStackTrace!);
+    }
   }
 }
 

@@ -28,11 +28,15 @@ final class SettingsRepository {
   Stream<AppPreferences> watch() {
     return (database.select(
       database.appSettings,
-    )..where((table) => table.singletonId.equals(1))).watchSingle().map(_map);
-  }
-
-  Stream<String?> watchActiveBikeId() {
-    return watch().map((settings) => settings.activeBikeId).distinct();
+    )..where((table) => table.singletonId.equals(1))).watchSingleOrNull().map(
+      (row) => row == null
+          ? const AppPreferences(
+              activeBikeId: null,
+              lastViewedBikeId: null,
+              migrationNoticePending: false,
+            )
+          : _map(row),
+    );
   }
 
   Future<AppPreferences> get() async {
@@ -44,9 +48,9 @@ final class SettingsRepository {
     return database.transaction(() async {
       await _ensureSettings();
       final settings = await _getSettings();
-      final activeExists = settings.activeBikeId == null
-          ? false
-          : await _bikeExists(settings.activeBikeId!);
+      final activeBikeId = settings.activeBikeId;
+      final activeExists =
+          activeBikeId != null && await _bikeExists(activeBikeId);
       final needsRepair = settings.activeBikeId == null
           ? await _hasBikes()
           : !activeExists;

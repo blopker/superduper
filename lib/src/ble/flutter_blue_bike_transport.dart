@@ -18,7 +18,7 @@ final class FlutterBlueBikeTransport implements BikeTransport {
 
   @override
   Stream<List<DiscoveredBike>> get scanResults {
-    return fbp.FlutterBluePlus.scanResults.map((results) {
+    return fbp.FlutterBluePlus.onScanResults.map((results) {
       final bikes = results
           .map(
             (result) => DiscoveredBike(
@@ -34,8 +34,9 @@ final class FlutterBlueBikeTransport implements BikeTransport {
             ),
           )
           .toList();
-      bikes.sort((left, right) => right.rssi.compareTo(left.rssi));
-      return List.unmodifiable(bikes);
+      return List.unmodifiable(
+        bikes..sort((left, right) => right.rssi.compareTo(left.rssi)),
+      );
     });
   }
 
@@ -51,6 +52,8 @@ final class FlutterBlueBikeTransport implements BikeTransport {
       await fbp.FlutterBluePlus.startScan(
         timeout: timeout,
         withKeywords: const ['SUPER73', 'S73 FTEX'],
+        continuousUpdates: true,
+        continuousDivisor: 2,
       );
     } on Object {
       throw const BikeConnectionFailure(
@@ -150,11 +153,25 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
   Future<void> connect() async {
     _ensureNotDisposed();
     try {
-      if (fbp.FlutterBluePlus.adapterStateNow != fbp.BluetoothAdapterState.on) {
-        await fbp.FlutterBluePlus.adapterState
-            .where((state) => state == fbp.BluetoothAdapterState.on)
-            .first
-            .timeout(_adapterReadyTimeout);
+      final adapterState = fbp.FlutterBluePlus.adapterStateNow;
+      if (adapterState == fbp.BluetoothAdapterState.unauthorized ||
+          adapterState == fbp.BluetoothAdapterState.unavailable) {
+        throw const BikeAdapterUnavailable(
+          'Bluetooth access is unavailable on this device.',
+          canRetry: false,
+        );
+      }
+      if (adapterState != fbp.BluetoothAdapterState.on) {
+        try {
+          await fbp.FlutterBluePlus.adapterState
+              .where((state) => state == fbp.BluetoothAdapterState.on)
+              .first
+              .timeout(_adapterReadyTimeout);
+        } on TimeoutException {
+          throw const BikeAdapterUnavailable(
+            'Bluetooth is off. Turn it on to connect to the bike.',
+          );
+        }
       }
       if (_device.isConnected) {
         return;
@@ -164,6 +181,8 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
         timeout: const Duration(seconds: _operationTimeoutSeconds),
         mtu: null,
       );
+    } on BikeAdapterUnavailable {
+      rethrow;
     } on Object {
       throw const BikeConnectionFailure(
         'Connection',
@@ -326,7 +345,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
       characteristicUuid,
     );
     return characteristic.onValueReceived.map(
-      (value) => List<int>.unmodifiable(value),
+      List<int>.unmodifiable,
     );
   }
 
@@ -362,7 +381,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
 
   @override
   Future<void> disconnect() async {
-    if (_disposed || _device.isDisconnected) {
+    if (_disposed) {
       return;
     }
     try {
@@ -383,12 +402,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
       return;
     }
     try {
-      if (_device.isConnected) {
-        await _device.disconnect(
-          timeout: _operationTimeoutSeconds,
-          queue: false,
-        );
-      }
+      await _device.disconnect(timeout: _operationTimeoutSeconds, queue: false);
     } finally {
       _disposed = true;
       _characteristics.clear();
@@ -442,13 +456,13 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
   }
 }
 
-const _supportedServiceUuids = {
+const Set<String> _supportedServiceUuids = {
   BikeGatt.metricsService,
   BikeGatt.authenticationService,
   BikeGatt.deviceInformationService,
 };
 
-const _knownCharacteristics = {
+const Set<String> _knownCharacteristics = {
   BikeGatt.telemetry,
   BikeGatt.stateRegister,
   BikeGatt.registerSelector,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
@@ -13,7 +15,7 @@ void main() {
   BikeSession createSession({
     RidePreferences preferences = const RidePreferences.defaults(),
     BikeRegion? region,
-    BikeProtocolVersion? protocolHint,
+    BikeProtocolVersion protocol = BikeProtocolVersion.v1,
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     int correctiveAttempts = 2,
     ConfigurationConfirmed? onConfirmed,
@@ -26,7 +28,7 @@ void main() {
       connection: connection,
       preferredRegion: region,
       preferences: preferences,
-      protocolHint: protocolHint,
+      protocol: protocol,
       authenticationKey: authenticationKey,
       onConfigurationConfirmed: onConfirmed,
       onVersionsRead: onVersionsRead,
@@ -154,6 +156,36 @@ void main() {
     },
   );
 
+  test('retries a transport failure during authentication', () async {
+    connection
+      ..firmwareRevision = null
+      ..readErrors[BikeGatt.authenticationChallenge] =
+          const BikeConnectionFailure('Read', 'The link was lost.');
+    session = createSession(
+      reconnectDelays: const [Duration(hours: 1)],
+    );
+
+    await session.connect();
+
+    expect(session.state.value, isA<SessionReconnecting>());
+    expect(session.state.value, isNot(isA<SessionFailed>()));
+  });
+
+  test('advertised-name protocol accepts untested firmware', () async {
+    connection
+      ..firmwareRevision = '260101'
+      ..softwareRevision = '260101'
+      ..readFrames.add([0, 0, 2, 0, 1, 3]);
+    session = createSession();
+
+    await session.connect();
+
+    expect(session.state.value, isA<SessionReady>());
+    expect(session.protocolVersion, BikeProtocolVersion.v1);
+    expect(session.unknownFirmwareRevision, '260101');
+    expect(session.versions.value?.firmwareRevision, '260101');
+  });
+
   test('reads every bike version on each successful connection', () async {
     connection.readFrames.addAll([
       [0, 0, 2, 0, 1, 3],
@@ -206,58 +238,36 @@ void main() {
     expect(session.versions.value, isNotNull);
   });
 
-  test(
-    'rejects a disagreement between advertised and firmware identity',
-    () async {
-      connection.firmwareRevision = '221122';
-      session = createSession(protocolHint: BikeProtocolVersion.v2);
-
-      await session.connect();
-
-      expect(
-        session.state.value,
-        isA<SessionFailed>().having(
-          (state) => state.failure,
-          'failure',
-          isA<BikeProtocolNotSupported>(),
-        ),
-      );
-      expect(
-        connection.writes.where(
-          (write) =>
-              write.characteristicUuid == BikeGatt.authenticationResponse,
-        ),
-        isEmpty,
-      );
-    },
-  );
-
-  test(
-    'uses authenticated history when no identity characteristic exists',
-    () async {
-      connection.firmwareRevision = null;
-      connection.readFrames.addAll([
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [3, 0, 2, 0, 1, 3, 0, 0, 0, 0],
-        [3, 0, 2, 0, 1, 3, 0, 0, 0, 0],
+  test('advertised-name protocol wins over firmware metadata', () async {
+    connection
+      ..firmwareRevision = '221122'
+      ..readFrames.addAll([
+        [0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
       ]);
+    session = createSession(protocol: BikeProtocolVersion.v2);
+
+    await session.connect();
+
+    expect(session.state.value, isA<SessionReady>());
+    expect(session.protocolVersion, BikeProtocolVersion.v2);
+    expect(session.unknownFirmwareRevision, '221122');
+    expect(connection.authenticated, isTrue);
+  });
+
+  test(
+    'advertised-name protocol works without revision characteristics',
+    () async {
+      connection
+        ..firmwareRevision = null
+        ..readFrames.add([3, 0, 2, 0, 1, 3, 0, 0, 0, 0]);
       session = createSession();
 
       await session.connect();
 
       expect(session.protocolVersion, BikeProtocolVersion.v1);
       expect(session.state.value, isA<SessionReady>());
-      final selectorWrites = connection.writes
-          .where(
-            (write) => write.characteristicUuid == BikeGatt.registerSelector,
-          )
-          .map((write) => write.value)
-          .toList();
-      expect(selectorWrites, [
-        BikeGatt.v2ModeSelector,
-        BikeGatt.v1StateSelector,
-        BikeGatt.v1StateSelector,
-      ]);
+      expect(session.versions.value, isNull);
     },
   );
 
@@ -284,8 +294,9 @@ void main() {
     );
     await session.connect();
 
-    connection.connectError = StateError('bike is off');
-    connection.emitState(BikeConnectionState.disconnected);
+    connection
+      ..connectError = StateError('bike is off')
+      ..emitState(BikeConnectionState.disconnected);
     await _waitUntil(() => connection.connectCalls == 2);
     connection.connectError = null;
 
@@ -398,7 +409,6 @@ void main() {
       [0, 0, 0, 0, 0, 0],
     ]);
     session = createSession(
-      correctiveAttempts: 2,
       preferences: const RidePreferences(
         desiredLight: false,
         desiredMode: 3,
@@ -413,14 +423,8 @@ void main() {
 
     await session.connect();
 
-    expect(
-      session.state.value,
-      isA<SessionFailed>().having(
-        (state) => state.failure,
-        'failure',
-        isA<BikeSettingsNotApplied>(),
-      ),
-    );
+    expect(session.state.value, isA<SessionDegraded>());
+    expect(session.canChangeConfiguration, isTrue);
     expect(
       connection.writes.where(
         (write) => write.characteristicUuid == BikeGatt.stateRegister,
@@ -433,7 +437,6 @@ void main() {
     connection.operationDelay = const Duration(milliseconds: 2);
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 1, 0],
       [0, 0, 4, 0, 1, 0],
     ]);
     final persisted = <BikeConfiguration>[];
@@ -449,10 +452,85 @@ void main() {
     await Future.wait([light, assist]);
 
     expect(connection.maxConcurrentOperations, 1);
-    expect(persisted, hasLength(2));
+    expect(persisted, hasLength(1));
+    expect(persisted.single.light, isTrue);
     expect(persisted.last.assist, 4);
     expect(session.observed.value?.assist, 4);
   });
+
+  test('coalesces rapid configuration changes to the latest value', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1, 0],
+      [0, 0, 0, 0, 0, 0],
+    ]);
+    session = createSession();
+    await session.connect();
+    connection.operationDelay = const Duration(milliseconds: 5);
+
+    final first = session.setLight(true);
+    await _waitUntil(
+      () => connection.writes.any(
+        (write) => write.characteristicUuid == BikeGatt.stateRegister,
+      ),
+    );
+    final changes = [
+      session.setLight(false),
+      session.setLight(true),
+      session.setLight(false),
+    ];
+    await Future.wait([first, ...changes]);
+
+    final writes = connection.writes
+        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .toList();
+    expect(writes, hasLength(2));
+    expect(writes.first.value[2], 1);
+    expect(writes.last.value[2], 0);
+    expect(session.observed.value?.light, isFalse);
+    expect(session.pending.value, isNull);
+  });
+
+  test(
+    'a confirmed locked change updates in-memory enforcement immediately',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0],
+      ]);
+      session = createSession(
+        preferences: const RidePreferences(
+          desiredLight: false,
+          desiredMode: 0,
+          desiredAssist: 0,
+          keepLight: true,
+          keepMode: false,
+          keepAssist: false,
+          backgroundRequested: false,
+          backgroundConsentVersion: 0,
+        ),
+      );
+      await session.connect();
+
+      await session.setLight(true);
+      final writesBeforeNotification = connection.writes
+          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+          .length;
+      connection.emitNotification([3, 0, 0, 0, 1, 0, 0, 0, 0, 0]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        connection.writes.where(
+          (write) => write.characteristicUuid == BikeGatt.stateRegister,
+        ),
+        hasLength(writesBeforeNotification),
+      );
+      expect(session.observed.value?.light, isTrue);
+    },
+  );
 
   test('waits for the state register to reflect a command', () async {
     connection.readFrames.addAll([
@@ -477,7 +555,7 @@ void main() {
     );
   });
 
-  test('an unconfirmed command leaves a healthy session usable', () async {
+  test('an unconfirmed command leaves the connected session usable', () async {
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0],
@@ -490,7 +568,8 @@ void main() {
       throwsA(isA<BikeSettingsNotApplied>()),
     );
 
-    expect(session.state.value, isA<SessionReady>());
+    expect(session.state.value, isA<SessionDegraded>());
+    expect(session.canChangeConfiguration, isTrue);
     expect(session.observed.value?.light, isFalse);
   });
 
@@ -550,7 +629,7 @@ void main() {
       [0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0],
       [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
     ]);
-    session = createSession(protocolHint: BikeProtocolVersion.v2);
+    session = createSession(protocol: BikeProtocolVersion.v2);
     await session.connect();
 
     final confirmed = await session.setMode(3);
@@ -569,14 +648,15 @@ void main() {
       [0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0],
       [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
     ]);
-    session = createSession(protocolHint: BikeProtocolVersion.v2);
+    session = createSession(protocol: BikeProtocolVersion.v2);
     await session.connect();
     final initialStateReads = connection.reads
         .where((read) => read.characteristicUuid == BikeGatt.stateRegister)
         .length;
 
-    connection.emitNotification([0, 0xd0, 4, 0, 1, 0, 0, 0, 0, 0]);
-    connection.emitNotification([0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0]);
+    connection
+      ..emitNotification([0, 0xd0, 4, 0, 1, 0, 0, 0, 0, 0])
+      ..emitNotification([0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0]);
     await _waitUntil(
       () =>
           session.observed.value?.light == true &&
@@ -592,6 +672,21 @@ void main() {
     );
   });
 
+  test(
+    'drops one malformed telemetry packet without failing the session',
+    () async {
+      connection.readFrames.add([0, 0, 2, 0, 1, 3]);
+      session = createSession();
+      await session.connect();
+
+      connection.emitNotification([3]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.state.value, isA<SessionReady>());
+      expect(session.observed.value?.mode, 3);
+    },
+  );
+
   test('requires an authoritative read after a command notification', () async {
     connection.firmwareRevision = '250426';
     connection.readFrames.addAll([
@@ -601,7 +696,7 @@ void main() {
       [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
     ]);
     session = createSession(
-      protocolHint: BikeProtocolVersion.v2,
+      protocol: BikeProtocolVersion.v2,
       confirmationRetryDelays: const [Duration.zero],
     );
     await session.connect();
@@ -641,7 +736,7 @@ void main() {
       [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
     ]);
     session = createSession(
-      protocolHint: BikeProtocolVersion.v2,
+      protocol: BikeProtocolVersion.v2,
       preferences: const RidePreferences(
         desiredLight: true,
         desiredMode: 0,
@@ -768,6 +863,85 @@ void main() {
     );
     expect(session.state.value, isA<SessionReady>());
   });
+
+  test(
+    'configuration changes publish an optimistic value immediately',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+      ]);
+      session = createSession();
+      await session.connect();
+      connection.operationDelay = const Duration(milliseconds: 10);
+
+      final change = session.setLight(true);
+
+      expect(session.pending.value?.light, isTrue);
+      expect(session.canChangeConfiguration, isTrue);
+      await change;
+      expect(session.pending.value, isNull);
+      expect(session.observed.value?.light, isTrue);
+    },
+  );
+
+  test(
+    'locked-setting retries stop in a controllable degraded state',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 2],
+      ]);
+      session = createSession(
+        preferences: const RidePreferences(
+          desiredLight: false,
+          desiredMode: 3,
+          desiredAssist: 0,
+          keepLight: false,
+          keepMode: true,
+          keepAssist: false,
+          backgroundRequested: false,
+          backgroundConsentVersion: 0,
+        ),
+        correctiveAttempts: 1,
+        synchronizationRetryDelays: const [Duration(milliseconds: 1)],
+      );
+
+      await session.connect();
+      await _waitUntil(() => session.state.value is SessionDegraded);
+
+      expect(session.canChangeConfiguration, isTrue);
+      await session.setMode(2);
+      expect(session.observed.value?.mode, 2);
+      expect(session.state.value, isA<SessionReady>());
+    },
+  );
+
+  test(
+    'backgrounding aborts a pending connect and resume starts a new one',
+    () async {
+      final gate = Completer<void>();
+      connection.connectGate = gate;
+      session = createSession();
+
+      final firstConnect = session.connect();
+      await _waitUntil(() => connection.connectCalls == 1);
+      final pause = session.pauseForBackground();
+      await _waitUntil(() => connection.disconnectCalls == 1);
+
+      connection.connectGate = null;
+      gate.complete();
+      await Future.wait([firstConnect, pause]);
+      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+      await session.resumeFromBackground();
+
+      expect(connection.connectCalls, 2);
+      expect(session.state.value, isA<SessionReady>());
+    },
+  );
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

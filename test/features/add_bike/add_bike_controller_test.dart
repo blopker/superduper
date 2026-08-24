@@ -4,7 +4,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
@@ -40,6 +39,7 @@ void main() {
         connection: transport.openConnection(bike.bike.deviceId),
         preferredRegion: bike.bike.region,
         preferences: bike.preferences,
+        protocol: bike.bike.protocol,
         pollInterval: null,
         reconnectDelays: const [],
       ),
@@ -148,6 +148,8 @@ void main() {
 
     expect(controller.state.value, isA<AddBikeCompleted>());
     expect(saved.bike.displayName, 'My Bike');
+    expect(saved.bike.advertisedName, 'SUPER73');
+    expect(saved.bike.protocol, BikeProtocolVersion.v1);
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
     expect(saved.preferences.desiredLight, isTrue);
@@ -169,15 +171,35 @@ void main() {
     expect((await settings.get()).activeBikeId, 'new-bike');
   });
 
+  test(
+    'untested firmware warns but does not block advertised protocol',
+    () async {
+      const candidate = DiscoveredBike(
+        deviceId: 'future-bike',
+        name: 'SUPER73',
+        rssi: -42,
+      );
+      (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
+        ..firmwareRevision = '260101'
+        ..softwareRevision = '260101'
+        ..readFrames.add([0, 0, 2, 0, 1, 3]);
+
+      await controller.start();
+      await controller.selectCandidate(candidate);
+
+      final confirmation = controller.state.value as AddBikeConfirming;
+      expect(confirmation.protocol, BikeProtocolVersion.v1);
+      expect(confirmation.untestedFirmwareRevision, '260101');
+    },
+  );
+
   test('V2 bikes are persisted without a region', () async {
     const candidate = DiscoveredBike(
       deviceId: 'v2-bike',
       name: 'S73 FTEX',
       rssi: -42,
     );
-    final connection =
-        transport.openConnection(candidate.deviceId) as FakeBikeConnection;
-    connection
+    (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
       ..firmwareRevision = '250426'
       ..softwareRevision = '250426'
       ..readFrames.addAll(const [
@@ -198,6 +220,8 @@ void main() {
     );
 
     expect(saved.bike.region, isNull);
+    expect(saved.bike.advertisedName, 'S73 FTEX');
+    expect(saved.bike.protocol, BikeProtocolVersion.v2);
   });
 
   test('already saved bikes are filtered from scan results', () async {
@@ -242,9 +266,9 @@ void main() {
       name: 'SUPER73',
       rssi: -40,
     );
-    final connection =
-        transport.openConnection(candidate.deviceId) as FakeBikeConnection;
-    connection.discoveryError = const BikeGattNotSupported(
+    (transport.openConnection(
+      candidate.deviceId,
+    ) as FakeBikeConnection).discoveryError = const BikeGattNotSupported(
       'Required service missing.',
     );
     await controller.start();

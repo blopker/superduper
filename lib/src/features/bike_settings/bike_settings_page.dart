@@ -8,6 +8,7 @@ import 'package:superduper/src/features/bike_settings/bike_version_report.dart';
 import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/report_actions.dart';
 
@@ -28,7 +29,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   String? _loadedDeviceId;
   BikeRegion? _region;
   BikeColor _color = BikeColor.royalHorizon;
+  BikeProtocolVersion _protocol = BikeProtocolVersion.v1;
   String? _nameError;
+  String? _regionError;
   var _saving = false;
 
   @override
@@ -49,240 +52,309 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       (saved) => saved.bike.deviceId == widget.deviceId,
     );
     if (matches.isEmpty) {
-      return const Scaffold(body: Center(child: Text('Bike not found')));
+      return Scaffold(
+        appBar: AppBar(title: const Text('BIKE SETTINGS')),
+        body: const AppPageBody(child: Center(child: Text('Bike not found'))),
+      );
     }
     final saved = matches.single;
     if (_loadedDeviceId != saved.bike.deviceId) {
       _loadedDeviceId = saved.bike.deviceId;
       _name.text = saved.bike.displayName;
+      _protocol = saved.bike.protocol;
       _region = saved.bike.region;
       _color = saved.bike.color;
     }
     final coordinator = _services.activeBikeCoordinator;
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
     final hasSession = coordinator.session.value?.deviceId == widget.deviceId;
+    final palette = BikeColorPalette.from(_color);
 
-    return Scaffold(
-      backgroundColor: _color.pageBaseColor,
-      appBar: AppBar(title: const Text('BIKE SETTINGS')),
-      body: AppPageBody(
-        bikeColor: _color,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-          children: [
-            Row(
-              children: [
-                BikeAvatar(color: _color, size: 68),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isActive)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 6),
-                          child: StatusPill(
-                            label: 'Active bike',
-                            color: AppColors.magentaSoft,
-                          ),
-                        ),
-                      Text(
-                        saved.bike.displayName,
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            const SectionHeader(eyebrow: 'Identity', title: 'Bike details'),
-            const SizedBox(height: 16),
-            SurfacePanel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    return BikeColorTheme(
+      color: _color,
+      child: Scaffold(
+        backgroundColor: _color.pageBaseColor,
+        appBar: AppBar(title: const Text('BIKE SETTINGS')),
+        body: AppPageBody(
+          bikeColor: _color,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              Row(
                 children: [
-                  TextField(
-                    controller: _name,
-                    enabled: !_saving,
-                    decoration: InputDecoration(
-                      labelText: 'Bike name',
-                      errorText: _nameError,
+                  BikeAvatar(color: _color, size: 68),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isActive)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: StatusPill(
+                              label: 'Active bike',
+                              color: palette.accent,
+                            ),
+                          ),
+                        Text(
+                          saved.bike.displayName,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                      ],
                     ),
                   ),
-                  if (_region != null) ...[
+                ],
+              ),
+              const SizedBox(height: 30),
+              const SectionHeader(eyebrow: 'Identity', title: 'Bike details'),
+              const SizedBox(height: 16),
+              SurfacePanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _name,
+                      enabled: !_saving,
+                      decoration: InputDecoration(
+                        labelText: 'Bike name',
+                        errorText: _nameError,
+                      ),
+                    ),
+                    if (_protocol == BikeProtocolVersion.v1) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<BikeRegion>(
+                        initialValue: _region,
+                        decoration: InputDecoration(
+                          labelText: 'Region',
+                          errorText: _regionError,
+                        ),
+                        items: [
+                          for (final region in BikeRegion.values)
+                            DropdownMenuItem(
+                              value: region,
+                              child: Text(region.label),
+                            ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (region) {
+                                if (region != null) {
+                                  setState(() {
+                                    _region = region;
+                                    _regionError = null;
+                                  });
+                                }
+                              },
+                      ),
+                    ],
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<BikeRegion>(
-                      initialValue: _region,
-                      decoration: const InputDecoration(labelText: 'Region'),
+                    DropdownButtonFormField<BikeColor>(
+                      initialValue: _color,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Bike color',
+                      ),
                       items: [
-                        for (final region in BikeRegion.values)
+                        for (final color in BikeColor.displayOrder)
                           DropdownMenuItem(
-                            value: region,
-                            child: Text(region.label),
+                            value: color,
+                            child: BikeColorLabel(color: color),
                           ),
                       ],
                       onChanged: _saving
                           ? null
-                          : (region) {
-                              if (region != null) {
-                                setState(() => _region = region);
+                          : (color) {
+                              if (color != null) {
+                                setState(() => _color = color);
                               }
                             },
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<BikeColor>(
-                    initialValue: _color,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Bike color'),
-                    items: [
-                      for (final color in BikeColor.values)
-                        DropdownMenuItem(
-                          value: color,
-                          child: BikeColorLabel(color: color),
-                        ),
-                    ],
-                    onChanged: _saving
-                        ? null
-                        : (color) {
-                            if (color != null) {
-                              setState(() => _color = color);
-                            }
-                          },
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _saving ? null : () => _save(saved),
-              icon: _saving
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check_rounded),
-              label: Text(_saving ? 'Saving…' : 'Save changes'),
-            ),
-            const SizedBox(height: 34),
-            const SectionHeader(
-              eyebrow: 'On app launch',
-              title: 'Automatic connection',
-            ),
-            const SizedBox(height: 16),
-            SurfacePanel(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    secondary: Icon(
-                      isActive
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      color: isActive ? AppColors.yellow : AppColors.textMuted,
-                    ),
-                    title: const Text('Active bike'),
-                    subtitle: Text(
-                      isActive
-                          ? 'Connects and applies kept settings when Superduper opens.'
-                          : 'Make this the bike Superduper prepares first.',
-                    ),
-                    value: isActive,
-                    onChanged: isActive || _saving
-                        ? null
-                        : (_) => unawaited(
-                            coordinator.makeBikeActive(widget.deviceId),
+              const SizedBox(height: 34),
+              const SectionHeader(
+                eyebrow: 'Advanced',
+                title: 'BLE protocol',
+              ),
+              const SizedBox(height: 16),
+              SurfacePanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<BikeProtocolVersion>(
+                      initialValue: _protocol,
+                      decoration: const InputDecoration(labelText: 'Protocol'),
+                      items: [
+                        for (final protocol in BikeProtocolVersion.values)
+                          DropdownMenuItem(
+                            value: protocol,
+                            child: Text(_protocolLabel(protocol)),
                           ),
-                  ),
-                  if (hasSession) ...[
-                    const Divider(height: 1),
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 5,
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (protocol) {
+                              if (protocol != null) {
+                                setState(() {
+                                  _protocol = protocol;
+                                  _regionError = null;
+                                });
+                              }
+                            },
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'The advertised name “${saved.bike.advertisedName}” selects ${_protocolLabel(BikeProtocolVersion.fromAdvertisedName(saved.bike.advertisedName) ?? BikeProtocolVersion.v1)} by default. Only change this if that choice is wrong; the wrong protocol can prevent controls and kept settings from working.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
                       ),
-                      leading: const Icon(Icons.bluetooth_disabled_rounded),
-                      title: const Text('Disconnect now'),
-                      subtitle: const Text(
-                        'Pause this connection until you reconnect or reopen the app.',
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 16,
-                      ),
-                      onTap: coordinator.disconnectManually,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 34),
-            const SectionHeader(eyebrow: 'Technical', title: 'Bike versions'),
-            const SizedBox(height: 16),
-            _BikeVersionsPanel(bike: saved.bike, versions: saved.versions),
-            const SizedBox(height: 34),
-            const SectionHeader(
-              eyebrow: 'Technical',
-              title: 'Connection details',
-            ),
-            const SizedBox(height: 16),
-            SurfacePanel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'BLE device identifier',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 7),
-                  SelectionArea(
-                    child: Text(
-                      saved.bike.deviceId,
-                      style: const TextStyle(fontFamily: 'monospace'),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _saving ? null : () => _save(saved),
+                icon: _saving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_saving ? 'Saving…' : 'Save changes'),
+              ),
+              const SizedBox(height: 34),
+              const SectionHeader(
+                eyebrow: 'On app launch',
+                title: 'Automatic connection',
+              ),
+              const SizedBox(height: 16),
+              SurfacePanel(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      secondary: Icon(
+                        isActive
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        color: isActive
+                            ? AppColors.yellow
+                            : AppColors.textMuted,
+                      ),
+                      title: const Text('Active bike'),
+                      subtitle: Text(
+                        isActive
+                            ? 'Connects and applies kept settings when Superduper opens.'
+                            : 'Make this the bike Superduper prepares first.',
+                      ),
+                      value: isActive,
+                      onChanged: isActive || _saving
+                          ? null
+                          : (_) => unawaited(
+                              _runCoordinatorAction(
+                                () => coordinator.makeBikeActive(
+                                  widget.deviceId,
+                                ),
+                              ),
+                            ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    saved.bike.lastConnectedAt == null
-                        ? 'No confirmed connection recorded yet.'
-                        : 'Last connected ${saved.bike.lastConnectedAt!.toLocal()}',
-                  ),
-                  const SizedBox(height: 18),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+                    if (hasSession) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 5,
+                        ),
+                        leading: const Icon(Icons.bluetooth_disabled_rounded),
+                        title: const Text('Disconnect now'),
+                        subtitle: const Text(
+                          'Pause this connection until you reconnect or reopen the app.',
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                        ),
+                        onTap: () => unawaited(
+                          _runCoordinatorAction(
+                            coordinator.disconnectManually,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 34),
+              const SectionHeader(eyebrow: 'Technical', title: 'Bike versions'),
+              const SizedBox(height: 16),
+              _BikeVersionsPanel(bike: saved.bike, versions: saved.versions),
+              const SizedBox(height: 34),
+              const SectionHeader(
+                eyebrow: 'Technical',
+                title: 'Connection details',
+              ),
+              const SizedBox(height: 16),
+              SurfacePanel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BLE device identifier',
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    icon: const Icon(Icons.help_outline_rounded),
-                    label: const Text('Connection help'),
-                  ),
-                ],
+                    const SizedBox(height: 7),
+                    SelectionArea(
+                      child: Text(
+                        saved.bike.deviceId,
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      saved.bike.lastConnectedAt == null
+                          ? 'No confirmed connection recorded yet.'
+                          : 'Last connected ${_BikeVersionsPanel._formatTimestamp(saved.bike.lastConnectedAt!)}',
+                    ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const HelpPage(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.help_outline_rounded),
+                      label: const Text('Connection help'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 34),
-            const SectionHeader(
-              eyebrow: 'Danger zone',
-              title: 'Forget this bike',
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'This removes the bike and every kept setting from this device.',
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
+              const SizedBox(height: 34),
+              const SectionHeader(
+                eyebrow: 'Danger zone',
+                title: 'Forget this bike',
               ),
-              onPressed: _saving ? null : () => _forget(saved),
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Forget bike'),
-            ),
-          ],
+              const SizedBox(height: 10),
+              const Text(
+                'This removes the bike and every kept setting from this device.',
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
+                ),
+                onPressed: _saving ? null : () => _forget(saved),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Forget bike'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -294,7 +366,41 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       setState(() => _nameError = 'Enter a bike name.');
       return;
     }
-    if (saved.bike.region != null && saved.bike.region != _region) {
+    if (_protocol == BikeProtocolVersion.v1 && _region == null) {
+      setState(() => _regionError = 'Choose the bike region.');
+      return;
+    }
+    final savedProtocol = saved.bike.protocol;
+    if (savedProtocol != _protocol) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('CHANGE BIKE PROTOCOL?'),
+          content: Text(
+            'Superduper will reconnect using ${_protocolLabel(_protocol)}. If this does not match the bike, controls and kept settings may stop working.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Change protocol'),
+            ),
+          ],
+        ),
+      );
+      if (!(confirmed ?? false)) {
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+    }
+    if (_protocol == BikeProtocolVersion.v1 &&
+        saved.bike.region != null &&
+        saved.bike.region != _region) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -317,6 +423,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       if (!(confirmed ?? false)) {
         return;
       }
+      if (!mounted) {
+        return;
+      }
     }
     setState(() {
       _nameError = null;
@@ -328,6 +437,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         displayName: name,
         region: _region,
         color: _color,
+        protocol: _protocol,
       );
       if (mounted) {
         Navigator.pop(context);
@@ -335,8 +445,29 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     } on Object catch (error) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.saveBike),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  static String _protocolLabel(BikeProtocolVersion protocol) {
+    return '${protocol.name.toUpperCase()} — ${protocol.advertisedName}';
+  }
+
+  Future<void> _runCoordinatorAction(Future<void> Function() action) async {
+    try {
+      await action();
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update the bike. $error')),
+        );
       }
     }
   }
@@ -364,9 +495,29 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     if (!(confirmed ?? false)) {
       return;
     }
-    await _services.activeBikeCoordinator.forgetBike(widget.deviceId);
-    if (mounted) {
-      Navigator.pop(context, BikeSettingsOutcome.forgotten);
+    try {
+      try {
+        await _services.activeBikeCoordinator.forgetBike(widget.deviceId);
+        if (mounted) {
+          Navigator.pop(context, BikeSettingsOutcome.forgotten);
+        }
+      } on Object catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                userFacingError(error, context: UserErrorContext.bikeAction),
+              ),
+            ),
+          );
+        }
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not forget the bike. $error')),
+        );
+      }
     }
   }
 }
@@ -485,11 +636,13 @@ final class _VersionRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label)),
           const SizedBox(width: 20),
-          SelectionArea(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: const TextStyle(fontFamily: 'monospace'),
+          Flexible(
+            child: SelectionArea(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
             ),
           ),
         ],

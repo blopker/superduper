@@ -8,18 +8,34 @@ final class FakeBluetoothPermissionGateway
     implements BluetoothPermissionGateway {
   BluetoothPermissionState state = BluetoothPermissionState.granted;
   Object? ensureError;
-  var requests = 0;
-  var settingsOpens = 0;
+  Duration ensureDelay = Duration.zero;
+  int requests = 0;
+  int checks = 0;
+  int concurrentChecks = 0;
+  int maxConcurrentChecks = 0;
+  int settingsOpens = 0;
 
   @override
   Future<BluetoothPermissionState> ensureAccess({required bool request}) async {
-    if (ensureError case final error?) {
-      throw error;
+    checks++;
+    concurrentChecks++;
+    if (concurrentChecks > maxConcurrentChecks) {
+      maxConcurrentChecks = concurrentChecks;
     }
     if (request) {
       requests++;
     }
-    return state;
+    try {
+      if (ensureDelay > Duration.zero) {
+        await Future<void>.delayed(ensureDelay);
+      }
+      if (ensureError case final error?) {
+        _throw(error);
+      }
+      return state;
+    } finally {
+      concurrentChecks--;
+    }
   }
 
   @override
@@ -39,9 +55,10 @@ final class FakeBikeTransport implements BikeTransport {
   final Map<String, List<List<int>>> readFramesOnOpen = {};
 
   BikeAdapterState currentAdapterState = BikeAdapterState.on;
-  var scanStarts = 0;
-  var scanStops = 0;
-  var isDisposed = false;
+  List<DiscoveredBike> replayedScanResults = const [];
+  int scanStarts = 0;
+  int scanStops = 0;
+  bool isDisposed = false;
 
   @override
   Stream<BikeAdapterState> get adapterStates async* {
@@ -50,7 +67,12 @@ final class FakeBikeTransport implements BikeTransport {
   }
 
   @override
-  Stream<List<DiscoveredBike>> get scanResults => _results.stream;
+  Stream<List<DiscoveredBike>> get scanResults async* {
+    if (replayedScanResults.isNotEmpty) {
+      yield replayedScanResults;
+    }
+    yield* _results.stream;
+  }
 
   @override
   Stream<bool> get scanning async* {
@@ -176,19 +198,21 @@ final class FakeBikeConnection implements BikeConnection {
   Object? connectError;
   Object? discoveryError;
   Object? readError;
+  final Map<String, Object> readErrors = {};
   Object? writeError;
-  var emitInitialDisconnectedState = false;
+  bool emitInitialDisconnectedState = false;
   Duration operationDelay = Duration.zero;
-  var connectCalls = 0;
-  var discoveryCalls = 0;
-  var disconnectCalls = 0;
-  var disposeCalls = 0;
-  var isDisposed = false;
-  var concurrentOperations = 0;
-  var maxConcurrentOperations = 0;
-  var notificationChanges = 0;
-  var notificationsEnabled = false;
-  var authenticated = false;
+  Completer<void>? connectGate;
+  int connectCalls = 0;
+  int discoveryCalls = 0;
+  int disconnectCalls = 0;
+  int disposeCalls = 0;
+  bool isDisposed = false;
+  int concurrentOperations = 0;
+  int maxConcurrentOperations = 0;
+  int notificationChanges = 0;
+  bool notificationsEnabled = false;
+  bool authenticated = false;
   List<int>? selectedHistoryId;
 
   @override
@@ -199,6 +223,10 @@ final class FakeBikeConnection implements BikeConnection {
   @override
   Future<void> connect() async {
     connectCalls++;
+    final gate = connectGate;
+    if (gate != null) {
+      await gate.future;
+    }
     await _operate(() async {
       authenticated = false;
       notificationsEnabled = false;
@@ -206,7 +234,7 @@ final class FakeBikeConnection implements BikeConnection {
         _states.add(BikeConnectionState.disconnected);
       }
       if (connectError case final error?) {
-        throw error;
+        _throw(error);
       }
       _states.add(BikeConnectionState.connected);
     });
@@ -217,7 +245,7 @@ final class FakeBikeConnection implements BikeConnection {
     discoveryCalls++;
     await _operate(() async {
       if (discoveryError case final error?) {
-        throw error;
+        _throw(error);
       }
     });
   }
@@ -251,7 +279,10 @@ final class FakeBikeConnection implements BikeConnection {
         ),
       );
       if (readError case final error?) {
-        throw error;
+        _throw(error);
+      }
+      if (readErrors[characteristicUuid] case final error?) {
+        _throw(error);
       }
       if (!hasCharacteristic(
         serviceUuid: serviceUuid,
@@ -269,7 +300,7 @@ final class FakeBikeConnection implements BikeConnection {
         case BikeGatt.authenticationChallenge:
           return List<int>.unmodifiable(authenticationChallenge);
         case BikeGatt.authenticationState:
-          return [authenticated ? 1 : 0];
+          return [if (authenticated) 1 else 0];
       }
       if (!authenticated) {
         throw StateError('The fake bike is not authenticated.');
@@ -311,7 +342,7 @@ final class FakeBikeConnection implements BikeConnection {
   }) {
     return _operate(() async {
       if (writeError case final error?) {
-        throw error;
+        _throw(error);
       }
       writes.add(
         CharacteristicWrite(
@@ -412,4 +443,14 @@ final class FakeBikeConnection implements BikeConnection {
     }
     return true;
   }
+}
+
+Never _throw(Object error) {
+  if (error is Error) {
+    throw error;
+  }
+  if (error is Exception) {
+    throw error;
+  }
+  throw StateError('Fake failure: $error');
 }

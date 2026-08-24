@@ -8,6 +8,7 @@ void main() {
     final bike = Bike(
       deviceId: 'E15225C1-76CE-3CA1-BB6A-BD3CC506ADB2',
       displayName: 'Commuter',
+      protocol: BikeProtocolVersion.v1,
       region: BikeRegion.us,
       color: BikeColor.deepSpace,
       sortOrder: 0,
@@ -48,6 +49,8 @@ void main() {
     expect(report, contains('Build: 42'));
     expect(report, contains('OS: macOS 15.6 Build 24G84'));
     expect(report, contains('Name: Commuter'));
+    expect(report, contains('Advertised name: SUPER73'));
+    expect(report, contains('Protocol: V1 (advertised name)'));
     expect(report, contains('BLE identifier: ${bike.deviceId}'));
     expect(report, contains('Module serial: 00112233aabbccdd'));
     expect(report, contains('Region: US'));
@@ -67,6 +70,8 @@ void main() {
     final bike = Bike(
       deviceId: 'v2-bike',
       displayName: 'V2 Bike',
+      advertisedName: 'S73 FTEX',
+      protocol: BikeProtocolVersion.v2,
       region: null,
       color: BikeColor.deepSpace,
       sortOrder: 0,
@@ -101,5 +106,48 @@ void main() {
     );
 
     expect(report, isNot(contains('Region:')));
+    expect(report, contains('Advertised name: S73 FTEX'));
+    expect(report, contains('Protocol: V2 (advertised name)'));
+  });
+
+  test('version report identifies a manually overridden protocol', () {
+    final bike = Bike(
+      deviceId: 'override-bike',
+      displayName: 'Override Bike',
+      protocol: BikeProtocolVersion.v2,
+      region: null,
+      color: BikeColor.deepSpace,
+      sortOrder: 0,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+      lastConnectedAt: null,
+    );
+    final versions = CachedBikeVersions(
+      info: const BikeVersionInfo(
+        hardwareRevision: 'hardware',
+        firmwareRevision: 'firmware',
+        softwareRevision: 'software',
+        stmFirmwareVersion: 1,
+        controllerVariant: 2,
+        bootloaderHandoff: 3,
+        motorControllerVersion: 4,
+        bmsVersion: 5,
+      ),
+      readAt: DateTime.utc(2026),
+    );
+
+    final report = createBikeVersionReport(
+      bike: bike,
+      versions: versions,
+      metadata: const ReportMetadata(
+        appVersion: '2.0.0',
+        buildNumber: '42',
+        platform: 'macos',
+        operatingSystemVersion: 'macOS',
+      ),
+    );
+
+    expect(report, contains('Advertised name: SUPER73'));
+    expect(report, contains('Protocol: V2 (manual override)'));
   });
 }

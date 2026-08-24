@@ -9,6 +9,7 @@ import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/features/bike_settings/bike_settings_page.dart';
 import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 final class BikeControlPage extends SignalStatefulWidget {
@@ -51,8 +52,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
       (bike) => bike.bike.deviceId == widget.deviceId,
     );
     if (saved.isEmpty) {
-      return const Scaffold(
-        body: AppPageBody(child: Center(child: CircularProgressIndicator())),
+      return Scaffold(
+        appBar: AppBar(title: const Text('RIDE CONTROLS')),
+        body: const AppPageBody(child: Center(child: Text('Bike not found'))),
       );
     }
     if (!_selectionStarted) {
@@ -63,184 +65,220 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final activeState = coordinator.state.value;
     final session = coordinator.session.value;
     final isCurrentSession = session?.deviceId == widget.deviceId;
-    final sessionState =
+    final matchingSessionState =
         activeState is ActiveBikeSessionStatus &&
             activeState.bike.bike.deviceId == widget.deviceId
         ? activeState.sessionState
-        : const SessionConnecting();
-    final configuration = isCurrentSession ? session?.observed.value : null;
-    final ready = sessionState is SessionReady && configuration != null;
+        : null;
+    final sessionState =
+        matchingSessionState ??
+        switch (activeState) {
+          ActiveBikePermissionRequired() => const SessionFailed(
+            failure: BikeBluetoothUnavailable(
+              'Bluetooth permission is required before this bike can connect.',
+              canRetry: true,
+            ),
+            canRetry: true,
+          ),
+          ActiveBikeCoordinatorFailure(:final message) => SessionFailed(
+            failure: BikeSessionTransportFailure(message),
+            canRetry: true,
+          ),
+          _ => const SessionConnecting(),
+        };
+    final configuration = isCurrentSession
+        ? session?.pending.value ?? session?.observed.value
+        : null;
+    final canControl =
+        isCurrentSession &&
+        session!.canChangeConfiguration &&
+        configuration != null;
+    final canChangeLocks = configuration != null;
     final canConnect =
-        sessionState is SessionDisconnected || sessionState is SessionFailed;
+        matchingSessionState is SessionDisconnected ||
+        matchingSessionState is SessionFailed ||
+        matchingSessionState == null &&
+            (activeState is ActiveBikePermissionRequired ||
+                activeState is ActiveBikeCoordinatorFailure);
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
     final region = bike.bike.region;
+    final palette = BikeColorPalette.from(bike.bike.color);
 
-    return Scaffold(
-      backgroundColor: bike.bike.color.pageBaseColor,
-      appBar: AppBar(
-        title: const Text('RIDE CONTROLS'),
-        actions: [
-          IconButton(
-            tooltip: 'Help & tips',
-            onPressed: () => Navigator.of(context).push<void>(
-              MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+    return BikeColorTheme(
+      color: bike.bike.color,
+      child: Scaffold(
+        backgroundColor: bike.bike.color.pageBaseColor,
+        appBar: AppBar(
+          title: const Text('RIDE CONTROLS'),
+          actions: [
+            IconButton(
+              tooltip: 'Help & tips',
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+              ),
+              icon: const Icon(Icons.help_outline_rounded),
             ),
-            icon: const Icon(Icons.help_outline_rounded),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: canConnect ? 'Connect' : 'Disconnect',
-            onPressed: () => unawaited(
-              canConnect
-                  ? coordinator.retry()
-                  : coordinator.disconnectManually(),
-            ),
-            icon: Icon(
-              canConnect
-                  ? Icons.bluetooth_rounded
-                  : Icons.bluetooth_disabled_rounded,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: AppPageBody(
-        maxWidth: 860,
-        bikeColor: bike.bike.color,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                BikeAvatar(color: bike.bike.color, size: 70),
-                const SizedBox(width: 17),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isActive)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 6),
-                          child: StatusPill(
-                            label: 'Active bike',
-                            color: AppColors.magentaSoft,
-                          ),
-                        ),
-                      Text(
-                        bike.bike.displayName,
-                        style: Theme.of(context).textTheme.headlineMedium,
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: canConnect ? 'Connect' : 'Disconnect',
+              onPressed: isCurrentSession || canConnect
+                  ? () => unawaited(
+                      _runConnectionAction(
+                        canConnect
+                            ? coordinator.retry
+                            : coordinator.disconnectManually,
                       ),
-                      if (region != null) ...[
-                        const SizedBox(height: 3),
-                        Text('${region.label} region'),
-                      ],
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Bike settings',
-                  onPressed: _openSettings,
-                  icon: const Icon(Icons.tune_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            _ConnectionSummary(state: sessionState),
-            const SizedBox(height: 14),
-            _SettingSection(
-              icon: Icons.lightbulb_outline_rounded,
-              title: 'Light',
-              value: configuration == null
-                  ? 'Waiting for bike'
-                  : configuration.light
-                  ? 'On'
-                  : 'Off',
-              toggleValue: configuration?.light ?? false,
-              onToggleChanged: ready
-                  ? (value) => _runCommand(() => session!.setLight(value))
-                  : null,
-              keep: bike.preferences.keepLight,
-              onKeepChanged: ready
-                  ? (enabled) => _services.bikeRepository.setLightLock(
-                      widget.deviceId,
-                      enabled: enabled,
-                      confirmedValue: configuration.light,
                     )
                   : null,
-            ),
-            const SizedBox(height: 14),
-            _SettingSection(
-              icon: Icons.speed_rounded,
-              title: 'Mode',
-              value: configuration == null
-                  ? 'Waiting for bike'
-                  : 'Mode ${configuration.mode + 1}',
-              control: _ValueSelector(
-                values: const [0, 1, 2, 3],
-                selected: configuration?.mode,
-                enabled: ready,
-                label: (mode) => '${mode + 1}',
-                onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
+              icon: Icon(
+                canConnect
+                    ? Icons.bluetooth_rounded
+                    : Icons.bluetooth_disabled_rounded,
               ),
-              keep: bike.preferences.keepMode,
-              onKeepChanged: ready
-                  ? (enabled) => _services.bikeRepository.setModeLock(
-                      widget.deviceId,
-                      enabled: enabled,
-                      confirmedValue: configuration.mode,
-                    )
-                  : null,
             ),
-            const SizedBox(height: 14),
-            _SettingSection(
-              icon: Icons.bolt_rounded,
-              title: 'Assist',
-              value: configuration == null
-                  ? 'Waiting for bike'
-                  : 'Level ${configuration.assist}',
-              control: _ValueSelector(
-                values: const [0, 1, 2, 3, 4],
-                selected: configuration?.assist,
-                enabled: ready,
-                label: (assist) => '$assist',
-                onChanged: (assist) =>
-                    _runCommand(() => session!.setAssist(assist)),
-              ),
-              keep: bike.preferences.keepAssist,
-              onKeepChanged: ready
-                  ? (enabled) => _services.bikeRepository.setAssistLock(
-                      widget.deviceId,
-                      enabled: enabled,
-                      confirmedValue: configuration.assist,
-                    )
-                  : null,
-            ),
-            const SizedBox(height: 18),
-            const SurfacePanel(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 12),
+          ],
+        ),
+        body: AppPageBody(
+          maxWidth: 860,
+          bikeColor: bike.bike.color,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: [
+              Row(
                 children: [
-                  Icon(Icons.lock_outline_rounded, color: AppColors.yellow),
-                  SizedBox(width: 13),
+                  BikeAvatar(color: bike.bike.color, size: 70),
+                  const SizedBox(width: 17),
                   Expanded(
-                    child: Text(
-                      'Keep on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isActive)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: StatusPill(
+                              label: 'Active bike',
+                              color: palette.accent,
+                            ),
+                          ),
+                        Text(
+                          bike.bike.displayName,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        if (region != null) ...[
+                          const SizedBox(height: 3),
+                          Text('${region.label} region'),
+                        ],
+                      ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Bike settings',
+                    onPressed: _openSettings,
+                    icon: const Icon(Icons.tune_rounded),
                   ),
                 ],
               ),
-            ),
-            if (sessionState is SessionFailed ||
-                sessionState is SessionDisconnected) ...[
               const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: coordinator.retry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reconnect'),
+              _ConnectionSummary(state: sessionState),
+              const SizedBox(height: 14),
+              _SettingSection(
+                icon: Icons.lightbulb_outline_rounded,
+                title: 'Light',
+                value: configuration == null
+                    ? 'Waiting for bike'
+                    : configuration.light
+                    ? 'On'
+                    : 'Off',
+                toggleValue: configuration?.light ?? false,
+                onToggleChanged: canControl
+                    ? (value) => _runCommand(() => session.setLight(value))
+                    : null,
+                keep: bike.preferences.keepLight,
+                onKeepChanged: canChangeLocks
+                    ? (enabled) => _services.bikeRepository.setLightLock(
+                        widget.deviceId,
+                        enabled: enabled,
+                        confirmedValue: configuration.light,
+                      )
+                    : null,
               ),
+              const SizedBox(height: 14),
+              _SettingSection(
+                icon: Icons.speed_rounded,
+                title: 'Mode',
+                value: configuration == null
+                    ? 'Waiting for bike'
+                    : 'Mode ${configuration.mode + 1}',
+                control: _ValueSelector(
+                  values: const [0, 1, 2, 3],
+                  selected: configuration?.mode,
+                  enabled: canControl,
+                  semanticLabel: 'Mode',
+                  label: (mode) => '${mode + 1}',
+                  onChanged: (mode) =>
+                      _runCommand(() => session!.setMode(mode)),
+                ),
+                keep: bike.preferences.keepMode,
+                onKeepChanged: canChangeLocks
+                    ? (enabled) => _services.bikeRepository.setModeLock(
+                        widget.deviceId,
+                        enabled: enabled,
+                        confirmedValue: configuration.mode,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 14),
+              _SettingSection(
+                icon: Icons.bolt_rounded,
+                title: 'Assist',
+                value: configuration == null
+                    ? 'Waiting for bike'
+                    : 'Level ${configuration.assist}',
+                control: _ValueSelector(
+                  values: const [0, 1, 2, 3, 4],
+                  selected: configuration?.assist,
+                  enabled: canControl,
+                  semanticLabel: 'Assist level',
+                  label: (assist) => '$assist',
+                  onChanged: (assist) =>
+                      _runCommand(() => session!.setAssist(assist)),
+                ),
+                keep: bike.preferences.keepAssist,
+                onKeepChanged: canChangeLocks
+                    ? (enabled) => _services.bikeRepository.setAssistLock(
+                        widget.deviceId,
+                        enabled: enabled,
+                        confirmedValue: configuration.assist,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 18),
+              SurfacePanel(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lock_rounded, color: palette.accent),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Text(
+                        'Set on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (sessionState is SessionFailed ||
+                  sessionState is SessionDisconnected) ...[
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: coordinator.retry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Reconnect'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -252,7 +290,30 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     } on Object catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update the bike. $error')),
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.bikeControl),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _runConnectionAction(Future<void> Function() action) async {
+    try {
+      await action();
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(
+                error,
+                context: UserErrorContext.bikeConnection,
+              ),
+            ),
+          ),
         );
       }
     }
@@ -270,8 +331,16 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     } on Object catch (error) {
       _temporarySelection = false;
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(
+                error,
+                context: UserErrorContext.bikeConnection,
+              ),
+            ),
+          ),
+        );
       }
     }
   }
@@ -303,6 +372,26 @@ final class _ConnectionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (state is SessionReady || state is SessionSynchronizing) {
+      final synchronizing = state is SessionSynchronizing;
+      return SizedBox(
+        height: 32,
+        child: Row(
+          children: [
+            Icon(
+              synchronizing ? Icons.sync_rounded : Icons.check_circle_rounded,
+              color: synchronizing ? AppColors.yellow : AppColors.mint,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              synchronizing ? 'Syncing…' : 'Connected',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ],
+        ),
+      );
+    }
     final presentation = _presentation(state);
     return SurfacePanel(
       child: Row(
@@ -347,7 +436,17 @@ final class _ConnectionSummary extends StatelessWidget {
         label: 'Synchronizing',
         color: AppColors.yellow,
         title: 'Applying settings…',
-        detail: 'Controls unlock after the bike confirms the change.',
+        detail: 'You can keep making changes while the bike catches up.',
+      ),
+      SessionDegraded(:final failure) => (
+        icon: Icons.warning_amber_rounded,
+        label: 'Connected with warning',
+        color: AppColors.orange,
+        title: 'A saved setting was not applied',
+        detail: userFacingError(
+          failure,
+          context: UserErrorContext.bikeControl,
+        ),
       ),
       SessionConnecting() => (
         icon: Icons.bluetooth_searching_rounded,
@@ -363,12 +462,17 @@ final class _ConnectionSummary extends StatelessWidget {
         title: 'Checking bike…',
         detail: 'Validating services and reading current settings.',
       ),
-      SessionReconnecting() => (
+      SessionReconnecting(:final failure) => (
         icon: Icons.refresh_rounded,
         label: 'Reconnecting',
         color: AppColors.orange,
-        title: 'Trying to reconnect…',
-        detail: 'Check bike power and close any other connected app.',
+        title: failure is BikeBluetoothUnavailable
+            ? 'Bluetooth is unavailable'
+            : 'Trying to reconnect…',
+        detail: userFacingError(
+          failure,
+          context: UserErrorContext.reconnect,
+        ),
       ),
       SessionDisconnected(:final manuallyPaused) => (
         icon: Icons.bluetooth_disabled_rounded,
@@ -382,9 +486,12 @@ final class _ConnectionSummary extends StatelessWidget {
       SessionFailed(:final failure) => (
         icon: Icons.error_outline_rounded,
         label: 'Needs attention',
-        color: const Color(0xFFFF7982),
-        title: failure.message,
-        detail: 'Check Bluetooth, bike power, and other app connections.',
+        color: AppColors.error,
+        title: 'Bike needs attention',
+        detail: userFacingError(
+          failure,
+          context: UserErrorContext.bikeConnection,
+        ),
       ),
       SessionIdle() => (
         icon: Icons.bluetooth_searching_rounded,
@@ -427,6 +534,8 @@ final class _SettingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = BikeColorTheme.maybeOf(context);
+    final accent = palette?.accent ?? AppColors.magentaSoft;
     return SurfacePanel(
       padding: EdgeInsets.zero,
       child: Column(
@@ -437,7 +546,7 @@ final class _SettingSection extends StatelessWidget {
                 horizontal: 20,
                 vertical: 8,
               ),
-              secondary: Icon(icon, color: AppColors.magentaSoft, size: 30),
+              secondary: Icon(icon, color: accent, size: 30),
               title: Text(title),
               subtitle: Text(value),
               value: toggled,
@@ -450,7 +559,7 @@ final class _SettingSection extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(icon, color: AppColors.magentaSoft, size: 30),
+                      Icon(icon, color: accent, size: 30),
                       const SizedBox(width: 13),
                       Expanded(
                         child: Column(
@@ -482,10 +591,11 @@ final class _SettingSection extends StatelessWidget {
             ),
             secondary: Icon(
               keep ? Icons.lock_rounded : Icons.lock_open_rounded,
-              color: keep ? AppColors.yellow : AppColors.textMuted,
+              color: keep
+                  ? accent
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            title: const Text('Keep on connect'),
-            subtitle: const Text('Reapply this value automatically'),
+            title: const Text('Set on connect'),
             value: keep,
             onChanged: onKeepChanged == null
                 ? null
@@ -502,6 +612,7 @@ final class _ValueSelector extends StatelessWidget {
     required this.values,
     required this.selected,
     required this.enabled,
+    required this.semanticLabel,
     required this.label,
     required this.onChanged,
   });
@@ -509,17 +620,26 @@ final class _ValueSelector extends StatelessWidget {
   final List<int> values;
   final int? selected;
   final bool enabled;
+  final String semanticLabel;
   final String Function(int value) label;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: double.infinity,
       child: SegmentedButton<int>(
         segments: [
           for (final value in values)
-            ButtonSegment<int>(value: value, label: Text(label(value))),
+            ButtonSegment<int>(
+              value: value,
+              label: Semantics(
+                label: '$semanticLabel ${label(value)}',
+                excludeSemantics: true,
+                child: Text(label(value)),
+              ),
+            ),
         ],
         selected: selected == null ? const {} : {selected!},
         emptySelectionAllowed: true,
@@ -536,17 +656,17 @@ final class _ValueSelector extends StatelessWidget {
           minimumSize: const WidgetStatePropertyAll(Size(42, 50)),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return AppColors.magenta;
+              return scheme.primary;
             }
-            return AppColors.inkLight;
+            return scheme.surfaceContainerLow;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return AppColors.ink;
+              return scheme.onPrimary;
             }
             return states.contains(WidgetState.disabled)
-                ? AppColors.textMuted.withValues(alpha: 0.45)
-                : AppColors.text;
+                ? scheme.onSurfaceVariant.withValues(alpha: 0.45)
+                : scheme.onSurface;
           }),
           side: const WidgetStatePropertyAll(BorderSide.none),
           shape: const WidgetStatePropertyAll(

@@ -2,6 +2,258 @@ import 'package:flutter/material.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 
+final class BikeColorPalette {
+  BikeColorPalette._({
+    required this.accent,
+    required this.onAccent,
+    required this.secondary,
+    required this.onSecondary,
+    required this.panel,
+    required this.panelRaised,
+    required this.surfaceLow,
+    required this.surfaceHighest,
+    required this.outline,
+    required this.outlineVariant,
+  });
+
+  factory BikeColorPalette.from(BikeColor color) {
+    final sourceAccent = color.gradientColors.last;
+    final sourceSecondary = color.gradientColors.first;
+    final panel = color.panelTint;
+    final panelRaised = Color.alphaBlend(
+      sourceAccent.withValues(alpha: 0.16),
+      AppColors.surfaceRaised,
+    );
+    final surfaceHighest = Color.alphaBlend(
+      sourceAccent.withValues(alpha: 0.22),
+      AppColors.surfaceRaised,
+    );
+    final accent = _accessibleAccent(sourceAccent, surfaceHighest);
+    final secondary = _accessibleAccent(sourceSecondary, surfaceHighest);
+    return BikeColorPalette._(
+      accent: accent,
+      onAccent: foregroundFor(accent),
+      secondary: secondary,
+      onSecondary: foregroundFor(secondary),
+      panel: panel,
+      panelRaised: panelRaised,
+      surfaceLow: Color.alphaBlend(
+        sourceAccent.withValues(alpha: 0.07),
+        AppColors.inkLight,
+      ),
+      surfaceHighest: surfaceHighest,
+      outline: Color.alphaBlend(
+        sourceAccent.withValues(alpha: 0.34),
+        AppColors.border,
+      ),
+      outlineVariant: Color.alphaBlend(
+        sourceAccent.withValues(alpha: 0.18),
+        const Color(0xFF34243D),
+      ),
+    );
+  }
+
+  final Color accent;
+  final Color onAccent;
+  final Color secondary;
+  final Color onSecondary;
+  final Color panel;
+  final Color panelRaised;
+  final Color surfaceLow;
+  final Color surfaceHighest;
+  final Color outline;
+  final Color outlineVariant;
+
+  static Color foregroundFor(Color background) {
+    final inkContrast = _contrastRatio(background, AppColors.ink);
+    final whiteContrast = _contrastRatio(background, Colors.white);
+    return inkContrast >= whiteContrast ? AppColors.ink : Colors.white;
+  }
+
+  static double _contrastRatio(Color first, Color second) {
+    final firstLuminance = first.computeLuminance();
+    final secondLuminance = second.computeLuminance();
+    final lighter = firstLuminance > secondLuminance
+        ? firstLuminance
+        : secondLuminance;
+    final darker = firstLuminance > secondLuminance
+        ? secondLuminance
+        : firstLuminance;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  static Color _accessibleAccent(Color preferred, Color background) {
+    const minimumContrast = 4.5;
+    if (_contrastRatio(preferred, background) >= minimumContrast) {
+      return preferred;
+    }
+    final inkContrast = _contrastRatio(background, AppColors.ink);
+    final whiteContrast = _contrastRatio(background, Colors.white);
+    final target = inkContrast >= whiteContrast ? AppColors.ink : Colors.white;
+    var lowerBound = 0.0;
+    var upperBound = 1.0;
+    var result = target;
+    for (var iteration = 0; iteration < 24; iteration++) {
+      final amount = (lowerBound + upperBound) / 2;
+      final candidate = Color.lerp(preferred, target, amount)!;
+      if (_contrastRatio(candidate, background) >= minimumContrast) {
+        result = candidate;
+        upperBound = amount;
+      } else {
+        lowerBound = amount;
+      }
+    }
+    return result;
+  }
+}
+
+final class BikeColorTheme extends StatelessWidget {
+  const BikeColorTheme({
+    required this.color,
+    required this.child,
+    super.key,
+  });
+
+  final BikeColor color;
+  final Widget child;
+
+  static BikeColorPalette? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<_BikeColorThemeScope>()
+        ?.palette;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context);
+    final palette = BikeColorPalette.from(color);
+    final primaryContainer = Color.alphaBlend(
+      palette.accent.withValues(alpha: 0.28),
+      palette.panelRaised,
+    );
+    final secondaryContainer = Color.alphaBlend(
+      palette.secondary.withValues(alpha: 0.24),
+      palette.panelRaised,
+    );
+    final scheme = base.colorScheme.copyWith(
+      primary: palette.accent,
+      onPrimary: palette.onAccent,
+      primaryContainer: primaryContainer,
+      onPrimaryContainer: BikeColorPalette.foregroundFor(primaryContainer),
+      secondary: palette.secondary,
+      onSecondary: palette.onSecondary,
+      secondaryContainer: secondaryContainer,
+      onSecondaryContainer: BikeColorPalette.foregroundFor(
+        secondaryContainer,
+      ),
+      surface: palette.panel,
+      surfaceContainerLowest: AppColors.ink,
+      surfaceContainerLow: palette.surfaceLow,
+      surfaceContainer: palette.panel,
+      surfaceContainerHigh: palette.panelRaised,
+      surfaceContainerHighest: palette.surfaceHighest,
+      onSurface: AppColors.text,
+      onSurfaceVariant: AppColors.textMuted,
+      outline: palette.outline,
+      outlineVariant: palette.outlineVariant,
+    );
+    final disabledForeground = AppColors.textMuted.withValues(alpha: 0.45);
+    final textButtonStyle = base.textButtonTheme.style?.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? disabledForeground
+            : palette.accent,
+      ),
+    );
+    final outlinedButtonStyle = base.outlinedButtonTheme.style?.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? disabledForeground
+            : palette.accent,
+      ),
+      side: WidgetStateProperty.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled)
+              ? palette.outline.withValues(alpha: 0.45)
+              : palette.accent.withValues(alpha: 0.72),
+        ),
+      ),
+    );
+    final iconButtonStyle = base.iconButtonTheme.style?.copyWith(
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? disabledForeground
+            : palette.accent,
+      ),
+    );
+
+    final themed = base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: color.pageBaseColor,
+      canvasColor: palette.panelRaised,
+      cardTheme: base.cardTheme.copyWith(color: palette.panel),
+      dialogTheme: base.dialogTheme.copyWith(
+        backgroundColor: palette.panelRaised,
+      ),
+      popupMenuTheme: base.popupMenuTheme.copyWith(
+        color: palette.panelRaised,
+      ),
+      dividerTheme: base.dividerTheme.copyWith(color: palette.outlineVariant),
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        fillColor: palette.panel,
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: palette.accent, width: 2),
+          borderRadius: const BorderRadius.all(Radius.circular(18)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(style: textButtonStyle),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: outlinedButtonStyle,
+      ),
+      iconButtonTheme: IconButtonThemeData(style: iconButtonStyle),
+      listTileTheme: base.listTileTheme.copyWith(iconColor: palette.accent),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? palette.onAccent
+              : AppColors.textMuted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? palette.accent
+              : palette.outlineVariant,
+        ),
+      ),
+      progressIndicatorTheme: base.progressIndicatorTheme.copyWith(
+        color: palette.accent,
+        linearTrackColor: palette.panelRaised,
+      ),
+      textSelectionTheme: base.textSelectionTheme.copyWith(
+        cursorColor: palette.accent,
+        selectionColor: palette.accent.withValues(alpha: 0.34),
+        selectionHandleColor: palette.accent,
+      ),
+    );
+
+    return _BikeColorThemeScope(
+      palette: palette,
+      child: Theme(data: themed, child: child),
+    );
+  }
+}
+
+final class _BikeColorThemeScope extends InheritedWidget {
+  const _BikeColorThemeScope({required this.palette, required super.child});
+
+  final BikeColorPalette palette;
+
+  @override
+  bool updateShouldNotify(_BikeColorThemeScope oldWidget) {
+    return palette.accent != oldWidget.palette.accent ||
+        palette.secondary != oldWidget.palette.secondary;
+  }
+}
+
 final class AppPageBody extends StatelessWidget {
   const AppPageBody({
     required this.child,
@@ -92,6 +344,8 @@ final class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent =
+        BikeColorTheme.maybeOf(context)?.accent ?? AppColors.magentaSoft;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -100,19 +354,28 @@ final class SectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (eyebrow != null) ...[
-                Text(
-                  eyebrow!.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.magentaSoft,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
+                Semantics(
+                  label: eyebrow,
+                  excludeSemantics: true,
+                  child: Text(
+                    eyebrow!.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 5),
               ],
-              Text(
-                title.toUpperCase(),
-                style: Theme.of(context).textTheme.headlineSmall,
+              Semantics(
+                label: title,
+                header: true,
+                excludeSemantics: true,
+                child: Text(
+                  title.toUpperCase(),
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
             ],
           ),
@@ -137,8 +400,9 @@ final class SurfacePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final panel = BikeColorTheme.maybeOf(context)?.panel ?? AppColors.surface;
     return Material(
-      color: color ?? AppColors.surface,
+      color: color ?? panel,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),
@@ -167,12 +431,16 @@ final class StatusPill extends StatelessWidget {
           Icon(icon, size: 15, color: color),
           const SizedBox(width: 6),
         ],
-        Text(
-          label.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.9,
+        Semantics(
+          label: label,
+          excludeSemantics: true,
+          child: Text(
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
           ),
         ),
       ],
@@ -263,15 +531,7 @@ extension BikeColorDesign on BikeColor {
   }
 
   Color get iconColor {
-    return switch (this) {
-      BikeColor.pureWhite ||
-      BikeColor.silverMist ||
-      BikeColor.vanillaLatte ||
-      BikeColor.sunKissed ||
-      BikeColor.peachCream ||
-      BikeColor.iceDrop => AppColors.ink,
-      _ => Colors.white,
-    };
+    return BikeColorPalette.foregroundFor(gradientColors.last);
   }
 }
 

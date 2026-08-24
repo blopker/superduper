@@ -6,6 +6,7 @@ import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
@@ -21,6 +22,7 @@ void main() {
   late ActiveBikeCoordinator coordinator;
   late Map<String, List<FakeBikeConnection>> connections;
   late Map<String, List<List<int>>> connectionFrames;
+  late bool throwWhenBuildingSession;
 
   setUp(() async {
     database = AppDatabase(NativeDatabase.memory());
@@ -29,6 +31,7 @@ void main() {
     permissions = FakeBluetoothPermissionGateway();
     connections = {};
     connectionFrames = {};
+    throwWhenBuildingSession = false;
     await settings.initialize();
     await bikes.addBike(deviceId: 'first', displayName: 'First');
     await bikes.addBike(deviceId: 'second', displayName: 'Second');
@@ -37,6 +40,9 @@ void main() {
       settingsRepository: settings,
       permissions: permissions,
       buildSession: (bike) {
+        if (throwWhenBuildingSession) {
+          throw StateError('session factory unavailable');
+        }
         final connection = FakeBikeConnection(deviceId: bike.bike.deviceId)
           ..readFrames.addAll(
             connectionFrames[bike.bike.deviceId]?.map(List<int>.from) ??
@@ -49,6 +55,7 @@ void main() {
           connection: connection,
           preferredRegion: bike.bike.region,
           preferences: bike.preferences,
+          protocol: bike.bike.protocol,
           pollInterval: null,
           reconnectDelays: const [],
         );
@@ -160,6 +167,55 @@ void main() {
     expect((await settings.get()).activeBikeId, 'second');
   });
 
+  test('changing the saved protocol rebuilds the active session', () async {
+    await coordinator.start();
+    await _waitFor(
+      coordinator.state,
+      (state) =>
+          state is ActiveBikeSessionStatus &&
+          state.sessionState is SessionReady,
+    );
+    connectionFrames['first'] = [
+      [0, 0xd0, 2, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+    ];
+
+    await bikes.updateBikeDetails(
+      'first',
+      displayName: 'First',
+      region: null,
+      color: BikeColor.royalHorizon,
+      protocol: BikeProtocolVersion.v2,
+    );
+    await _waitFor(
+      coordinator.state,
+      (state) =>
+          state is ActiveBikeSessionStatus &&
+          state.bike.bike.protocol == BikeProtocolVersion.v2 &&
+          state.sessionState is SessionReady &&
+          coordinator.session.peek()?.protocolVersion == BikeProtocolVersion.v2,
+    );
+
+    expect(connections['first'], hasLength(2));
+    expect(connections['first']!.first.disposeCalls, 1);
+    expect(
+      coordinator.bikes.value
+          .singleWhere((saved) => saved.bike.deviceId == 'first')
+          .bike
+          .protocol,
+      BikeProtocolVersion.v2,
+    );
+    expect(coordinator.session.value?.protocolVersion, BikeProtocolVersion.v2);
+    expect(
+      coordinator.state.value,
+      isA<ActiveBikeSessionStatus>().having(
+        (state) => state.sessionState,
+        'sessionState',
+        isA<SessionReady>(),
+      ),
+    );
+  });
+
   test('permission denial is visible and does not create a session', () async {
     permissions.state = BluetoothPermissionState.permanentlyDenied;
 
@@ -173,6 +229,82 @@ void main() {
     expect(coordinator.session.value, isNull);
     expect(connections, isEmpty);
   });
+
+  test('permission gateway errors become coordinator failures', () async {
+    permissions.ensureError = StateError('permission channel unavailable');
+
+    await coordinator.start();
+    final state = await _waitFor(
+      coordinator.state,
+      (state) => state is ActiveBikeCoordinatorFailure,
+    );
+
+    expect(
+      state,
+      isA<ActiveBikeCoordinatorFailure>().having(
+        (value) => value.message,
+        'message',
+        contains('permission channel unavailable'),
+      ),
+    );
+  });
+
+  test('session factory errors become coordinator failures', () async {
+    throwWhenBuildingSession = true;
+
+    await coordinator.start();
+    final state = await _waitFor(
+      coordinator.state,
+      (state) => state is ActiveBikeCoordinatorFailure,
+    );
+
+    expect(state, isA<ActiveBikeCoordinatorFailure>());
+  });
+
+  test('foreground resume rechecks a permission granted in settings', () async {
+    permissions.state = BluetoothPermissionState.permanentlyDenied;
+    await coordinator.start();
+    await _waitFor(
+      coordinator.state,
+      (state) => state is ActiveBikePermissionRequired,
+    );
+
+    permissions.state = BluetoothPermissionState.granted;
+    await coordinator.setForeground(true);
+    final ready = await _waitFor(
+      coordinator.state,
+      (state) =>
+          state is ActiveBikeSessionStatus &&
+          state.sessionState is SessionReady,
+    );
+
+    expect(ready, isA<ActiveBikeSessionStatus>());
+    expect(permissions.requests, 1);
+    expect(permissions.checks, 2);
+  });
+
+  test(
+    'foreground resume never overlaps the startup permission request',
+    () async {
+      permissions.ensureDelay = const Duration(milliseconds: 40);
+
+      await coordinator.start();
+      while (permissions.checks == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      final resumed = coordinator.setForeground(true);
+      await resumed;
+      await _waitFor(
+        coordinator.state,
+        (state) =>
+            state is ActiveBikeSessionStatus &&
+            state.sessionState is SessionReady,
+      );
+
+      expect(permissions.maxConcurrentChecks, 1);
+      expect(permissions.requests, 1);
+    },
+  );
 
   test(
     'foreground resume reconnects and resynchronizes the active bike',
@@ -236,6 +368,23 @@ void main() {
     expect(resumed.bike.bike.deviceId, 'second');
     expect(connections['second'], hasLength(1));
   });
+
+  test(
+    'discovery pause invalidates permission work already in flight',
+    () async {
+      permissions.ensureDelay = const Duration(milliseconds: 40);
+      await coordinator.start();
+      while (permissions.requests == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      await coordinator.pauseForDiscovery();
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(connections, isEmpty);
+      expect(coordinator.session.value, isNull);
+    },
+  );
 
   test(
     'forgetting the active bike promotes and connects the next bike',

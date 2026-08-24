@@ -56,7 +56,7 @@ void main() {
         required bool light,
         required int mode,
         required int assist,
-      }) => [0, 0, assist, 0, light ? 1 : 0, mode];
+      }) => [0, 0, assist, 0, if (light) 1 else 0, mode];
 
       final connection = FakeBikeConnection(deviceId: 'bike')
         ..operationDelay = const Duration(milliseconds: 1);
@@ -105,8 +105,9 @@ void main() {
             .contains('gatt.notification'),
       );
       await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOff);
-      connection.connectError = StateError('The fake bike is powered off.');
-      connection.emitState(BikeConnectionState.disconnected);
+      connection
+        ..connectError = StateError('The fake bike is powered off.')
+        ..emitState(BikeConnectionState.disconnected);
 
       await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOn);
       connection.connectError = null;
@@ -156,11 +157,16 @@ void main() {
         ),
         hasLength(greaterThanOrEqualTo(2)),
       );
+      final stateWrites = connection.writes
+          .where(
+            (write) => write.characteristicUuid == BikeGatt.stateRegister,
+          )
+          .toList();
+      expect(stateWrites, hasLength(greaterThanOrEqualTo(11)));
       expect(
-        connection.writes.where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        ),
-        hasLength(greaterThanOrEqualTo(11)),
+        stateWrites.last.value,
+        [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0],
+        reason: 'cleanup must restore the exact starting configuration',
       );
       expect(connection.discoveryCalls, greaterThanOrEqualTo(2));
       expect(connection.isDisposed, isTrue);
@@ -189,6 +195,23 @@ void main() {
       expect(report, isNot(contains(authenticationResponse)));
     },
   );
+
+  test('a repeated run does not select a replayed scan result', () async {
+    transport.replayedScanResults = const [
+      DiscoveredBike(deviceId: 'stale', name: 'SUPER73', rssi: -20),
+    ];
+
+    final run = controller.start();
+    await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+
+    expect(transport.connections, isEmpty);
+    expect(controller.state.peek().phase, BikeHardwareTestPhase.scanning);
+
+    await controller.cancel();
+    await run;
+    expect(controller.state.peek().phase, BikeHardwareTestPhase.cancelled);
+  });
 }
 
 Future<void> _waitForPhase(

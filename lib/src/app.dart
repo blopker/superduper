@@ -7,12 +7,87 @@ import 'package:superduper/src/features/home/home_page.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
+typedef AppServicesFactory = AppServices Function();
+
+final class SuperduperBootstrap extends StatefulWidget {
+  const SuperduperBootstrap({
+    this.createServices = AppServices.standard,
+    super.key,
+  });
+
+  final AppServicesFactory createServices;
+
+  @override
+  State<SuperduperBootstrap> createState() => _SuperduperBootstrapState();
+}
+
+final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
+  late AppServices _services;
+  var _restarting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _services = widget.createServices();
+    unawaited(_services.startup.initialize());
+  }
+
+  Future<void> _retryWithFreshServices() async {
+    if (_restarting) {
+      return;
+    }
+    setState(() => _restarting = true);
+    final old = _services;
+    try {
+      await old.dispose();
+    } on Object {
+      // A service graph that failed while opening may also fail while closing.
+    }
+    if (!mounted) {
+      return;
+    }
+    final replacement = widget.createServices();
+    setState(() {
+      _services = replacement;
+      _restarting = false;
+    });
+    await replacement.startup.initialize();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_services.dispose().catchError((Object _) {}));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_restarting) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        home: const _LoadingPage(),
+      );
+    }
+    return SuperduperApp(
+      services: _services,
+      onStartupRetry: _retryWithFreshServices,
+    );
+  }
+}
+
 final class SuperduperApp extends StatefulWidget {
-  const SuperduperApp({required this.services, super.key});
+  const SuperduperApp({
+    required this.services,
+    this.onStartupRetry,
+    super.key,
+  });
 
   final AppServices services;
+  final Future<void> Function()? onStartupRetry;
 
   @override
   State<SuperduperApp> createState() => _SuperduperAppState();
@@ -30,13 +105,22 @@ final class _SuperduperAppState extends State<SuperduperApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        unawaited(widget.services.activeBikeCoordinator.setForeground(true));
+        _setForeground(true);
       case AppLifecycleState.inactive:
+        return;
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-        unawaited(widget.services.activeBikeCoordinator.setForeground(false));
+        _setForeground(false);
     }
+  }
+
+  void _setForeground(bool foreground) {
+    unawaited(
+      widget.services.activeBikeCoordinator
+          .setForeground(foreground)
+          .catchError((Object _) {}),
+    );
   }
 
   @override
@@ -53,14 +137,16 @@ final class _SuperduperAppState extends State<SuperduperApp>
         debugShowCheckedModeBanner: false,
         title: 'Superduper',
         theme: AppTheme.dark,
-        home: const StartupPage(),
+        home: StartupPage(onStartupRetry: widget.onStartupRetry),
       ),
     );
   }
 }
 
 final class StartupPage extends SignalWidget {
-  const StartupPage({super.key});
+  const StartupPage({this.onStartupRetry, super.key});
+
+  final Future<void> Function()? onStartupRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -69,14 +155,19 @@ final class StartupPage extends SignalWidget {
     return switch (services.startup.state.value) {
       StartupLoading() => const _LoadingPage(),
       StartupReady() => const HomePage(),
-      StartupMigrationRecovery(:final reason) => _MigrationRecoveryPage(
-        reason: reason,
-        onRetry: services.startup.retryImport,
-        onContinue: services.startup.continueWithoutImport,
-      ),
+      StartupMigrationRecovery(:final reason, :final warnings) =>
+        _MigrationRecoveryPage(
+          reason: reason,
+          warnings: warnings,
+          onRetry: services.startup.retryImport,
+          onContinue: services.startup.continueWithoutImport,
+        ),
       StartupFailure(:final message) => _StartupFailurePage(
-        message: message,
-        onRetry: services.startup.initialize,
+        message: userFacingError(
+          message,
+          context: UserErrorContext.startup,
+        ),
+        onRetry: onStartupRetry ?? services.startup.initialize,
       ),
     };
   }
@@ -85,11 +176,13 @@ final class StartupPage extends SignalWidget {
 final class _MigrationRecoveryPage extends StatelessWidget {
   const _MigrationRecoveryPage({
     required this.reason,
+    required this.warnings,
     required this.onRetry,
     required this.onContinue,
   });
 
   final ImportRecoveryReason reason;
+  final List<ImportWarning> warnings;
   final Future<void> Function() onRetry;
   final Future<void> Function() onContinue;
 
@@ -132,6 +225,15 @@ final class _MigrationRecoveryPage extends StatelessWidget {
                       '$detail Your original files have not been changed.',
                       textAlign: TextAlign.center,
                     ),
+                    if (warnings.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      for (final warning in warnings)
+                        Text(
+                          _importWarningLabel(warning),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
                     const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: onRetry,
@@ -151,6 +253,16 @@ final class _MigrationRecoveryPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _importWarningLabel(ImportWarning warning) {
+    final location = [
+      if (warning.record case final record?) 'bike ${record + 1}',
+      ?warning.field,
+    ].join(', ');
+    return location.isEmpty
+        ? warning.code.replaceAll('_', ' ')
+        : '${warning.code.replaceAll('_', ' ')} ($location)';
   }
 }
 

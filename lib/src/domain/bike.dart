@@ -1,3 +1,27 @@
+enum BikeProtocolVersion {
+  v1('SUPER73'),
+  v2('S73 FTEX');
+
+  const BikeProtocolVersion(this.advertisedName);
+
+  final String advertisedName;
+
+  static BikeProtocolVersion? fromAdvertisedName(String name) {
+    return switch (name) {
+      'SUPER73' => BikeProtocolVersion.v1,
+      'S73 FTEX' => BikeProtocolVersion.v2,
+      _ => null,
+    };
+  }
+
+  bool isTestedFirmwareRevision(String revision) {
+    return switch (this) {
+      BikeProtocolVersion.v1 => revision.trim() == '221122',
+      BikeProtocolVersion.v2 => revision.trim() == '250426',
+    };
+  }
+}
+
 enum BikeRegion {
   us('US'),
   eu('EU');
@@ -47,6 +71,24 @@ enum BikeColor {
   final String displayName;
   final int legacyIndex;
 
+  static final List<BikeColor> displayOrder = List.unmodifiable(
+    values.toList()
+      ..sort((left, right) => left.displayName.compareTo(right.displayName)),
+  );
+
+  static BikeColor defaultForDeviceId(String deviceId) {
+    final normalizedDeviceId = deviceId.trim().toLowerCase();
+    if (normalizedDeviceId.isEmpty) {
+      throw ArgumentError.value(deviceId, 'deviceId', 'must not be empty');
+    }
+
+    var hash = 5381;
+    for (final character in normalizedDeviceId.runes) {
+      hash = ((hash * 33) + character) % 0x100000000;
+    }
+    return values[hash % values.length];
+  }
+
   static BikeColor? fromKey(String key) {
     for (final color in values) {
       if (color.key == key) {
@@ -68,17 +110,21 @@ final class Bike {
   const Bike({
     required this.deviceId,
     required this.displayName,
+    required this.protocol,
     required this.region,
     required this.color,
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
     required this.lastConnectedAt,
+    this.advertisedName = 'SUPER73',
     this.moduleSerial,
   });
 
   final String deviceId;
   final String displayName;
+  final String advertisedName;
+  final BikeProtocolVersion protocol;
   final BikeRegion? region;
   final BikeColor color;
   final int sortOrder;
@@ -241,4 +287,13 @@ final class BikeNotFoundException implements Exception {
 
   @override
   String toString() => 'No saved bike exists for device ID "$deviceId".';
+}
+
+final class BikeAlreadyExistsException implements Exception {
+  const BikeAlreadyExistsException(this.deviceId);
+
+  final String deviceId;
+
+  @override
+  String toString() => 'A bike with device ID "$deviceId" is already saved.';
 }

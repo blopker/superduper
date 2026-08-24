@@ -133,7 +133,19 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
                 ReportActions(createReport: _createShareableReport),
                 const SizedBox(height: 20),
               ],
-              if (state.isRunning)
+              if (state.phase == BikeHardwareTestPhase.restoring)
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Restoring starting settings…'),
+                  ],
+                )
+              else if (state.isRunning)
                 OutlinedButton(
                   onPressed: controller.cancel,
                   child: const Text('Stop and restore'),

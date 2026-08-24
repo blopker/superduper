@@ -1,4 +1,4 @@
-include: package:flutter_lints/flutter.yaml
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
   exclude:
@@ -24,9 +24,15 @@ linter:
   rules:
     always_declare_return_types: true
     avoid_dynamic_calls: true
+    avoid_equals_and_hash_code_on_mutable_classes: false
+    avoid_positional_boolean_parameters: false
     directives_ordering: true
+    leading_newlines_in_multiline_strings: false
+    lines_longer_than_80_chars: false
     prefer_final_locals: true
+    public_member_api_docs: false
     require_trailing_commas: true
     sort_constructors_first: true
     sort_pub_dependencies: true
     unawaited_futures: true
+    use_setters_to_change_properties: false

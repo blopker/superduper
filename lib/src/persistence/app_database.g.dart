@@ -30,6 +30,28 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _advertisedNameMeta = const VerificationMeta(
+    'advertisedName',
+  );
+  @override
+  late final GeneratedColumn<String> advertisedName = GeneratedColumn<String>(
+    'advertised_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('SUPER73'),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<BikeProtocolVersion, String>
+  protocol = GeneratedColumn<String>(
+    'protocol',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('v1'),
+  ).withConverter<BikeProtocolVersion>($BikesTable.$converterprotocol);
   static const VerificationMeta _regionMeta = const VerificationMeta('region');
   @override
   late final GeneratedColumn<String> region = GeneratedColumn<String>(
@@ -109,6 +131,8 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
   List<GeneratedColumn> get $columns => [
     deviceId,
     displayName,
+    advertisedName,
+    protocol,
     region,
     colorKey,
     sortOrder,
@@ -147,6 +171,15 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
       );
     } else if (isInserting) {
       context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('advertised_name')) {
+      context.handle(
+        _advertisedNameMeta,
+        advertisedName.isAcceptableOrUnknown(
+          data['advertised_name']!,
+          _advertisedNameMeta,
+        ),
+      );
     }
     if (data.containsKey('region')) {
       context.handle(
@@ -227,6 +260,16 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
         DriftSqlType.string,
         data['${effectivePrefix}display_name'],
       )!,
+      advertisedName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}advertised_name'],
+      )!,
+      protocol: $BikesTable.$converterprotocol.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}protocol'],
+        )!,
+      ),
       region: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}region'],
@@ -262,11 +305,18 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
   $BikesTable createAlias(String alias) {
     return $BikesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<BikeProtocolVersion, String, String>
+  $converterprotocol = const EnumNameConverter<BikeProtocolVersion>(
+    BikeProtocolVersion.values,
+  );
 }
 
 class BikeRow extends DataClass implements Insertable<BikeRow> {
   final String deviceId;
   final String displayName;
+  final String advertisedName;
+  final BikeProtocolVersion protocol;
   final String? region;
   final String colorKey;
   final int sortOrder;
@@ -277,6 +327,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   const BikeRow({
     required this.deviceId,
     required this.displayName,
+    required this.advertisedName,
+    required this.protocol,
     this.region,
     required this.colorKey,
     required this.sortOrder,
@@ -290,6 +342,12 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     final map = <String, Expression>{};
     map['device_id'] = Variable<String>(deviceId);
     map['display_name'] = Variable<String>(displayName);
+    map['advertised_name'] = Variable<String>(advertisedName);
+    {
+      map['protocol'] = Variable<String>(
+        $BikesTable.$converterprotocol.toSql(protocol),
+      );
+    }
     if (!nullToAbsent || region != null) {
       map['region'] = Variable<String>(region);
     }
@@ -310,6 +368,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     return BikesCompanion(
       deviceId: Value(deviceId),
       displayName: Value(displayName),
+      advertisedName: Value(advertisedName),
+      protocol: Value(protocol),
       region: region == null && nullToAbsent
           ? const Value.absent()
           : Value(region),
@@ -334,6 +394,10 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     return BikeRow(
       deviceId: serializer.fromJson<String>(json['deviceId']),
       displayName: serializer.fromJson<String>(json['displayName']),
+      advertisedName: serializer.fromJson<String>(json['advertisedName']),
+      protocol: $BikesTable.$converterprotocol.fromJson(
+        serializer.fromJson<String>(json['protocol']),
+      ),
       region: serializer.fromJson<String?>(json['region']),
       colorKey: serializer.fromJson<String>(json['colorKey']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -349,6 +413,10 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     return <String, dynamic>{
       'deviceId': serializer.toJson<String>(deviceId),
       'displayName': serializer.toJson<String>(displayName),
+      'advertisedName': serializer.toJson<String>(advertisedName),
+      'protocol': serializer.toJson<String>(
+        $BikesTable.$converterprotocol.toJson(protocol),
+      ),
       'region': serializer.toJson<String?>(region),
       'colorKey': serializer.toJson<String>(colorKey),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -362,6 +430,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   BikeRow copyWith({
     String? deviceId,
     String? displayName,
+    String? advertisedName,
+    BikeProtocolVersion? protocol,
     Value<String?> region = const Value.absent(),
     String? colorKey,
     int? sortOrder,
@@ -372,6 +442,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   }) => BikeRow(
     deviceId: deviceId ?? this.deviceId,
     displayName: displayName ?? this.displayName,
+    advertisedName: advertisedName ?? this.advertisedName,
+    protocol: protocol ?? this.protocol,
     region: region.present ? region.value : this.region,
     colorKey: colorKey ?? this.colorKey,
     sortOrder: sortOrder ?? this.sortOrder,
@@ -388,6 +460,10 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       displayName: data.displayName.present
           ? data.displayName.value
           : this.displayName,
+      advertisedName: data.advertisedName.present
+          ? data.advertisedName.value
+          : this.advertisedName,
+      protocol: data.protocol.present ? data.protocol.value : this.protocol,
       region: data.region.present ? data.region.value : this.region,
       colorKey: data.colorKey.present ? data.colorKey.value : this.colorKey,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -411,6 +487,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     return (StringBuffer('BikeRow(')
           ..write('deviceId: $deviceId, ')
           ..write('displayName: $displayName, ')
+          ..write('advertisedName: $advertisedName, ')
+          ..write('protocol: $protocol, ')
           ..write('region: $region, ')
           ..write('colorKey: $colorKey, ')
           ..write('sortOrder: $sortOrder, ')
@@ -426,6 +504,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   int get hashCode => Object.hash(
     deviceId,
     displayName,
+    advertisedName,
+    protocol,
     region,
     colorKey,
     sortOrder,
@@ -440,6 +520,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       (other is BikeRow &&
           other.deviceId == this.deviceId &&
           other.displayName == this.displayName &&
+          other.advertisedName == this.advertisedName &&
+          other.protocol == this.protocol &&
           other.region == this.region &&
           other.colorKey == this.colorKey &&
           other.sortOrder == this.sortOrder &&
@@ -452,6 +534,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
 class BikesCompanion extends UpdateCompanion<BikeRow> {
   final Value<String> deviceId;
   final Value<String> displayName;
+  final Value<String> advertisedName;
+  final Value<BikeProtocolVersion> protocol;
   final Value<String?> region;
   final Value<String> colorKey;
   final Value<int> sortOrder;
@@ -463,6 +547,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   const BikesCompanion({
     this.deviceId = const Value.absent(),
     this.displayName = const Value.absent(),
+    this.advertisedName = const Value.absent(),
+    this.protocol = const Value.absent(),
     this.region = const Value.absent(),
     this.colorKey = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -475,6 +561,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   BikesCompanion.insert({
     required String deviceId,
     required String displayName,
+    this.advertisedName = const Value.absent(),
+    this.protocol = const Value.absent(),
     this.region = const Value.absent(),
     required String colorKey,
     required int sortOrder,
@@ -492,6 +580,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   static Insertable<BikeRow> custom({
     Expression<String>? deviceId,
     Expression<String>? displayName,
+    Expression<String>? advertisedName,
+    Expression<String>? protocol,
     Expression<String>? region,
     Expression<String>? colorKey,
     Expression<int>? sortOrder,
@@ -504,6 +594,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     return RawValuesInsertable({
       if (deviceId != null) 'device_id': deviceId,
       if (displayName != null) 'display_name': displayName,
+      if (advertisedName != null) 'advertised_name': advertisedName,
+      if (protocol != null) 'protocol': protocol,
       if (region != null) 'region': region,
       if (colorKey != null) 'color_key': colorKey,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -518,6 +610,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   BikesCompanion copyWith({
     Value<String>? deviceId,
     Value<String>? displayName,
+    Value<String>? advertisedName,
+    Value<BikeProtocolVersion>? protocol,
     Value<String?>? region,
     Value<String>? colorKey,
     Value<int>? sortOrder,
@@ -530,6 +624,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     return BikesCompanion(
       deviceId: deviceId ?? this.deviceId,
       displayName: displayName ?? this.displayName,
+      advertisedName: advertisedName ?? this.advertisedName,
+      protocol: protocol ?? this.protocol,
       region: region ?? this.region,
       colorKey: colorKey ?? this.colorKey,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -549,6 +645,14 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     }
     if (displayName.present) {
       map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (advertisedName.present) {
+      map['advertised_name'] = Variable<String>(advertisedName.value);
+    }
+    if (protocol.present) {
+      map['protocol'] = Variable<String>(
+        $BikesTable.$converterprotocol.toSql(protocol.value),
+      );
     }
     if (region.present) {
       map['region'] = Variable<String>(region.value);
@@ -582,6 +686,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     return (StringBuffer('BikesCompanion(')
           ..write('deviceId: $deviceId, ')
           ..write('displayName: $displayName, ')
+          ..write('advertisedName: $advertisedName, ')
+          ..write('protocol: $protocol, ')
           ..write('region: $region, ')
           ..write('colorKey: $colorKey, ')
           ..write('sortOrder: $sortOrder, ')

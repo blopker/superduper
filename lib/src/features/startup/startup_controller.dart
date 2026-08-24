@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:signals/signals.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
@@ -54,20 +56,54 @@ final class StartupController {
     options: const SignalOptions(name: 'startup.state'),
   );
   bool _initializing = false;
+  bool _disposed = false;
+  Future<void>? _initializationFuture;
 
   ReadonlySignal<StartupState> get state => _state.readonly();
 
-  Future<void> initialize({bool retrySkippedImport = false}) async {
-    if (_initializing) {
-      return;
-    }
+  Future<void> initialize() => _startInitialization(retryImport: false);
 
+  Future<void> _startInitialization({required bool retryImport}) {
+    if (_disposed) {
+      return Future.value();
+    }
+    if (_initializationFuture case final pending?) {
+      return pending;
+    }
+    final pending = _initialize(retryImport: retryImport);
+    _initializationFuture = pending;
+    unawaited(
+      pending.then<void>(
+        (_) {
+          if (identical(_initializationFuture, pending)) {
+            _initializationFuture = null;
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (identical(_initializationFuture, pending)) {
+            _initializationFuture = null;
+          }
+        },
+      ),
+    );
+    return pending;
+  }
+
+  Future<void> _initialize({required bool retryImport}) async {
     _initializing = true;
     _state.value = const StartupLoading();
 
     try {
       await database.customSelect('SELECT 1').getSingle();
-      final importResult = await importer.run(retrySkipped: retrySkippedImport);
+      if (_disposed) {
+        return;
+      }
+      final importResult = retryImport
+          ? await importer.retry()
+          : await importer.run();
+      if (_disposed) {
+        return;
+      }
       switch (importResult) {
         case InstalledDataImportRecovery(:final reason, :final warnings):
           _state.value = StartupMigrationRecovery(
@@ -79,24 +115,29 @@ final class StartupController {
           final repositoryInitialization = await settingsRepository
               .initialize();
           await onReady?.call();
+          if (_disposed) {
+            return;
+          }
           _state.value = StartupReady(
             importResult: importResult,
             repositoryInitialization: repositoryInitialization,
           );
       }
     } on Object catch (error) {
-      _state.value = StartupFailure(message: error.toString());
+      if (!_disposed) {
+        _state.value = StartupFailure(message: error.toString());
+      }
     } finally {
       _initializing = false;
     }
   }
 
   Future<void> retryImport() {
-    return initialize(retrySkippedImport: true);
+    return _startInitialization(retryImport: true);
   }
 
   Future<void> continueWithoutImport() async {
-    if (_initializing) {
+    if (_initializing || _disposed) {
       return;
     }
     _initializing = true;
@@ -105,18 +146,24 @@ final class StartupController {
       final importResult = await importer.continueWithoutImport();
       final repositoryInitialization = await settingsRepository.initialize();
       await onReady?.call();
+      if (_disposed) {
+        return;
+      }
       _state.value = StartupReady(
         importResult: importResult,
         repositoryInitialization: repositoryInitialization,
       );
     } on Object catch (error) {
-      _state.value = StartupFailure(message: error.toString());
+      if (!_disposed) {
+        _state.value = StartupFailure(message: error.toString());
+      }
     } finally {
       _initializing = false;
     }
   }
 
   void dispose() {
+    _disposed = true;
     _state.dispose();
   }
 }

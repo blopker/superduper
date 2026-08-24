@@ -24,10 +24,11 @@ This report contains the bike BLE identifier and module serial. Review it before
 
 BIKE
 Name: ${bike.displayName}
+Advertised name: ${bike.advertisedName}
+Protocol: ${_protocolLabel(bike)}
 BLE identifier: ${bike.deviceId}
 Module serial: ${bike.moduleSerial ?? 'Unavailable'}
-${_regionLine(bike.region)}
-Versions cached: ${versions.readAt.toUtc().toIso8601String()}
+${_regionLine(bike.region)}Versions cached: ${versions.readAt.toUtc().toIso8601String()}
 
 VERSIONS
 Hardware revision: ${info.hardwareRevision}
@@ -41,8 +42,16 @@ BMS: ${_number(info.bmsVersion, 8)}
 ''';
 }
 
+String _protocolLabel(Bike bike) {
+  final source = BikeProtocolVersion.fromAdvertisedName(bike.advertisedName);
+  final selection = bike.protocol.name.toUpperCase();
+  return source == bike.protocol
+      ? '$selection (advertised name)'
+      : '$selection (manual override)';
+}
+
 String _regionLine(BikeRegion? region) {
-  return region == null ? '' : 'Region: ${region.label}';
+  return region == null ? '' : 'Region: ${region.label}\n';
 }
 
 String _number(int value, int width) {

@@ -104,7 +104,12 @@ final class HelpPage extends StatelessWidget {
     Future<bool> Function(Uri uri) open,
     Uri uri,
   ) async {
-    final opened = await open(uri);
+    var opened = false;
+    try {
+      opened = await open(uri);
+    } on Object {
+      opened = false;
+    }
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(
         context,

@@ -38,7 +38,7 @@ void main() {
 
   tearDown(() async {
     await database.close();
-    if (await documents.exists()) {
+    if (documents.existsSync()) {
       await documents.delete(recursive: true);
     }
   });
@@ -175,7 +175,7 @@ void main() {
     'the last valid duplicate wins but keeps its first list position',
     () async {
       await _writeJson(documents, 'bikes.json', [
-        _bike('duplicate', name: 'Old', mode: 0),
+        _bike('duplicate', name: 'Old'),
         _bike('other', name: 'Other'),
         _bike('duplicate', name: 'New', mode: 3),
       ]);
@@ -315,7 +315,7 @@ void main() {
         'bike',
       );
       expect(await sourceFile.readAsString(), changedSource);
-      expect(await sourceFile.exists(), isTrue);
+      expect(sourceFile.existsSync(), isTrue);
     },
   );
 
@@ -323,14 +323,15 @@ void main() {
     await File(path.join(documents.path, 'bikes.json')).writeAsString('bad');
     expect(await importer.run(), isA<InstalledDataImportRecovery>());
 
-    await importer.continueWithoutImport();
-    final skipped = await importer.run() as InstalledDataImportSuccess;
+    final skipped = await importer.continueWithoutImport();
     expect(skipped.outcome, DataImportOutcome.skippedByUser);
-    expect(skipped.previouslyHandled, isTrue);
+    expect(skipped.previouslyHandled, isFalse);
+    final handled = await importer.run() as InstalledDataImportSuccess;
+    expect(handled.outcome, DataImportOutcome.skippedByUser);
+    expect(handled.previouslyHandled, isTrue);
 
     await _writeJson(documents, 'bikes.json', [_bike('recovered')]);
-    final retried =
-        await importer.run(retrySkipped: true) as InstalledDataImportSuccess;
+    final retried = await importer.retry() as InstalledDataImportSuccess;
     expect(retried.outcome, DataImportOutcome.completed);
     expect(retried.bikesImported, 1);
   });

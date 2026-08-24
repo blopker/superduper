@@ -7,6 +7,7 @@ import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
+import 'package:superduper/src/user_facing_error.dart';
 
 enum BikeHardwareTestPhase {
   idle,
@@ -98,6 +99,8 @@ final class BikeHardwareTestController {
       Duration(milliseconds: 750),
       Duration(seconds: 1),
     ],
+    this.stepTimeout = const Duration(seconds: 45),
+    this.cleanupTimeout = const Duration(seconds: 20),
   });
 
   final BikeTransport transport;
@@ -107,6 +110,8 @@ final class BikeHardwareTestController {
   final Duration notificationWait;
   final List<Duration> reconnectDelays;
   final List<Duration> confirmationRetryDelays;
+  final Duration stepTimeout;
+  final Duration cleanupTimeout;
   final Signal<BikeHardwareTestState> _state = signal(
     const BikeHardwareTestState.idle(),
     options: const SignalOptions(name: 'bikeHardwareTest.state'),
@@ -121,6 +126,7 @@ final class BikeHardwareTestController {
   DateTime? _startedAt;
   var _traceTruncated = false;
   var _disposed = false;
+  Future<void>? _releaseFuture;
 
   ReadonlySignal<BikeHardwareTestState> get state => _state.readonly();
 
@@ -195,10 +201,19 @@ final class BikeHardwareTestController {
       if (!_isCurrent(generation)) {
         return;
       }
+      _addTrace(
+        'test.error',
+        error.toString().replaceAll('\n', ' '),
+      );
       _addLog(
         BikeHardwareTestLogStatus.failed,
         'Test stopped',
-        error.toString(),
+        _friendlyError(error),
+      );
+      _publish(
+        BikeHardwareTestPhase.restoring,
+        'Restoring the bike',
+        'The test failed. Restoring the starting settings before releasing Bluetooth.',
       );
       await _releaseBike(restore: true);
       if (_isCurrent(generation)) {
@@ -212,7 +227,9 @@ final class BikeHardwareTestController {
   }
 
   Future<void> cancel() async {
-    if (_disposed || !_state.peek().isRunning) {
+    if (_disposed ||
+        !_state.peek().isRunning ||
+        _state.peek().phase == BikeHardwareTestPhase.restoring) {
       return;
     }
     _generation++;
@@ -308,7 +325,7 @@ final class BikeHardwareTestController {
       connection: connection,
       preferredRegion: _preferredRegion(candidate.deviceId),
       preferences: const RidePreferences.defaults(),
-      protocolHint: BikeProtocolVersion.fromAdvertisedName(candidate.name),
+      protocol: BikeProtocolVersion.fromAdvertisedName(candidate.name)!,
       onVersionsRead: (_) async {
         versionReads++;
       },
@@ -322,9 +339,10 @@ final class BikeHardwareTestController {
       if (sessionState is SessionAuthenticating) {
         sawAuthenticationState = true;
       }
+      _publishSessionProgress(sessionState);
     });
     await session.connect();
-    await _waitForReady(session, generation);
+    await _waitForReady(session, generation, timeout: stepTimeout);
     _checkCurrent(generation);
 
     _expect(connection.gattDiscoveries >= 1, 'GATT discovery did not run.');
@@ -339,11 +357,10 @@ final class BikeHardwareTestController {
     );
 
     final protocol = session.protocolVersion;
-    _expect(protocol != null, 'The bike protocol was not identified.');
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Protocol',
-      protocol!.name.toUpperCase(),
+      protocol.name.toUpperCase(),
     );
 
     final versions = session.versions.peek();
@@ -413,7 +430,9 @@ final class BikeHardwareTestController {
       _formatConfiguration(lockedTarget, protocol: protocol),
     );
     await session.setLight(lockedTarget.light);
+    _checkCurrent(generation);
     await session.setAssist(lockedTarget.assist);
+    _checkCurrent(generation);
     await session.updatePreferences(
       RidePreferences(
         desiredLight: lockedTarget.light,
@@ -426,7 +445,7 @@ final class BikeHardwareTestController {
         backgroundConsentVersion: 0,
       ),
     );
-    await _waitForReady(session, generation);
+    await _waitForReady(session, generation, timeout: stepTimeout);
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Locked-setting setup',
@@ -463,7 +482,7 @@ final class BikeHardwareTestController {
       'Waiting for automatic reconnect, authentication, version refresh, and locked-setting enforcement.',
     );
     _addTrace('test.prompt', 'Waiting for the bike to power on.');
-    await _waitForReady(session, generation);
+    await _waitForReady(session, generation, timeout: stepTimeout);
     _checkCurrent(generation);
 
     _expect(
@@ -498,7 +517,7 @@ final class BikeHardwareTestController {
     );
     final expectedPacket = BikeProtocol.encodeConfiguration(
       reconnected,
-      version: session.protocolVersion!,
+      version: session.protocolVersion,
     );
     final writtenPacket = connection.configurationWrites.last;
     _expect(
@@ -539,13 +558,24 @@ final class BikeHardwareTestController {
       );
       _addTrace('scan.start', 'Timeout ${scanDuration.inSeconds}s.');
       DiscoveredBike? found;
-      final subscription = transport.scanResults.listen((results) {
-        if (results.isNotEmpty) {
-          found ??= results.first;
-        }
-      });
+      StreamSubscription<List<DiscoveredBike>>? subscription;
+      var acceptResults = false;
       try {
+        subscription = transport.scanResults.listen((results) {
+          if (!acceptResults) {
+            return;
+          }
+          for (final result in results) {
+            if (BikeProtocolVersion.fromAdvertisedName(result.name) != null) {
+              found ??= result;
+              break;
+            }
+          }
+        });
+        await Future<void>.delayed(Duration.zero);
+        acceptResults = true;
         await transport.startScan(timeout: scanDuration);
+        _checkCurrent(generation);
         final deadline = DateTime.now().add(scanDuration);
         while (found == null && DateTime.now().isBefore(deadline)) {
           _checkCurrent(generation);
@@ -553,7 +583,7 @@ final class BikeHardwareTestController {
         }
       } finally {
         await transport.stopScan();
-        await subscription.cancel();
+        await subscription?.cancel();
       }
       _checkCurrent(generation);
       if (found case final candidate?) {
@@ -574,6 +604,7 @@ final class BikeHardwareTestController {
     _checkCurrent(generation);
     _expect(light.light != initial.light, 'Light did not toggle.');
     await session.setLight(initial.light);
+    _checkCurrent(generation);
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Light toggle',
@@ -585,6 +616,7 @@ final class BikeHardwareTestController {
     _checkCurrent(generation);
     _expect(mode.mode == nextMode, 'Mode did not change to $nextMode.');
     await session.setMode(initial.mode);
+    _checkCurrent(generation);
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Mode toggle',
@@ -599,6 +631,7 @@ final class BikeHardwareTestController {
       'Assist did not change to $nextAssist.',
     );
     await session.setAssist(initial.assist);
+    _checkCurrent(generation);
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Assist toggle',
@@ -606,7 +639,12 @@ final class BikeHardwareTestController {
     );
   }
 
-  Future<void> _waitForReady(BikeSession session, int generation) async {
+  Future<void> _waitForReady(
+    BikeSession session,
+    int generation, {
+    required Duration timeout,
+  }) async {
+    final deadline = DateTime.now().add(timeout);
     while (true) {
       _checkCurrent(generation);
       final current = session.state.peek();
@@ -616,9 +654,17 @@ final class BikeHardwareTestController {
       if (current is SessionFailed) {
         throw StateError(current.failure.message);
       }
+      if (current is SessionDegraded) {
+        throw StateError(current.failure.message);
+      }
       if (current is SessionDisposed ||
           current is SessionDisconnected && current.manuallyPaused) {
         throw StateError('The bike session stopped before becoming ready.');
+      }
+      if (!DateTime.now().isBefore(deadline)) {
+        throw TimeoutException(
+          'The bike did not become ready within ${timeout.inSeconds} seconds.',
+        );
       }
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
@@ -629,6 +675,7 @@ final class BikeHardwareTestController {
     bool Function() condition, {
     Duration? timeout,
   }) async {
+    _checkCurrent(generation);
     final deadline = timeout == null ? null : DateTime.now().add(timeout);
     while (!condition()) {
       _checkCurrent(generation);
@@ -637,9 +684,33 @@ final class BikeHardwareTestController {
       }
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
+    _checkCurrent(generation);
   }
 
-  Future<void> _releaseBike({required bool restore}) async {
+  Future<void> _releaseBike({required bool restore}) {
+    if (_releaseFuture case final pending?) {
+      return pending;
+    }
+    final pending = _performReleaseBike(restore: restore);
+    _releaseFuture = pending;
+    unawaited(
+      pending.then<void>(
+        (_) {
+          if (identical(_releaseFuture, pending)) {
+            _releaseFuture = null;
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (identical(_releaseFuture, pending)) {
+            _releaseFuture = null;
+          }
+        },
+      ),
+    );
+    return pending;
+  }
+
+  Future<void> _performReleaseBike({required bool restore}) async {
     try {
       await transport.stopScan();
     } on Object {
@@ -650,7 +721,8 @@ final class BikeHardwareTestController {
     final original = _originalConfiguration;
     if (restore && session != null && original != null) {
       try {
-        if (session.state.peek() is SessionReady) {
+        final restorable = await _waitUntilRestorable(session);
+        if (restorable) {
           await session.updatePreferences(const RidePreferences.defaults());
           var current = session.observed.peek();
           if (current?.light != original.light) {
@@ -678,7 +750,7 @@ final class BikeHardwareTestController {
         _addLog(
           BikeHardwareTestLogStatus.warning,
           'Cleanup',
-          'Could not restore every starting value: $error',
+          'Could not restore every starting value: ${_friendlyError(error)}',
         );
       }
     }
@@ -696,9 +768,39 @@ final class BikeHardwareTestController {
     }
     if (_ownsCoordinatorPause) {
       _ownsCoordinatorPause = false;
-      await activeBikeCoordinator.resumeAfterDiscovery();
+      try {
+        await activeBikeCoordinator.resumeAfterDiscovery();
+        _addTrace('test.release', 'Normal auto-connect resumed.');
+      } on Object catch (error) {
+        _addLog(
+          BikeHardwareTestLogStatus.warning,
+          'Normal connection resume',
+          'The test released Bluetooth, but automatic connection could not resume: ${_friendlyError(error)}',
+        );
+        _addTrace('test.release', 'Normal auto-connect could not resume.');
+      }
+    } else {
+      _addTrace('test.release', 'No paused auto-connect session to resume.');
     }
-    _addTrace('test.release', 'Normal auto-connect resumed.');
+  }
+
+  Future<bool> _waitUntilRestorable(BikeSession session) async {
+    final deadline = DateTime.now().add(cleanupTimeout);
+    while (true) {
+      if (session.canChangeConfiguration) {
+        return true;
+      }
+      final current = session.state.peek();
+      if (current is SessionDisposed ||
+          current is SessionDisconnected && current.manuallyPaused ||
+          current is SessionFailed && !current.canRetry) {
+        return false;
+      }
+      if (!DateTime.now().isBefore(deadline)) {
+        return false;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   BikeRegion? _preferredRegion(String deviceId) {
@@ -708,6 +810,44 @@ final class BikeHardwareTestController {
       }
     }
     return null;
+  }
+
+  void _publishSessionProgress(BikeSessionState sessionState) {
+    final phase = _state.peek().phase;
+    if (phase != BikeHardwareTestPhase.connecting &&
+        phase != BikeHardwareTestPhase.waitingForPowerOn) {
+      return;
+    }
+    final (title, detail) = switch (sessionState) {
+      SessionConnecting() => (
+        phase == BikeHardwareTestPhase.waitingForPowerOn
+            ? 'Bike found — connecting'
+            : 'Connecting to the bike',
+        'Opening the Bluetooth connection.',
+      ),
+      SessionDiscovering() => (
+        'Checking bike services',
+        'Discovering the required Bluetooth characteristics.',
+      ),
+      SessionAuthenticating() => (
+        'Authenticating the bike',
+        'Completing the challenge-response handshake.',
+      ),
+      SessionConnected() || SessionSynchronizing() => (
+        'Confirming bike settings',
+        'Reading versions and waiting for the controller to confirm its settings.',
+      ),
+      SessionDegraded() => (
+        'Connected with a settings warning',
+        'The bike is reachable, but it did not confirm a requested setting.',
+      ),
+      SessionReconnecting(:final retryAfter) => (
+        'Turn the bike ON',
+        'No connection yet. Trying again in ${retryAfter.inSeconds} seconds.',
+      ),
+      _ => (_state.peek().title, _state.peek().detail),
+    };
+    _publish(phase, title, detail);
   }
 
   void _publish(BikeHardwareTestPhase phase, String title, String detail) {
@@ -720,6 +860,10 @@ final class BikeHardwareTestController {
       detail: detail,
       log: _state.peek().log,
     );
+  }
+
+  String _friendlyError(Object error) {
+    return userFacingError(error, context: UserErrorContext.hardwareTest);
   }
 
   void _addLog(BikeHardwareTestLogStatus status, String label, String detail) {
@@ -824,11 +968,11 @@ final class _DiagnosticBikeConnection implements BikeConnection {
   final BikeConnection _delegate;
   final void Function(String event, String detail) onTrace;
   final List<List<int>> configurationWrites = [];
-  var connectCalls = 0;
-  var disconnectEvents = 0;
-  var gattDiscoveries = 0;
-  var authenticationWrites = 0;
-  var telemetryPackets = 0;
+  int connectCalls = 0;
+  int disconnectEvents = 0;
+  int gattDiscoveries = 0;
+  int authenticationWrites = 0;
+  int telemetryPackets = 0;
 
   @override
   String get deviceId => _delegate.deviceId;

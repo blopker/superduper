@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/domain/bike_names.dart';
 import 'package:superduper/src/persistence/app_database.dart';
@@ -43,35 +42,6 @@ final class BikeRepository {
     );
   }
 
-  Stream<SavedBike?> watchActiveBike() {
-    final query = database.select(database.bikes).join([
-      innerJoin(
-        database.bikePreferences,
-        database.bikePreferences.deviceId.equalsExp(database.bikes.deviceId),
-      ),
-      innerJoin(
-        database.appSettings,
-        database.appSettings.activeBikeId.equalsExp(database.bikes.deviceId),
-      ),
-      leftOuterJoin(
-        database.bikeVersions,
-        database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
-      ),
-    ]);
-
-    return query.watch().map((rows) {
-      if (rows.isEmpty) {
-        return null;
-      }
-      final row = rows.single;
-      return _mapBike(
-        row.readTable(database.bikes),
-        row.readTable(database.bikePreferences),
-        row.readTableOrNull(database.bikeVersions),
-      );
-    });
-  }
-
   Future<List<SavedBike>> getBikes() async {
     final query =
         database.select(database.bikes).join([
@@ -113,6 +83,7 @@ final class BikeRepository {
 
   Future<SavedBike> addBike({
     required String deviceId,
+    String advertisedName = 'SUPER73',
     String? displayName,
     BikeRegion? region,
     BikeColor color = BikeColor.royalHorizon,
@@ -128,7 +99,18 @@ final class BikeRepository {
     final normalizedVersions = versions == null
         ? null
         : _normalizeVersionInfo(versions);
-    final persistedRegion = _regionForVersions(region, normalizedVersions);
+    final normalizedAdvertisedName = advertisedName.trim();
+    final protocol = BikeProtocolVersion.fromAdvertisedName(
+      normalizedAdvertisedName,
+    );
+    if (protocol == null) {
+      throw ArgumentError.value(
+        advertisedName,
+        'advertisedName',
+        'Must be a supported bike advertised name.',
+      );
+    }
+    final persistedRegion = protocol == BikeProtocolVersion.v1 ? region : null;
     final normalizedName = _normalizeName(displayName, normalizedId);
     final normalizedSerial = moduleSerial == null
         ? null
@@ -136,6 +118,14 @@ final class BikeRepository {
 
     return database.transaction(() async {
       await _ensureSettings();
+      final existing =
+          await (database.select(
+                database.bikes,
+              )..where((table) => table.deviceId.equals(normalizedId)))
+              .getSingleOrNull();
+      if (existing != null) {
+        throw BikeAlreadyExistsException(normalizedId);
+      }
       final nextSortOrder = (await _highestSortOrder()) + 1;
       final now = _clock().millisecondsSinceEpoch;
 
@@ -145,6 +135,8 @@ final class BikeRepository {
             BikesCompanion.insert(
               deviceId: normalizedId,
               displayName: normalizedName,
+              advertisedName: Value(normalizedAdvertisedName),
+              protocol: Value(protocol),
               region: Value(persistedRegion?.name),
               colorKey: color.key,
               sortOrder: nextSortOrder,
@@ -220,6 +212,7 @@ final class BikeRepository {
     required String displayName,
     required BikeRegion? region,
     required BikeColor color,
+    required BikeProtocolVersion protocol,
   }) {
     final normalizedName = displayName.trim();
     if (normalizedName.isEmpty) {
@@ -233,7 +226,10 @@ final class BikeRepository {
       deviceId,
       BikesCompanion(
         displayName: Value(normalizedName),
-        region: Value(region?.name),
+        protocol: Value(protocol),
+        region: Value(
+          protocol == BikeProtocolVersion.v1 ? region?.name : null,
+        ),
         colorKey: Value(color.key),
       ),
     );
@@ -337,42 +333,32 @@ final class BikeRepository {
   Future<bool> saveVersions(String deviceId, BikeVersionInfo versions) {
     final normalized = _normalizeVersionInfo(versions);
     return database.transaction(() async {
-      final bike = await _requireBike(deviceId);
-      if (!_versionsUseRegion(normalized) && bike.region != null) {
-        await (database.update(database.bikes)
-              ..where((table) => table.deviceId.equals(deviceId)))
-            .write(const BikesCompanion(region: Value(null)));
-      }
+      await _requireBike(deviceId);
       final current = await (database.select(
         database.bikeVersions,
       )..where((table) => table.deviceId.equals(deviceId))).getSingleOrNull();
       if (current != null && _mapVersionInfo(current) == normalized) {
         return false;
       }
+      final now = _clock().millisecondsSinceEpoch;
       await database
           .into(database.bikeVersions)
           .insertOnConflictUpdate(
             _versionsInsert(
               deviceId,
               normalized,
-              _clock().millisecondsSinceEpoch,
+              now,
             ),
           );
+      await (database.update(
+        database.bikes,
+      )..where((table) => table.deviceId.equals(deviceId))).write(
+        BikesCompanion(
+          updatedAtMs: Value(now),
+        ),
+      );
       return true;
     });
-  }
-
-  BikeRegion? _regionForVersions(
-    BikeRegion? region,
-    BikeVersionInfo? versions,
-  ) {
-    return _versionsUseRegion(versions) ? region : null;
-  }
-
-  bool _versionsUseRegion(BikeVersionInfo? versions) {
-    return versions == null ||
-        BikeProtocolVersion.fromFirmwareRevision(versions.firmwareRevision) !=
-            BikeProtocolVersion.v2;
   }
 
   Future<bool> saveModuleSerial(String deviceId, String moduleSerial) {
@@ -520,6 +506,8 @@ final class BikeRepository {
       bike: Bike(
         deviceId: bike.deviceId,
         displayName: bike.displayName,
+        advertisedName: bike.advertisedName,
+        protocol: bike.protocol,
         region: region,
         color: color,
         sortOrder: bike.sortOrder,

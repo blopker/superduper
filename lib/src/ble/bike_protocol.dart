@@ -1,26 +1,7 @@
 import 'package:crypto/crypto.dart';
 import 'package:superduper/src/domain/bike.dart';
 
-enum BikeProtocolVersion {
-  v1,
-  v2;
-
-  static BikeProtocolVersion? fromAdvertisedName(String name) {
-    return switch (name.trim()) {
-      'SUPER73' => BikeProtocolVersion.v1,
-      'S73 FTEX' => BikeProtocolVersion.v2,
-      _ => null,
-    };
-  }
-
-  static BikeProtocolVersion? fromFirmwareRevision(String revision) {
-    return switch (revision.trim()) {
-      '221122' => BikeProtocolVersion.v1,
-      '250426' => BikeProtocolVersion.v2,
-      _ => null,
-    };
-  }
-}
+export 'package:superduper/src/domain/bike.dart' show BikeProtocolVersion;
 
 abstract final class BikeGatt {
   static const manufacturerId = 0x020f;
@@ -281,8 +262,8 @@ abstract final class BikeProtocol {
     };
     return [
       0,
-      version == BikeProtocolVersion.v1 ? 0xd1 : 0xc1,
-      configuration.light ? 1 : 0,
+      if (version == BikeProtocolVersion.v1) 0xd1 else 0xc1,
+      if (configuration.light) 1 else 0,
       configuration.assist,
       mode,
       0,
@@ -348,7 +329,7 @@ abstract final class BikeProtocol {
       throw ShortBikeFrame(packet.length);
     }
     if (packet.length != 10) {
-      throw MalformedBikeFrame('length');
+      throw const MalformedBikeFrame('length');
     }
     for (var index = 0; index < packet.length; index++) {
       final byte = packet[index];

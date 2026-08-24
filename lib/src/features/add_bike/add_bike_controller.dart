@@ -54,6 +54,7 @@ final class AddBikeConfirming extends AddBikeState {
     required this.configuration,
     required this.suggestedName,
     required this.versions,
+    required this.untestedFirmwareRevision,
   });
 
   final DiscoveredBike candidate;
@@ -61,6 +62,7 @@ final class AddBikeConfirming extends AddBikeState {
   final BikeConfiguration configuration;
   final String suggestedName;
   final BikeVersionInfo? versions;
+  final String? untestedFirmwareRevision;
 }
 
 final class AddBikeSaving extends AddBikeState {
@@ -108,21 +110,31 @@ final class AddBikeController {
   var _acceptScanStop = false;
   var _disposed = false;
   var _coordinatorPaused = false;
+  var _operationGeneration = 0;
 
   ReadonlySignal<AddBikeState> get state => _state.readonly();
 
-  Future<void> start() async {
+  Future<void> start({bool requestPermission = true}) async {
     _ensureNotDisposed();
+    final generation = ++_operationGeneration;
     try {
       await _stopCandidateAndScan();
+      if (!_isCurrent(generation)) {
+        return;
+      }
       _state.value = const AddBikeCheckingAccess();
       if (!_coordinatorPaused) {
         _coordinatorPaused = true;
         await activeBikeCoordinator.pauseForDiscovery();
       }
+      if (!_isCurrent(generation)) {
+        return;
+      }
 
-      final permission = await permissions.ensureAccess(request: true);
-      if (_disposed) {
+      final permission = await permissions.ensureAccess(
+        request: requestPermission,
+      );
+      if (!_isCurrent(generation)) {
         return;
       }
       if (permission != BluetoothPermissionState.granted) {
@@ -137,7 +149,7 @@ final class AddBikeController {
             const Duration(seconds: 3),
             onTimeout: () => BikeAdapterState.unknown,
           );
-      if (_disposed) {
+      if (!_isCurrent(generation)) {
         return;
       }
       if (adapter != BikeAdapterState.on) {
@@ -148,6 +160,9 @@ final class AddBikeController {
       _savedIds = (await bikeRepository.getBikes())
           .map((saved) => saved.bike.deviceId)
           .toSet();
+      if (!_isCurrent(generation)) {
+        return;
+      }
       _results = const [];
       _isScanning = true;
       _acceptScanStop = false;
@@ -155,14 +170,19 @@ final class AddBikeController {
       _listenToScan();
       try {
         await transport.startScan(timeout: scanTimeout);
+        if (!_isCurrent(generation)) {
+          return;
+        }
         _acceptScanStop = true;
         _isScanning = true;
         _publishScan();
       } on Object catch (error) {
-        _state.value = AddBikeFailure(error.toString());
+        if (_isCurrent(generation)) {
+          _state.value = AddBikeFailure(error.toString());
+        }
       }
     } on Object {
-      if (!_disposed) {
+      if (_isCurrent(generation)) {
         _state.value = const AddBikeFailure(
           'Bluetooth setup could not be started. Try again.',
         );
@@ -172,43 +192,64 @@ final class AddBikeController {
 
   Future<void> selectCandidate(DiscoveredBike candidate) async {
     _ensureNotDisposed();
+    if (_state.peek() is! AddBikeScanning) {
+      return;
+    }
+    final protocol = BikeProtocolVersion.fromAdvertisedName(candidate.name);
+    if (protocol == null) {
+      _state.value = const AddBikeFailure(
+        'This device does not advertise a supported bike protocol.',
+      );
+      return;
+    }
+    final generation = ++_operationGeneration;
     _state.value = AddBikeConnecting(candidate);
-    await transport.stopScan();
-    _isScanning = false;
+    try {
+      await transport.stopScan();
+      _isScanning = false;
+      if (!_isCurrent(generation)) {
+        return;
+      }
 
-    final session = BikeSession(
-      connection: transport.openConnection(candidate.deviceId),
-      preferredRegion: null,
-      preferences: const RidePreferences.defaults(),
-      protocolHint: BikeProtocolVersion.fromAdvertisedName(candidate.name),
-      pollInterval: null,
-      reconnectDelays: const [],
-    );
-    _candidateSession = session;
-    await session.connect();
-    if (_disposed || _candidateSession != session) {
-      return;
-    }
-    final configuration = session.observed.peek();
-    if (session.state.peek() is! SessionReady || configuration == null) {
-      final sessionState = session.state.peek();
-      final message = sessionState is SessionFailed
-          ? sessionState.failure.message
-          : 'The bike could not be prepared for setup.';
-      _state.value = AddBikeFailure(message);
-      return;
-    }
+      final session = BikeSession(
+        connection: transport.openConnection(candidate.deviceId),
+        preferredRegion: null,
+        preferences: const RidePreferences.defaults(),
+        protocol: protocol,
+        pollInterval: null,
+        reconnectDelays: const [],
+      );
+      _candidateSession = session;
+      await session.connect();
+      if (!_isCurrent(generation) || _candidateSession != session) {
+        return;
+      }
+      final configuration = session.observed.peek();
+      if (session.state.peek() is! SessionReady || configuration == null) {
+        final sessionState = session.state.peek();
+        final message = sessionState is SessionFailed
+            ? sessionState.failure.message
+            : 'The bike could not be prepared for setup.';
+        _state.value = AddBikeFailure(message);
+        return;
+      }
 
-    final advertisedName = candidate.name.trim();
-    _state.value = AddBikeConfirming(
-      candidate: candidate,
-      protocol: session.protocolVersion!,
-      configuration: configuration,
-      suggestedName: advertisedName.isEmpty
-          ? defaultBikeName(candidate.deviceId)
-          : advertisedName,
-      versions: session.versions.peek(),
-    );
+      final advertisedName = candidate.name.trim();
+      _state.value = AddBikeConfirming(
+        candidate: candidate,
+        protocol: session.protocolVersion,
+        configuration: configuration,
+        suggestedName: advertisedName.isEmpty
+            ? defaultBikeName(candidate.deviceId)
+            : advertisedName,
+        versions: session.versions.peek(),
+        untestedFirmwareRevision: session.unknownFirmwareRevision,
+      );
+    } on Object catch (error) {
+      if (_isCurrent(generation)) {
+        _state.value = AddBikeFailure(error.toString());
+      }
+    }
   }
 
   Future<SavedBike> confirm({
@@ -242,33 +283,45 @@ final class AddBikeController {
     };
 
     _state.value = const AddBikeSaving();
-    await _candidateSession?.dispose();
-    _candidateSession = null;
-    final configuration = current.configuration;
-    final saved = await bikeRepository.addBike(
-      deviceId: current.candidate.deviceId,
-      displayName: normalizedName,
-      region: persistedRegion,
-      color: color,
-      moduleSerial: current.candidate.moduleSerial,
-      preferences: RidePreferences(
-        desiredLight: configuration.light,
-        desiredMode: configuration.mode,
-        desiredAssist: configuration.assist,
-        keepLight: false,
-        keepMode: false,
-        keepAssist: false,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
-      ),
-      versions: current.versions,
-    );
-    await _resumeCoordinator();
-    _state.value = AddBikeCompleted(saved);
-    return saved;
+    try {
+      await _candidateSession?.dispose();
+      _candidateSession = null;
+      final configuration = current.configuration;
+      final saved = await bikeRepository.addBike(
+        deviceId: current.candidate.deviceId,
+        advertisedName: current.protocol.advertisedName,
+        displayName: normalizedName,
+        region: persistedRegion,
+        color: color,
+        moduleSerial: current.candidate.moduleSerial,
+        preferences: RidePreferences(
+          desiredLight: configuration.light,
+          desiredMode: configuration.mode,
+          desiredAssist: configuration.assist,
+          keepLight: false,
+          keepMode: false,
+          keepAssist: false,
+          backgroundRequested: false,
+          backgroundConsentVersion: 0,
+        ),
+        versions: current.versions,
+      );
+      await _resumeCoordinator(temporarilySelect: saved);
+      if (!_disposed) {
+        _state.value = AddBikeCompleted(saved);
+      }
+      return saved;
+    } on Object catch (error) {
+      if (!_disposed) {
+        _state.value = AddBikeFailure(error.toString());
+      }
+      rethrow;
+    }
   }
 
-  Future<void> retry() => start();
+  Future<void> retry({bool requestPermission = true}) {
+    return start(requestPermission: requestPermission);
+  }
 
   Future<bool> openPermissionSettings() => permissions.openSettings();
 
@@ -276,6 +329,7 @@ final class AddBikeController {
     if (_disposed) {
       return;
     }
+    _operationGeneration++;
     await _stopCandidateAndScan();
     await _resumeCoordinator();
     _state.value = const AddBikeIdle();
@@ -285,9 +339,10 @@ final class AddBikeController {
     if (_disposed) {
       return;
     }
+    _disposed = true;
+    _operationGeneration++;
     await _stopCandidateAndScan();
     await _resumeCoordinator();
-    _disposed = true;
     _state.dispose();
   }
 
@@ -303,7 +358,11 @@ final class AddBikeController {
         }
       }
       _results = List.unmodifiable(
-        results.where((result) => !_savedIds.contains(result.deviceId)),
+        results.where(
+          (result) =>
+              BikeProtocolVersion.fromAdvertisedName(result.name) != null &&
+              !_savedIds.contains(result.deviceId),
+        ),
       );
       _publishScan();
     }, onError: _onScanError);
@@ -353,26 +412,36 @@ final class AddBikeController {
     _scanningSubscription = null;
     await _adapterSubscription?.cancel();
     _adapterSubscription = null;
-    if (_isScanning) {
-      await transport.stopScan();
+    final candidateSession = _candidateSession;
+    _candidateSession = null;
+    try {
+      if (_isScanning) {
+        await transport.stopScan();
+      }
+    } finally {
+      await candidateSession?.dispose();
     }
     _isScanning = false;
     _acceptScanStop = false;
-    await _candidateSession?.dispose();
-    _candidateSession = null;
   }
 
-  Future<void> _resumeCoordinator() async {
+  Future<void> _resumeCoordinator({SavedBike? temporarilySelect}) async {
     if (!_coordinatorPaused) {
       return;
     }
     _coordinatorPaused = false;
-    await activeBikeCoordinator.resumeAfterDiscovery();
+    await activeBikeCoordinator.resumeAfterDiscovery(
+      temporarilySelect: temporarilySelect,
+    );
   }
 
   void _ensureNotDisposed() {
     if (_disposed) {
       throw StateError('The Add Bike workflow is disposed.');
     }
+  }
+
+  bool _isCurrent(int generation) {
+    return !_disposed && generation == _operationGeneration;
   }
 }

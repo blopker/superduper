@@ -91,16 +91,6 @@ void main() {
       await settingsRepository.initialize();
       await repository.addBike(
         deviceId: 'bike',
-        preferences: const RidePreferences(
-          desiredLight: false,
-          desiredMode: 0,
-          desiredAssist: 0,
-          keepLight: false,
-          keepMode: false,
-          keepAssist: false,
-          backgroundRequested: false,
-          backgroundConsentVersion: 0,
-        ),
       );
 
       await repository.setModeLock('bike', enabled: true, confirmedValue: 3);
@@ -134,6 +124,7 @@ void main() {
       displayName: '  Commuter  ',
       region: BikeRegion.eu,
       color: BikeColor.midnightSky,
+      protocol: BikeProtocolVersion.v1,
     );
 
     final saved = (await repository.getBikes()).single;
@@ -141,6 +132,43 @@ void main() {
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.color, BikeColor.midnightSky);
   });
+
+  test(
+    'bike protocol can be overridden with the other advertised name',
+    () async {
+      await settingsRepository.initialize();
+      await repository.addBike(
+        deviceId: 'bike',
+        region: BikeRegion.eu,
+      );
+
+      await repository.updateBikeDetails(
+        'bike',
+        displayName: 'Commuter',
+        region: BikeRegion.eu,
+        color: BikeColor.midnightSky,
+        protocol: BikeProtocolVersion.v2,
+      );
+
+      var saved = (await repository.getBikes()).single;
+      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(saved.bike.protocol, BikeProtocolVersion.v2);
+      expect(saved.bike.region, equals(null));
+
+      await repository.updateBikeDetails(
+        'bike',
+        displayName: 'Commuter',
+        region: BikeRegion.us,
+        color: BikeColor.midnightSky,
+        protocol: BikeProtocolVersion.v1,
+      );
+
+      saved = (await repository.getBikes()).single;
+      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(saved.bike.protocol, BikeProtocolVersion.v1);
+      expect(saved.bike.region, BikeRegion.us);
+    },
+  );
 
   test('version snapshots are inserted with a newly saved bike', () async {
     await settingsRepository.initialize();
@@ -180,6 +208,16 @@ void main() {
     );
   });
 
+  test('duplicate bikes report a domain error', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(deviceId: 'bike');
+
+    await expectLater(
+      repository.addBike(deviceId: 'bike'),
+      throwsA(isA<BikeAlreadyExistsException>()),
+    );
+  });
+
   test('version snapshots are only rewritten when a number changes', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');
@@ -207,17 +245,34 @@ void main() {
     expect(saved.versions?.readAt.isAtSameMomentAs(now), isTrue);
   });
 
-  test('V2 version snapshots clear obsolete stored regions', () async {
-    await settingsRepository.initialize();
-    await repository.addBike(deviceId: 'bike', region: BikeRegion.eu);
+  test(
+    'advertised name alone determines protocol-specific persistence',
+    () async {
+      await settingsRepository.initialize();
+      await repository.addBike(
+        deviceId: 'bike',
+        advertisedName: 'S73 FTEX',
+        region: BikeRegion.eu,
+      );
 
-    expect(await repository.saveVersions('bike', _versionInfo), isTrue);
-    expect((await repository.getBikes()).single.bike.region, equals(null));
+      expect(await repository.saveVersions('bike', _versionInfo), isTrue);
+      final v2 = (await repository.getBikes()).single.bike;
+      expect(v2.advertisedName, 'S73 FTEX');
+      expect(v2.protocol, BikeProtocolVersion.v2);
+      expect(v2.region, equals(null));
 
-    await repository.setRegion('bike', BikeRegion.us);
-    expect(await repository.saveVersions('bike', _versionInfo), isFalse);
-    expect((await repository.getBikes()).single.bike.region, equals(null));
-  });
+      await repository.forgetBike('bike');
+      await repository.addBike(
+        deviceId: 'v1',
+        region: BikeRegion.eu,
+      );
+      expect(await repository.saveVersions('v1', _versionInfo), isTrue);
+      final v1 = (await repository.getBikes()).single.bike;
+      expect(v1.advertisedName, 'SUPER73');
+      expect(v1.protocol, BikeProtocolVersion.v1);
+      expect(v1.region, BikeRegion.eu);
+    },
+  );
 }
 
 const _versionInfo = BikeVersionInfo(

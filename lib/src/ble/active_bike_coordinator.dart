@@ -77,10 +77,12 @@ final class ActiveBikeCoordinator {
     null,
     options: const SignalOptions(name: 'activeBike.session'),
   );
+  final Completer<void> _disposeSignal = Completer<void>();
 
   StreamSubscription<List<SavedBike>>? _bikesSubscription;
   StreamSubscription<AppPreferences>? _settingsSubscription;
   EffectCleanup? _sessionStateCleanup;
+  Future<BluetoothPermissionState>? _permissionCheck;
   SavedBike? _currentBike;
   String? _temporaryBikeId;
   var _hasBikes = false;
@@ -89,6 +91,7 @@ final class ActiveBikeCoordinator {
   var _started = false;
   var _disposed = false;
   var _discoveryPaused = false;
+  var _foreground = true;
   var _readyRecorded = false;
 
   ReadonlySignal<ActiveBikeState> get state => _state.readonly();
@@ -108,6 +111,9 @@ final class ActiveBikeCoordinator {
     var initialized = false;
     _bikesSubscription = bikeRepository.watchBikes().listen(
       (bikes) {
+        if (_disposed) {
+          return;
+        }
         _hasBikes = true;
         _bikes.value = bikes;
         if (!bikesReady.isCompleted) {
@@ -126,6 +132,9 @@ final class ActiveBikeCoordinator {
     );
     _settingsSubscription = settingsRepository.watch().listen(
       (settings) {
+        if (_disposed) {
+          return;
+        }
         _hasSettings = true;
         _activeBikeId.value = settings.activeBikeId;
         if (_temporaryBikeId == settings.activeBikeId) {
@@ -146,7 +155,10 @@ final class ActiveBikeCoordinator {
         }
       },
     );
-    await Future.wait([bikesReady.future, settingsReady.future]);
+    await Future.any([
+      Future.wait([bikesReady.future, settingsReady.future]),
+      _disposeSignal.future,
+    ]);
     if (_disposed) {
       return;
     }
@@ -163,6 +175,9 @@ final class ActiveBikeCoordinator {
 
   Future<void> selectTemporarily(String deviceId) async {
     _requireSavedBike(deviceId);
+    if (_temporaryBikeId == deviceId && _session.peek()?.deviceId == deviceId) {
+      return;
+    }
     _temporaryBikeId = deviceId;
     await _recompute(force: true);
   }
@@ -178,12 +193,12 @@ final class ActiveBikeCoordinator {
   Future<void> makeBikeActive(String deviceId) async {
     await settingsRepository.makeBikeActive(deviceId);
     _temporaryBikeId = null;
-    await _recompute(force: true);
+    await _recompute(force: _session.peek()?.deviceId != deviceId);
   }
 
   Future<void> forgetBike(String deviceId) async {
+    _switchGeneration++;
     if (_session.peek()?.deviceId == deviceId) {
-      _switchGeneration++;
       await _clearSession();
     }
     if (_temporaryBikeId == deviceId) {
@@ -195,6 +210,9 @@ final class ActiveBikeCoordinator {
   Future<void> retry() async {
     final current = _session.peek();
     if (current != null) {
+      if (current.state.peek() case SessionReady() || SessionSynchronizing()) {
+        return;
+      }
       await current.retry();
       return;
     }
@@ -211,23 +229,45 @@ final class ActiveBikeCoordinator {
 
   Future<void> pauseForDiscovery() async {
     _discoveryPaused = true;
-    await _session.peek()?.pauseForBackground();
+    _switchGeneration++;
+    await _clearSession();
   }
 
-  Future<void> resumeAfterDiscovery() async {
+  Future<void> resumeAfterDiscovery({SavedBike? temporarilySelect}) async {
     if (!_discoveryPaused) {
       return;
     }
+    if (temporarilySelect != null) {
+      final updated = [..._bikes.peek()];
+      final existingIndex = updated.indexWhere(
+        (bike) => bike.bike.deviceId == temporarilySelect.bike.deviceId,
+      );
+      if (existingIndex == -1) {
+        updated.add(temporarilySelect);
+      } else {
+        updated[existingIndex] = temporarilySelect;
+      }
+      _bikes.value = List.unmodifiable(updated);
+      _temporaryBikeId = temporarilySelect.bike.deviceId;
+    }
     _discoveryPaused = false;
-    await _recompute(force: true);
+    if (_foreground) {
+      await _recompute(force: true);
+    }
   }
 
   Future<void> setForeground(bool foreground) async {
+    _foreground = foreground;
     if (_discoveryPaused) {
       return;
     }
     if (foreground) {
-      await _session.peek()?.resumeFromBackground();
+      final current = _session.peek();
+      if (current == null) {
+        await _recompute(force: true, requestPermission: false);
+      } else {
+        await current.resumeFromBackground();
+      }
     } else {
       await _session.peek()?.pauseForBackground();
     }
@@ -240,6 +280,9 @@ final class ActiveBikeCoordinator {
       return;
     }
     _disposed = true;
+    if (!_disposeSignal.isCompleted) {
+      _disposeSignal.complete();
+    }
     _switchGeneration++;
     await _bikesSubscription?.cancel();
     await _settingsSubscription?.cancel();
@@ -251,60 +294,130 @@ final class ActiveBikeCoordinator {
     _session.dispose();
   }
 
-  Future<void> _recompute({bool force = false}) async {
-    if (_disposed || !_hasBikes || !_hasSettings || _discoveryPaused) {
+  Future<void> _recompute({
+    bool force = false,
+    bool requestPermission = true,
+  }) async {
+    if (_disposed ||
+        !_hasBikes ||
+        !_hasSettings ||
+        _discoveryPaused ||
+        !_foreground) {
       return;
     }
-    final targetId = _temporaryBikeId ?? _activeBikeId.peek();
-    if (targetId == null) {
-      await _clearSession();
-      _state.value = const NoActiveBike();
-      return;
-    }
-    final target = _bikes.peek().where(
-      (saved) => saved.bike.deviceId == targetId,
-    );
-    if (target.isEmpty) {
-      await _clearSession();
-      _state.value = const NoActiveBike();
-      return;
-    }
-    final bike = target.single;
-    final current = _session.peek();
-    if (!force && current?.deviceId == targetId) {
-      _currentBike = bike;
-      current!.updatePreferredRegion(bike.bike.region);
-      await current.updatePreferences(bike.preferences);
-      _publishSessionState(current.state.peek());
-      return;
-    }
-
-    final generation = ++_switchGeneration;
-    await _clearSession();
-    if (_disposed || generation != _switchGeneration) {
-      return;
-    }
-    _state.value = const ActiveBikeLoading();
-    final permission = await permissions.ensureAccess(request: true);
-    if (_disposed || generation != _switchGeneration) {
-      return;
-    }
-    if (permission != BluetoothPermissionState.granted) {
-      _state.value = ActiveBikePermissionRequired(permission: permission);
-      return;
-    }
-
-    final next = buildSession(bike);
-    _readyRecorded = false;
-    _currentBike = bike;
-    _session.value = next;
-    _sessionStateCleanup = next.state.subscribe((sessionState) {
-      if (!_disposed && _session.peek() == next) {
-        _publishSessionState(sessionState);
+    try {
+      final targetId = _temporaryBikeId ?? _activeBikeId.peek();
+      if (targetId == null) {
+        await _clearSession();
+        if (!_disposed) {
+          _state.value = const NoActiveBike();
+        }
+        return;
       }
-    });
-    _publishSessionState(next.state.peek());
-    await next.connect();
+      final target = _bikes.peek().where(
+        (saved) => saved.bike.deviceId == targetId,
+      );
+      if (target.isEmpty) {
+        await _clearSession();
+        if (!_disposed) {
+          _state.value = const NoActiveBike();
+        }
+        return;
+      }
+      final bike = target.single;
+      final current = _session.peek();
+      if (!force &&
+          current?.deviceId == targetId &&
+          current?.protocolVersion == bike.bike.protocol) {
+        _currentBike = bike;
+        current!.updatePreferredRegion(bike.bike.region);
+        try {
+          await current.updatePreferences(bike.preferences);
+        } on BikeSessionFailure {
+          // The session publishes its own retry/degraded state. A settings
+          // enforcement failure must not hide a live bike behind a global
+          // repository-style error.
+        }
+        if (!_disposed &&
+            !_discoveryPaused &&
+            _session.peek() == current &&
+            _currentBike?.bike.deviceId == bike.bike.deviceId) {
+          _publishSessionState(current.state.peek());
+        }
+        return;
+      }
+
+      final generation = ++_switchGeneration;
+      await _clearSession();
+      if (_disposed ||
+          _discoveryPaused ||
+          !_foreground ||
+          generation != _switchGeneration) {
+        return;
+      }
+      _state.value = const ActiveBikeLoading();
+      final permission = await _ensurePermission(
+        request: requestPermission,
+      );
+      if (_disposed ||
+          _discoveryPaused ||
+          !_foreground ||
+          generation != _switchGeneration) {
+        return;
+      }
+      if (permission != BluetoothPermissionState.granted) {
+        _state.value = ActiveBikePermissionRequired(permission: permission);
+        return;
+      }
+
+      final next = buildSession(bike);
+      if (_disposed ||
+          _discoveryPaused ||
+          !_foreground ||
+          generation != _switchGeneration) {
+        await next.dispose();
+        return;
+      }
+      _readyRecorded = false;
+      _currentBike = bike;
+      _session.value = next;
+      _sessionStateCleanup = next.state.subscribe((sessionState) {
+        if (!_disposed && _session.peek() == next) {
+          _publishSessionState(sessionState);
+        }
+      });
+      _publishSessionState(next.state.peek());
+      unawaited(
+        next.connect().catchError((Object error) {
+          if (!_disposed && _session.peek() == next) {
+            _state.value = ActiveBikeCoordinatorFailure(error.toString());
+          }
+        }),
+      );
+    } on Object catch (error) {
+      if (!_disposed && !_discoveryPaused && _foreground) {
+        _state.value = ActiveBikeCoordinatorFailure(error.toString());
+      }
+    }
+  }
+
+  Future<BluetoothPermissionState> _ensurePermission({
+    required bool request,
+  }) async {
+    final existing = _permissionCheck;
+    if (existing != null) {
+      return existing;
+    }
+    late final Future<BluetoothPermissionState> pending;
+    pending = permissions.ensureAccess(request: request);
+    _permissionCheck = pending;
+    try {
+      return await pending;
+    } finally {
+      if (identical(_permissionCheck, pending)) {
+        _permissionCheck = null;
+      }
+    }
   }
 
   Future<void> _clearSession() async {
@@ -329,7 +442,8 @@ final class ActiveBikeCoordinator {
       sessionState: sessionState,
       isTemporary: _temporaryBikeId != null,
     );
-    if (sessionState is SessionReady && !_readyRecorded) {
+    if ((sessionState is SessionReady || sessionState is SessionDegraded) &&
+        !_readyRecorded) {
       _readyRecorded = true;
       unawaited(
         bikeRepository

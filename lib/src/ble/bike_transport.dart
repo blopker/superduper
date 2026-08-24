@@ -27,7 +27,12 @@ sealed class BikeTransportFailure implements Exception {
 }
 
 final class BikeAdapterUnavailable extends BikeTransportFailure {
-  const BikeAdapterUnavailable(String message) : super('Bluetooth', message);
+  const BikeAdapterUnavailable(
+    String message, {
+    this.canRetry = true,
+  }) : super('Bluetooth', message);
+
+  final bool canRetry;
 }
 
 final class BikeConnectionFailure extends BikeTransportFailure {

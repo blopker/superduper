@@ -12,6 +12,7 @@ abstract final class AppColors {
   static const violet = Color(0xFF8E50FF);
   static const mint = Color(0xFF5EE6A8);
   static const orange = Color(0xFFFFAD5C);
+  static const error = Color(0xFFFF6E78);
   static const text = Color(0xFFFFF8FF);
   static const textMuted = Color(0xFFCDBFD3);
 }
@@ -31,7 +32,7 @@ abstract final class AppTheme {
       onTertiary: Colors.white,
       tertiaryContainer: Color(0xFF38206E),
       onTertiaryContainer: Color(0xFFEADDFF),
-      error: Color(0xFFFF6E78),
+      error: AppColors.error,
       onError: Color(0xFF470008),
       errorContainer: Color(0xFF660611),
       onErrorContainer: Color(0xFFFFDADB),

@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:superduper/src/domain/bike.dart';
 
 part 'app_database.g.dart';
 
@@ -11,6 +12,11 @@ part 'app_database.g.dart';
 class Bikes extends Table {
   TextColumn get deviceId => text()();
   TextColumn get displayName => text()();
+  TextColumn get advertisedName =>
+      text().withDefault(const Constant('SUPER73'))();
+  TextColumn get protocol => textEnum<BikeProtocolVersion>().withDefault(
+    const Constant('v1'),
+  )();
   TextColumn get region => text().nullable()();
   TextColumn get colorKey => text()();
   IntColumn get sortOrder => integer()();
@@ -133,7 +139,7 @@ class DataImports extends Table {
   tables: [Bikes, BikePreferences, BikeVersions, AppSettings, DataImports],
 )
 final class AppDatabase extends _$AppDatabase {
-  AppDatabase(super.executor);
+  AppDatabase(super.e);
 
   factory AppDatabase.open() {
     return AppDatabase(
@@ -151,19 +157,35 @@ final class AppDatabase extends _$AppDatabase {
       await migrator.createAll();
     },
     onUpgrade: (migrator, from, to) async {
-      if (from < 2) {
-        await migrator.createTable(bikeVersions);
-      }
-      if (from < 3) {
-        await migrator.addColumn(bikes, bikes.moduleSerial);
-      }
-      if (from < 4) {
-        await customStatement(
-          'UPDATE bikes SET region = NULL WHERE device_id IN '
-          '(SELECT device_id FROM bike_versions '
-          "WHERE firmware_revision = '250426')",
-        );
-      }
+      await transaction(() async {
+        if (from < 2) {
+          await migrator.createTable(bikeVersions);
+        }
+        if (from < 3 && !await _columnExists('bikes', 'module_serial')) {
+          await migrator.addColumn(bikes, bikes.moduleSerial);
+        }
+        if (from < 4) {
+          await customStatement(
+            'UPDATE bikes SET region = NULL WHERE device_id IN '
+            '(SELECT device_id FROM bike_versions '
+            "WHERE firmware_revision = '250426')",
+          );
+        }
+        if (from < 5 && !await _columnExists('bikes', 'advertised_name')) {
+          await migrator.addColumn(bikes, bikes.advertisedName);
+          await customStatement(
+            "UPDATE bikes SET advertised_name = 'S73 FTEX' "
+            'WHERE region IS NULL',
+          );
+        }
+        if (from < 6 && !await _columnExists('bikes', 'protocol')) {
+          await migrator.addColumn(bikes, bikes.protocol);
+          await customStatement(
+            "UPDATE bikes SET protocol = 'v2' "
+            "WHERE advertised_name = 'S73 FTEX'",
+          );
+        }
+      });
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -171,5 +193,10 @@ final class AppDatabase extends _$AppDatabase {
   );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
+
+  Future<bool> _columnExists(String table, String column) async {
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return rows.any((row) => row.read<String>('name') == column);
+  }
 }

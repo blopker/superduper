@@ -30,17 +30,7 @@ enum DataImportOutcome {
 final class ImportWarning {
   const ImportWarning({required this.code, this.record, this.field});
 
-  final String code;
-  final int? record;
-  final String? field;
-
-  Map<String, Object> toJson() => {
-    'code': code,
-    'record': ?record,
-    'field': ?field,
-  };
-
-  static ImportWarning fromJson(Object? value) {
+  factory ImportWarning.fromJson(Object? value) {
     if (value is! Map<String, Object?> || value['code'] is! String) {
       throw const FormatException('Invalid stored import warning.');
     }
@@ -50,6 +40,16 @@ final class ImportWarning {
       field: value['field'] as String?,
     );
   }
+
+  final String code;
+  final int? record;
+  final String? field;
+
+  Map<String, Object> toJson() => {
+    'code': code,
+    'record': ?record,
+    'field': ?field,
+  };
 }
 
 sealed class InstalledDataImportResult {
@@ -97,19 +97,17 @@ final class InstalledDataImporter {
   final DocumentsDirectoryProvider _documentsDirectory;
   final DateTime Function() _clock;
 
-  Future<InstalledDataImportResult> run({bool retrySkipped = false}) async {
+  Future<InstalledDataImportResult> run() async {
     final marker = await _getMarker();
-    if (marker != null &&
-        (!retrySkipped ||
-            marker.outcome != DataImportOutcome.skippedByUser.databaseValue)) {
+    if (marker != null) {
       return _resultFromMarker(marker);
     }
 
     final documents = await _documentsDirectory();
     final bikesFile = File(path.join(documents.path, 'bikes.json'));
     final settingsFile = File(path.join(documents.path, 'settings.json'));
-    final bikesExist = await bikesFile.exists();
-    final settingsExist = await settingsFile.exists();
+    final bikesExist = bikesFile.existsSync();
+    final settingsExist = settingsFile.existsSync();
 
     if (!bikesExist && !settingsExist) {
       return _recordNoSource();
@@ -212,6 +210,7 @@ final class InstalledDataImporter {
               BikesCompanion.insert(
                 deviceId: imported.deviceId,
                 displayName: imported.displayName,
+                advertisedName: const Value('SUPER73'),
                 region: Value(imported.region?.name),
                 colorKey: imported.color.key,
                 sortOrder: imported.sortOrder,
@@ -245,7 +244,7 @@ final class InstalledDataImporter {
           ? settings.activeBikeId
           : await _lowestId();
 
-      String? lastViewedId = settings.lastViewedBikeId;
+      var lastViewedId = settings.lastViewedBikeId;
       if (currentBikeId != null) {
         if (await _bikeExists(currentBikeId)) {
           lastViewedId = currentBikeId;
@@ -309,6 +308,18 @@ final class InstalledDataImporter {
       warnings: [],
       previouslyHandled: false,
     );
+  }
+
+  Future<InstalledDataImportResult> retry() async {
+    await (database.delete(database.dataImports)..where(
+          (table) =>
+              table.importKey.equals(installedJsonImportKey) &
+              table.outcome.equals(
+                DataImportOutcome.skippedByUser.databaseValue,
+              ),
+        ))
+        .go();
+    return run();
   }
 
   Future<InstalledDataImportSuccess> _recordNoSource() async {

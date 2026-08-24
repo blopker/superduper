@@ -13,6 +13,7 @@ import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 final class HomePage extends SignalStatefulWidget {
@@ -23,8 +24,10 @@ final class HomePage extends SignalStatefulWidget {
 }
 
 final class _HomePageState extends State<HomePage> {
-  var _automaticNavigationHandled = false;
-  var _automaticNavigationScheduled = false;
+  var _openingAddBike = false;
+  var _openingBike = false;
+  var _autoOpenHandled = false;
+  var _autoOpenScheduled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +38,7 @@ final class _HomePageState extends State<HomePage> {
     final activeState = coordinator.state.value;
     final migrationNoticePending = coordinator.migrationNoticePending.value;
     final startupState = services.startup.state.value;
-    _scheduleAutomaticControls(
-      coordinator: coordinator,
-      activeId: activeId,
-      activeState: activeState,
-    );
-
+    _scheduleAutoOpen(activeState);
     return Scaffold(
       body: AppPageBody(
         maxWidth: double.infinity,
@@ -59,11 +57,7 @@ final class _HomePageState extends State<HomePage> {
                     child: IconButton(
                       tooltip: 'Help & tips',
                       color: AppColors.magenta,
-                      onPressed: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const HelpPage(),
-                        ),
-                      ),
+                      onPressed: () => _openHelp(context),
                       icon: const Icon(Icons.help_outline_rounded),
                     ),
                   ),
@@ -136,8 +130,12 @@ final class _HomePageState extends State<HomePage> {
                             isActive: saved.bike.deviceId == activeId,
                             onOpen: () =>
                                 _openBike(context, saved.bike.deviceId),
-                            onMakeActive: () =>
-                                coordinator.makeBikeActive(saved.bike.deviceId),
+                            onMakeActive: () => _runAction(
+                              context,
+                              () => coordinator.makeBikeActive(
+                                saved.bike.deviceId,
+                              ),
+                            ),
                             onForget: () =>
                                 _forget(context, coordinator, saved),
                           ),
@@ -154,65 +152,95 @@ final class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _scheduleAutomaticControls({
-    required ActiveBikeCoordinator coordinator,
-    required String? activeId,
-    required ActiveBikeState activeState,
-  }) {
-    if (_automaticNavigationHandled || _automaticNavigationScheduled) {
+  Future<void> _openAddBike(BuildContext context, AppServices services) async {
+    if (_openingAddBike) {
       return;
     }
-    if (activeState
-        case ActiveBikeSessionStatus(
-          :final bike,
-          sessionState: SessionReady(),
-          isTemporary: false,
-        )
-        when bike.bike.deviceId == activeId) {
-      _automaticNavigationScheduled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _automaticNavigationScheduled = false;
-        if (!mounted ||
-            _automaticNavigationHandled ||
-            ModalRoute.of(context)?.isCurrent != true) {
-          return;
-        }
-        final latest = coordinator.state.peek();
-        if (latest is! ActiveBikeSessionStatus ||
-            latest.isTemporary ||
-            latest.bike.bike.deviceId != activeId ||
-            latest.sessionState is! SessionReady) {
-          return;
-        }
-        _automaticNavigationHandled = true;
-        unawaited(_openBike(context, latest.bike.bike.deviceId));
-      });
-    }
-  }
-
-  Future<void> _openAddBike(BuildContext context, AppServices services) async {
+    _autoOpenHandled = true;
+    _openingAddBike = true;
     final controller = AddBikeController(
       transport: services.transport,
       permissions: services.permissions,
       bikeRepository: services.bikeRepository,
       activeBikeCoordinator: services.activeBikeCoordinator,
     );
-    final deviceId = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => AddBikePage(controller: controller),
-      ),
-    );
-    if (deviceId != null && context.mounted) {
-      await _openBike(context, deviceId);
+    try {
+      final deviceId = await Navigator.of(context).push<String>(
+        MaterialPageRoute<String>(
+          builder: (_) => AddBikePage(controller: controller),
+        ),
+      );
+      if (deviceId != null && context.mounted) {
+        await _openBike(context, deviceId);
+      }
+    } finally {
+      _openingAddBike = false;
     }
   }
 
-  Future<void> _openBike(BuildContext context, String deviceId) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => BikeControlPage(deviceId: deviceId),
-      ),
+  Future<void> _openBike(BuildContext context, String deviceId) async {
+    if (_openingBike || !context.mounted) {
+      return;
+    }
+    _autoOpenHandled = true;
+    _openingBike = true;
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => BikeControlPage(deviceId: deviceId),
+        ),
+      );
+    } finally {
+      _openingBike = false;
+    }
+  }
+
+  Future<void> _openHelp(BuildContext context) async {
+    _autoOpenHandled = true;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const HelpPage()),
     );
+  }
+
+  void _scheduleAutoOpen(ActiveBikeState activeState) {
+    if (_autoOpenHandled || _autoOpenScheduled) {
+      return;
+    }
+    final deviceId = switch (activeState) {
+      ActiveBikeSessionStatus(
+        :final bike,
+        sessionState: SessionReady() || SessionDegraded(),
+        isTemporary: false,
+      ) =>
+        bike.bike.deviceId,
+      _ => null,
+    };
+    if (deviceId == null) {
+      return;
+    }
+    _autoOpenScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoOpenScheduled = false;
+      if (!mounted || _autoOpenHandled) {
+        return;
+      }
+      final coordinator = AppServicesScope.of(context).activeBikeCoordinator;
+      final current = coordinator.state.peek();
+      final stillReady =
+          current is ActiveBikeSessionStatus &&
+          current.bike.bike.deviceId == deviceId &&
+          !current.isTemporary &&
+          (current.sessionState is SessionReady ||
+              current.sessionState is SessionDegraded);
+      if (!stillReady) {
+        return;
+      }
+      _autoOpenHandled = true;
+      if (ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      unawaited(_openBike(context, deviceId));
+    });
   }
 
   Future<void> _forget(
@@ -239,8 +267,33 @@ final class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+    if (!context.mounted) {
+      return;
+    }
     if (confirmed ?? false) {
-      await coordinator.forgetBike(saved.bike.deviceId);
+      await _runAction(
+        context,
+        () => coordinator.forgetBike(saved.bike.deviceId),
+      );
+    }
+  }
+
+  Future<void> _runAction(
+    BuildContext context,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+    } on Object catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.bikeAction),
+            ),
+          ),
+        );
+      }
     }
   }
 }
@@ -259,7 +312,7 @@ final class _MigrationNotice extends StatelessWidget {
       _ => 'Superduper repaired the saved active-bike selection. Review your bikes before riding.',
     };
     return SurfacePanel(
-      color: const Color(0xFF27232D),
+      color: AppColors.surface,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -431,9 +484,12 @@ final class _ActiveStatus extends StatelessWidget {
       ActiveBikeCoordinatorFailure(:final message) => (
         icon: Icons.error_outline_rounded,
         label: 'Needs attention',
-        color: const Color(0xFFFF7982),
+        color: AppColors.error,
         title: 'Saved bikes unavailable',
-        detail: message,
+        detail: userFacingError(
+          message,
+          context: UserErrorContext.savedBikes,
+        ),
         canRetry: true,
         needsSettings: false,
         bike: null,
@@ -484,6 +540,19 @@ final class _ActiveStatus extends StatelessWidget {
         needsSettings: false,
         bike: bike,
       ),
+      SessionDegraded(:final failure) => (
+        icon: Icons.warning_amber_rounded,
+        label: 'Connected with warning',
+        color: AppColors.orange,
+        title: 'Saved setup needs attention',
+        detail: userFacingError(
+          failure,
+          context: UserErrorContext.bikeControl,
+        ),
+        canRetry: true,
+        needsSettings: false,
+        bike: bike,
+      ),
       SessionReady() => (
         icon: Icons.check_circle_rounded,
         label: 'Connected',
@@ -494,12 +563,13 @@ final class _ActiveStatus extends StatelessWidget {
         needsSettings: false,
         bike: bike,
       ),
-      SessionReconnecting(:final retryAfter) => (
+      SessionReconnecting(:final retryAfter, :final failure) => (
         icon: Icons.refresh_rounded,
         label: 'Reconnecting',
         color: AppColors.orange,
-        title: 'Bike unavailable',
-        detail: 'Trying again in ${retryAfter.inSeconds} seconds.',
+        title: 'Trying to reconnect…',
+        detail:
+            '${userFacingError(failure, context: UserErrorContext.reconnect)} Trying again in ${retryAfter.inSeconds} seconds.',
         canRetry: false,
         needsSettings: false,
         bike: bike,
@@ -519,10 +589,12 @@ final class _ActiveStatus extends StatelessWidget {
       SessionFailed(:final failure, :final canRetry) => (
         icon: Icons.error_outline_rounded,
         label: 'Needs attention',
-        color: const Color(0xFFFF7982),
+        color: AppColors.error,
         title: 'Bike setup failed',
-        detail:
-            '${failure.message} Check that the bike is on, nearby, and free from other app connections.',
+        detail: userFacingError(
+          failure,
+          context: UserErrorContext.bikeConnection,
+        ),
         canRetry: canRetry,
         needsSettings: false,
         bike: bike,

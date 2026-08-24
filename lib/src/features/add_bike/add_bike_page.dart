@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/add_bike/add_bike_controller.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 final class AddBikePage extends SignalStatefulWidget {
@@ -19,21 +19,34 @@ final class AddBikePage extends SignalStatefulWidget {
   State<AddBikePage> createState() => _AddBikePageState();
 }
 
-final class _AddBikePageState extends State<AddBikePage> {
+final class _AddBikePageState extends State<AddBikePage>
+    with WidgetsBindingObserver {
   final TextEditingController _name = TextEditingController();
   String? _confirmationId;
   BikeRegion? _region;
   BikeColor _color = BikeColor.royalHorizon;
   String? _validationMessage;
+  String? _compatibilityWarningId;
+  var _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(widget.controller.start());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        widget.controller.state.peek() is AddBikePermissionRequired) {
+      unawaited(widget.controller.retry(requestPermission: false));
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _name.dispose();
     unawaited(widget.controller.dispose());
     super.dispose();
@@ -47,14 +60,34 @@ final class _AddBikePageState extends State<AddBikePage> {
       :final protocol,
       :final configuration,
       :final suggestedName,
+      :final untestedFirmwareRevision,
     )) {
       if (_confirmationId != candidate.deviceId) {
         _confirmationId = candidate.deviceId;
         _name.text = suggestedName;
+        _color = BikeColor.defaultForDeviceId(candidate.deviceId);
         _region = protocol == BikeProtocolVersion.v1
             ? configuration.region
             : null;
       }
+      if (untestedFirmwareRevision != null) {
+        final warningId = '${candidate.deviceId}:$untestedFirmwareRevision';
+        if (_compatibilityWarningId != warningId) {
+          _compatibilityWarningId = warningId;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            unawaited(
+              _showCompatibilityWarning(
+                candidate: candidate,
+                protocol: protocol,
+                firmwareRevision: untestedFirmwareRevision,
+              ),
+            );
+          });
+        }
+      }
+    } else {
+      _confirmationId = null;
+      _compatibilityWarningId = null;
     }
 
     final previewColor = state is AddBikeConfirming ? _color : null;
@@ -102,6 +135,7 @@ final class _AddBikePageState extends State<AddBikePage> {
               title: switch (adapterState) {
                 BikeAdapterState.unauthorized => 'Bluetooth access unavailable',
                 BikeAdapterState.unavailable => 'Bluetooth unavailable',
+                BikeAdapterState.unknown => 'Bluetooth status unavailable',
                 _ => 'Turn on Bluetooth',
               },
               detail: switch (adapterState) {
@@ -109,6 +143,8 @@ final class _AddBikePageState extends State<AddBikePage> {
                   'Review Bluetooth permission in system settings.',
                 BikeAdapterState.unavailable =>
                   'This device is not currently providing Bluetooth access.',
+                BikeAdapterState.unknown =>
+                  'Superduper could not determine whether Bluetooth is ready.',
                 _ => 'Bluetooth must be on before Superduper can find a bike.',
               },
               primaryLabel: 'Try again',
@@ -151,10 +187,13 @@ final class _AddBikePageState extends State<AddBikePage> {
               key: const ValueKey('failure'),
               icon: Icons.error_outline_rounded,
               title: 'Could not add this bike',
-              detail: message,
+              detail: userFacingError(
+                message,
+                context: UserErrorContext.addBike,
+              ),
               primaryLabel: 'Scan again',
               onPrimary: widget.controller.retry,
-              accent: const Color(0xFFFF7982),
+              accent: AppColors.error,
             ),
           },
         ),
@@ -222,7 +261,7 @@ final class _AddBikePageState extends State<AddBikePage> {
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Color'),
                 items: [
-                  for (final color in BikeColor.values)
+                  for (final color in BikeColor.displayOrder)
                     DropdownMenuItem(
                       value: color,
                       child: BikeColorLabel(color: color),
@@ -239,7 +278,7 @@ final class _AddBikePageState extends State<AddBikePage> {
         ),
         const SizedBox(height: 18),
         FilledButton.icon(
-          onPressed: _save,
+          onPressed: _isSaving ? null : _save,
           icon: const Icon(Icons.arrow_forward_rounded),
           label: const Text('Save bike'),
         ),
@@ -248,11 +287,17 @@ final class _AddBikePageState extends State<AddBikePage> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) {
+      return;
+    }
     if (_name.text.trim().isEmpty) {
       setState(() => _validationMessage = 'Enter a bike name.');
       return;
     }
-    setState(() => _validationMessage = null);
+    setState(() {
+      _validationMessage = null;
+      _isSaving = true;
+    });
     try {
       final saved = await widget.controller.confirm(
         displayName: _name.text,
@@ -264,9 +309,55 @@ final class _AddBikePageState extends State<AddBikePage> {
       }
     } on Object catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.saveBike),
+            ),
+          ),
+        );
       }
+    }
+  }
+
+  Future<void> _showCompatibilityWarning({
+    required DiscoveredBike candidate,
+    required BikeProtocolVersion protocol,
+    required String firmwareRevision,
+  }) async {
+    final current = widget.controller.state.peek();
+    if (!mounted ||
+        current is! AddBikeConfirming ||
+        current.candidate.deviceId != candidate.deviceId ||
+        current.untestedFirmwareRevision != firmwareRevision) {
+      return;
+    }
+    final continueSetup = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('UNTESTED BIKE FIRMWARE'),
+        content: Text(
+          '${candidate.name} reports firmware $firmwareRevision. Its advertised '
+          'name selects the ${protocol.name.toUpperCase()} protocol, but this '
+          'firmware has not been tested with Superduper. You can continue, but '
+          'controls or saved settings may not work correctly.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Choose another bike'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continue anyway'),
+          ),
+        ],
+      ),
+    );
+    if (continueSetup != true && mounted) {
+      await widget.controller.retry();
     }
   }
 }

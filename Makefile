@@ -6,6 +6,10 @@ watch: watch-runner dev
 dev:
 	flutter run --hot -d macos
 
+test:
+	flutter test
+	flutter analyze
+
 watch-runner:
 	dart run build_runner watch
 

@@ -32,7 +32,7 @@ void main() {
   tearDown(() async {
     controller.dispose();
     await database.close();
-    if (await documents.exists()) {
+    if (documents.existsSync()) {
       await documents.delete(recursive: true);
     }
   });
@@ -44,6 +44,18 @@ void main() {
 
     expect(controller.state.value, isA<StartupReady>());
   });
+
+  test(
+    'concurrent initialization callers join the same startup work',
+    () async {
+      final first = controller.initialize();
+      final second = controller.initialize();
+
+      expect(second, same(first));
+      await first;
+      expect(controller.state.value, isA<StartupReady>());
+    },
+  );
 
   test('offers recovery without changing malformed source data', () async {
     final source = File('${documents.path}/bikes.json');
@@ -64,8 +76,27 @@ void main() {
     await controller.continueWithoutImport();
 
     expect(controller.state.value, isA<StartupReady>());
-    expect(await source.exists(), isTrue);
+    expect(source.existsSync(), isTrue);
     final marker = await database.select(database.dataImports).getSingle();
     expect(marker.outcome, 'skipped_by_user');
+
+    final nextLaunch = await InstalledDataImporter(
+      database: database,
+      documentsDirectory: () async => documents,
+    ).run();
+    expect(
+      nextLaunch,
+      isA<InstalledDataImportSuccess>()
+          .having(
+            (result) => result.outcome,
+            'outcome',
+            DataImportOutcome.skippedByUser,
+          )
+          .having(
+            (result) => result.previouslyHandled,
+            'previouslyHandled',
+            isTrue,
+          ),
+    );
   });
 }
