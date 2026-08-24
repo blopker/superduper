@@ -17,6 +17,7 @@ class Bikes extends Table {
   IntColumn get createdAtMs => integer()();
   IntColumn get updatedAtMs => integer()();
   IntColumn get lastConnectedAtMs => integer().nullable()();
+  TextColumn get moduleSerial => text().nullable()();
 
   @override
   List<String> get customConstraints => [
@@ -48,6 +49,36 @@ class BikePreferences extends Table {
     'CHECK (desired_mode BETWEEN 0 AND 3)',
     'CHECK (desired_assist BETWEEN 0 AND 4)',
     'CHECK (background_consent_version >= 0)',
+  ];
+
+  @override
+  Set<Column<Object>> get primaryKey => {deviceId};
+}
+
+@DataClassName('BikeVersionRow')
+class BikeVersions extends Table {
+  TextColumn get deviceId =>
+      text().references(Bikes, #deviceId, onDelete: KeyAction.cascade)();
+  TextColumn get hardwareRevision => text()();
+  TextColumn get firmwareRevision => text()();
+  TextColumn get softwareRevision => text()();
+  IntColumn get stmFirmwareVersion => integer()();
+  IntColumn get controllerVariant => integer()();
+  IntColumn get bootloaderHandoff => integer()();
+  IntColumn get motorControllerVersion => integer()();
+  IntColumn get bmsVersion => integer()();
+  IntColumn get readAtMs => integer()();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (length(hardware_revision) > 0)',
+    'CHECK (length(firmware_revision) > 0)',
+    'CHECK (length(software_revision) > 0)',
+    'CHECK (stm_firmware_version BETWEEN 0 AND 16777215)',
+    'CHECK (controller_variant BETWEEN 0 AND 65535)',
+    'CHECK (bootloader_handoff BETWEEN 0 AND 255)',
+    'CHECK (motor_controller_version BETWEEN 0 AND 4294967295)',
+    'CHECK (bms_version BETWEEN 0 AND 4294967295)',
   ];
 
   @override
@@ -98,7 +129,9 @@ class DataImports extends Table {
   Set<Column<Object>> get primaryKey => {importKey};
 }
 
-@DriftDatabase(tables: [Bikes, BikePreferences, AppSettings, DataImports])
+@DriftDatabase(
+  tables: [Bikes, BikePreferences, BikeVersions, AppSettings, DataImports],
+)
 final class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
@@ -117,11 +150,19 @@ final class AppDatabase extends _$AppDatabase {
     onCreate: (migrator) async {
       await migrator.createAll();
     },
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.createTable(bikeVersions);
+      }
+      if (from < 3) {
+        await migrator.addColumn(bikes, bikes.moduleSerial);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 }

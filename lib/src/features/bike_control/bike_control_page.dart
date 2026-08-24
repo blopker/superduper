@@ -73,6 +73,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
 
     return Scaffold(
+      backgroundColor: bike.bike.color.pageBaseColor,
       appBar: AppBar(
         title: const Text('Ride controls'),
         actions: [
@@ -108,6 +109,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
       ),
       body: AppPageBody(
         maxWidth: 860,
+        bikeColor: bike.bike.color,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
@@ -230,7 +232,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
             const SizedBox(height: 18),
             const SurfacePanel(
-              color: AppColors.inkLight,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -329,18 +330,10 @@ final class _ConnectionSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final presentation = _presentation(state);
     return SurfacePanel(
-      borderColor: presentation.color.withValues(alpha: 0.48),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: presentation.color.withValues(alpha: 0.13),
-            ),
-            child: Icon(presentation.icon, color: presentation.color),
-          ),
+          Icon(presentation.icon, color: presentation.color, size: 32),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -465,14 +458,7 @@ final class _SettingSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.magenta.withValues(alpha: 0.12),
-                      ),
-                      child: Icon(icon, color: AppColors.magentaSoft),
-                    ),
+                    Icon(icon, color: AppColors.magentaSoft, size: 30),
                     const SizedBox(width: 13),
                     Expanded(
                       child: Column(
@@ -534,8 +520,9 @@ final class _LightControl extends StatelessWidget {
       color: value && enabled
           ? AppColors.yellow.withValues(alpha: 0.12)
           : AppColors.inkLight,
-      shape: const RoundedRectangleBorder(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(18),
         onTap: enabled ? () => onChanged(!value) : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -616,10 +603,12 @@ final class _ValueSelector extends StatelessWidget {
                 ? AppColors.textMuted.withValues(alpha: 0.45)
                 : AppColors.text;
           }),
-          side: const WidgetStatePropertyAll(
-            BorderSide(color: AppColors.border),
+          side: const WidgetStatePropertyAll(BorderSide.none),
+          shape: const WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
           ),
-          shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
           textStyle: const WidgetStatePropertyAll(
             TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),

@@ -146,7 +146,33 @@ final class FakeBikeConnection implements BikeConnection {
   List<int> authenticationKey = List<int>.from(
     BikeProtocol.defaultAuthenticationKey,
   );
+  String? hardwareRevision = 'v3.2.0';
   String? firmwareRevision = '221122';
+  String? softwareRevision = '221122';
+  List<int> displayVersionFrame = [
+    0xfc,
+    0xfc,
+    0x01,
+    0x02,
+    0x03,
+    0x96,
+    0x01,
+    0x08,
+    0x00,
+    0x01,
+  ];
+  List<int> componentVersionsFrame = [
+    0xfa,
+    0xfa,
+    0x12,
+    0x34,
+    0x56,
+    0x78,
+    0xab,
+    0xcd,
+    0xef,
+    0x01,
+  ];
   Object? connectError;
   Object? discoveryError;
   Object? readError;
@@ -204,10 +230,12 @@ final class FakeBikeConnection implements BikeConnection {
     if (missingCharacteristics.contains(characteristicUuid)) {
       return false;
     }
-    if (characteristicUuid == BikeGatt.firmwareRevision) {
-      return firmwareRevision != null;
-    }
-    return true;
+    return switch (characteristicUuid) {
+      BikeGatt.hardwareRevision => hardwareRevision != null,
+      BikeGatt.firmwareRevision => firmwareRevision != null,
+      BikeGatt.softwareRevision => softwareRevision != null,
+      _ => true,
+    };
   }
 
   @override
@@ -232,8 +260,12 @@ final class FakeBikeConnection implements BikeConnection {
         throw const BikeGattNotSupported('Fake characteristic is missing.');
       }
       switch (characteristicUuid) {
+        case BikeGatt.hardwareRevision:
+          return List<int>.unmodifiable(hardwareRevision!.codeUnits);
         case BikeGatt.firmwareRevision:
           return List<int>.unmodifiable(firmwareRevision!.codeUnits);
+        case BikeGatt.softwareRevision:
+          return List<int>.unmodifiable(softwareRevision!.codeUnits);
         case BikeGatt.authenticationChallenge:
           return List<int>.unmodifiable(authenticationChallenge);
         case BikeGatt.authenticationState:
@@ -241,6 +273,12 @@ final class FakeBikeConnection implements BikeConnection {
       }
       if (!authenticated) {
         throw StateError('The fake bike is not authenticated.');
+      }
+      if (_sameBytes(selectedHistoryId, BikeGatt.displayVersionSelector)) {
+        return List<int>.unmodifiable(displayVersionFrame);
+      }
+      if (_sameBytes(selectedHistoryId, BikeGatt.componentVersionsSelector)) {
+        return List<int>.unmodifiable(componentVersionsFrame);
       }
       if (readFrames.isEmpty) {
         throw StateError('No fake read frame is queued.');

@@ -30,79 +30,111 @@ final class HomePage extends SignalWidget {
 
     return Scaffold(
       body: AppPageBody(
+        maxWidth: double.infinity,
+        safeTop: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+          padding: const EdgeInsets.only(bottom: 36),
           children: [
-            Row(
-              children: [
-                const Expanded(child: BrandLockup()),
-                IconButton(
-                  tooltip: 'Help & tips',
-                  onPressed: () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(builder: (_) => const HelpPage()),
-                  ),
-                  icon: const Icon(Icons.help_outline_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            if (migrationNoticePending) ...[
-              _MigrationNotice(
-                startupState: startupState,
-                onDismiss: coordinator.dismissMigrationNotice,
-              ),
-              const SizedBox(height: 16),
-            ],
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _ActiveStatus(
-                key: ValueKey(activeState.runtimeType),
-                state: activeState,
-                onRetry: coordinator.retry,
-                onOpenSettings: coordinator.openPermissionSettings,
-                onOpenBike: (deviceId) => _openBike(context, deviceId),
-                onAddBike: () => _openAddBike(context, services),
-              ),
-            ),
-            const SizedBox(height: 34),
-            SectionHeader(
-              eyebrow: 'Garage',
-              title: bikes.isEmpty ? 'No saved bikes' : 'Your bikes',
-              action: bikes.isEmpty
-                  ? null
-                  : FilledButton.icon(
-                      onPressed: () => _openAddBike(context, services),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Add bike'),
-                    ),
-            ),
-            const SizedBox(height: 16),
-            if (bikes.isEmpty)
-              const SurfacePanel(
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded, color: AppColors.yellow),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Power on your bike and keep it nearby. Superduper will verify it and read its current settings.',
+            SizedBox(
+              height: 116,
+              child: Stack(
+                children: [
+                  const Positioned.fill(child: BrandMasthead()),
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 4,
+                    right: 16,
+                    child: IconButton(
+                      tooltip: 'Help & tips',
+                      color: AppColors.magenta,
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const HelpPage(),
+                        ),
                       ),
+                      icon: const Icon(Icons.help_outline_rounded),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      if (migrationNoticePending) ...[
+                        _MigrationNotice(
+                          startupState: startupState,
+                          onDismiss: coordinator.dismissMigrationNotice,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: _ActiveStatus(
+                          key: ValueKey(activeState.runtimeType),
+                          state: activeState,
+                          onRetry: coordinator.retry,
+                          onOpenSettings: coordinator.openPermissionSettings,
+                          onOpenBike: (deviceId) =>
+                              _openBike(context, deviceId),
+                          onAddBike: () => _openAddBike(context, services),
+                        ),
+                      ),
+                      const SizedBox(height: 34),
+                      SectionHeader(
+                        eyebrow: 'Garage',
+                        title: bikes.isEmpty ? 'No saved bikes' : 'Your bikes',
+                        action: bikes.isEmpty
+                            ? null
+                            : FilledButton.icon(
+                                onPressed: () =>
+                                    _openAddBike(context, services),
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add bike'),
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (bikes.isEmpty)
+                        const SurfacePanel(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                color: AppColors.yellow,
+                              ),
+                              SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  'Power on your bike and keep it nearby. Superduper will verify it and read its current settings.',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        for (final saved in bikes) ...[
+                          _BikeTile(
+                            saved: saved,
+                            isActive: saved.bike.deviceId == activeId,
+                            onOpen: () =>
+                                _openBike(context, saved.bike.deviceId),
+                            onMakeActive: () =>
+                                coordinator.makeBikeActive(saved.bike.deviceId),
+                            onForget: () =>
+                                _forget(context, coordinator, saved),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                    ],
+                  ),
                 ),
-              )
-            else
-              for (final saved in bikes) ...[
-                _BikeTile(
-                  saved: saved,
-                  isActive: saved.bike.deviceId == activeId,
-                  onOpen: () => _openBike(context, saved.bike.deviceId),
-                  onMakeActive: () =>
-                      coordinator.makeBikeActive(saved.bike.deviceId),
-                  onForget: () => _forget(context, coordinator, saved),
-                ),
-                const SizedBox(height: 12),
-              ],
+              ),
+            ),
           ],
         ),
       ),
@@ -178,8 +210,7 @@ final class _MigrationNotice extends StatelessWidget {
       _ => 'Superduper repaired the saved active-bike selection. Review your bikes before riding.',
     };
     return SurfacePanel(
-      color: const Color(0xFF292039),
-      borderColor: AppColors.violet,
+      color: const Color(0xFF27232D),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -241,25 +272,16 @@ final class _ActiveStatus extends StatelessWidget {
     final presentation = _presentation(state);
     final bike = presentation.bike;
 
-    return Container(
+    return SurfacePanel(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.magenta),
-      ),
+      color: bike?.bike.color.panelTint,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              StatusPill(
-                label: presentation.label,
-                color: presentation.color,
-                icon: presentation.icon,
-              ),
-              const Spacer(),
-              const BrandMark(size: 48),
-            ],
+          StatusPill(
+            label: presentation.label,
+            color: presentation.color,
+            icon: presentation.icon,
           ),
           const SizedBox(height: 28),
           Text(
@@ -488,12 +510,8 @@ final class _BikeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isActive ? const Color(0xFF16000F) : AppColors.surface,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: isActive ? AppColors.magenta : AppColors.border,
-        ),
-      ),
+      color: isActive ? saved.bike.color.panelTint : AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,

@@ -126,6 +126,7 @@ void main() {
       deviceId: 'new-bike',
       name: 'SUPER73',
       rssi: -42,
+      moduleSerial: '00112233aabbccdd',
     );
     transport.emitResults(const [candidate]);
     await _waitFor(
@@ -147,9 +148,23 @@ void main() {
     expect(controller.state.value, isA<AddBikeCompleted>());
     expect(saved.bike.displayName, 'My Bike');
     expect(saved.bike.region, BikeRegion.eu);
+    expect(saved.bike.moduleSerial, '00112233aabbccdd');
     expect(saved.preferences.desiredLight, isTrue);
     expect(saved.preferences.desiredMode, 2);
     expect(saved.preferences.desiredAssist, 3);
+    expect(
+      saved.versions?.info,
+      const BikeVersionInfo(
+        hardwareRevision: 'v3.2.0',
+        firmwareRevision: '221122',
+        softwareRevision: '221122',
+        stmFirmwareVersion: 0x010203,
+        controllerVariant: 0x0196,
+        bootloaderHandoff: 8,
+        motorControllerVersion: 0x12345678,
+        bmsVersion: 0xabcdef01,
+      ),
+    );
     expect((await settings.get()).activeBikeId, 'new-bike');
   });
 
@@ -158,7 +173,12 @@ void main() {
     await controller.start();
 
     transport.emitResults(const [
-      DiscoveredBike(deviceId: 'saved', name: 'SUPER73', rssi: -20),
+      DiscoveredBike(
+        deviceId: 'saved',
+        name: 'SUPER73',
+        rssi: -20,
+        moduleSerial: '00112233aabbccdd',
+      ),
       DiscoveredBike(deviceId: 'new', name: 'SUPER73', rssi: -30),
     ]);
     final state = await _waitFor(
@@ -167,6 +187,11 @@ void main() {
     ) as AddBikeScanning;
 
     expect(state.results.map((result) => result.deviceId), ['new']);
+    await _waitUntil(
+      () async =>
+          (await bikes.getBikes()).single.bike.moduleSerial ==
+          '00112233aabbccdd',
+    );
   });
 
   test('cancel stops discovery and never creates a bike', () async {
@@ -197,6 +222,16 @@ void main() {
     expect(controller.state.value, isA<AddBikeFailure>());
     expect(await bikes.getBikes(), isEmpty);
   });
+}
+
+Future<void> _waitUntil(Future<bool> Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  while (!await condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('Condition was not reached before the test timeout.');
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
 }
 
 Future<AddBikeState> _waitFor(

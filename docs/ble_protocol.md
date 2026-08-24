@@ -215,7 +215,14 @@ unknown protocol rather than assigning them by numeric ordering. If the name and
 revision disagree, do not send a control command until the combination is
 understood.
 
-The firmware appears intended to expose a Serial Number (`0x2a25`) formatted as `%08x%08x` from `FICR.DEVICEID1` and `FICR.DEVICEID0`, but it fills that Device Information initializer slot only after creating the service. Consequently, neither analyzed firmware actually adds the Serial Number characteristic. The same per-chip identifier remains available in advertising manufacturer data: the company identifier is the fixed value `0x020f`, followed by eight payload bytes containing `DEVICEID1` and `DEVICEID0` in big-endian order.
+The module serial number is the nRF52832's 64-bit chip ID, formatted as
+`%08x%08x` from `FICR.DEVICEID1` followed by `FICR.DEVICEID0`. The firmware
+intends to expose that value through Serial Number characteristic `0x2a25`, but
+it fills the Device Information initializer slot only after creating the
+service. Consequently, neither analyzed firmware actually adds `0x2a25`. The
+same serial remains available in advertising manufacturer data: company ID
+`0x020f`, followed by the eight `DEVICEID1 || DEVICEID0` bytes in big-endian
+order.
 
 The official Android app uses this advertising payload as the module serial. It calls `getManufacturerSpecificData(527)`, converts the returned eight bytes to hexadecimal without separators, lowercases the result, and matches it against the cached connection serial. The firmware-update check sends that same string as the `moduleId` path parameter to `module/{moduleId}/update`; it does not obtain the update-check identifier from Device Information characteristic `0x2a25`.
 
@@ -591,8 +598,8 @@ offset  size  encoding       confirmed meaning
 0       2     big-endian     FC FC
 2       3     big-endian     low 24 bits of STM firmware version
 5       2     little-endian  controller/display variant code
-7       1                  bootloader handoff value: GPREGRET2 & 0x1f, normally 8
-8       1                  unknown
+7       1                  startup GPREGRET2 & 0x1f, normally 8
+8       1                  zero/reserved in both analyzed builds
 9       1                  constant 1
 ```
 
@@ -605,6 +612,14 @@ LCD `versions` screen:
 - the middle row contains the bootloader handoff, the display build (`221122` or
   `250426`), and another fixed component;
 - the bottom row is the STM firmware version from a checksum-valid `$STM,FW,...` UART report.
+
+Byte 7 is plausibly an nRF bootloader version or handoff value: it is preserved
+by the bootloader in the low five bits of `GPREGRET2`, read at application
+startup, and displayed as the first number on the LCD's middle version row. The
+application firmware does not establish the producer's exact semantics, so a
+client should retain the raw value rather than relying on the stronger name
+`nrfBootloaderVersion`. Byte 8 is not an established firmware variant; it is
+zero in both analyzed applications and has no observed producer.
 
 The record is refreshed when the STM firmware report or related controller state
 changes. Before the STM report arrives, its version field can still be zero.
@@ -625,6 +640,36 @@ exports truncated 16-bit forms in `00D9`; protocol v1 does not have that record.
 Record `FAFB` is inserted with an all-zero payload in both versions; its
 higher-level purpose is not established.
 
+#### Complete identity and version inventory
+
+The available values are spread across advertising, the open Device Information
+Service, and authenticated application records:
+
+| Source | Value | Protocol v1 | Protocol v2 |
+| --- | --- | --- | --- |
+| GAP advertising | Protocol/display family | `SUPER73` | `S73 FTEX` |
+| Manufacturer data `0x020f` | Per-radio module ID | 8-byte `DEVICEID1 || DEVICEID0` | Same |
+| DIS `0x2a29` | Manufacturer | `COMODULE` | `COMODULE` |
+| DIS `0x2a27` | Display hardware revision | `v3.2.0` | `v3.3.0` |
+| DIS `0x2a26` | nRF application build | `221122` | `250426` |
+| DIS `0x2a28` | Software revision | `221122` | `250426` |
+| `FCFC[2:5]` | STM firmware version | 24-bit integer | Same encoding |
+| `FCFC[5:7]` | Controller/display variant | normally 230--233 | normally 406--407 |
+| `FCFC[7]` | Raw startup/bootloader handoff | normally 8 | normally 8 |
+| `FCFC[8]` | Reserved | zero | zero |
+| `FAFA[2:6]` | Motor-controller version | 32-bit integer | Same encoding |
+| `FAFA[6:10]` | BMS version/value | 32-bit integer | Same encoding |
+| `00D9[6:8]` | Truncated controller version | unavailable | low 16 bits |
+| `00D9[8:10]` | Truncated BMS version/value | unavailable | low 16 bits |
+
+The analyzed applications do not add DIS Model Number (`0x2a24`) or Serial
+Number (`0x2a25`) characteristics. This does not mean that the module lacks a
+serial number: its serial is the nRF52832 chip ID carried in advertising
+manufacturer data. A generic client may enumerate and retain any additional
+readable DIS characteristics for forward compatibility, but none of System ID,
+Model Number, Serial Number, IEEE certification data, PnP ID, or UDI is exposed
+through DIS by these two builds.
+
 Equivalent decoding:
 
 ```python
@@ -637,8 +682,8 @@ def decode_version_record(packet: bytes) -> dict:
         return {
             "stm_version": int.from_bytes(packet[2:5], "big"),
             "controller_variant": int.from_bytes(packet[5:7], "little"),
-            "bootloader_handoff": packet[7],
-            "unknown": packet[8],
+            "gpregret2_low5": packet[7],
+            "reserved": packet[8],
             "marker": packet[9],
         }
     if packet_id == b"\xfa\xfa":

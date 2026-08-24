@@ -113,21 +113,13 @@ final class _MigrationRecoveryPage extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 480),
               child: SurfacePanel(
                 padding: const EdgeInsets.all(28),
-                borderColor: AppColors.orange,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: AppColors.orange.withValues(alpha: 0.13),
-                      ),
-                      child: const Icon(
-                        Icons.restore_rounded,
-                        size: 34,
-                        color: AppColors.orange,
-                      ),
+                    const Icon(
+                      Icons.restore_rounded,
+                      size: 44,
+                      color: AppColors.orange,
                     ),
                     const SizedBox(height: 22),
                     Text(
@@ -169,22 +161,22 @@ final class _LoadingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppPageBody(
-        child: Center(
-          child: Semantics(
-            label: 'Preparing Superduper',
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BrandMark(size: 96),
-                SizedBox(height: 28),
-                SizedBox(
+        maxWidth: double.infinity,
+        safeTop: false,
+        child: Semantics(
+          label: 'Preparing Superduper',
+          child: const Stack(
+            children: [
+              Align(alignment: Alignment.topCenter, child: BrandMasthead()),
+              Center(
+                child: SizedBox(
                   width: 120,
                   child: LinearProgressIndicator(
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: BorderRadius.all(Radius.circular(99)),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -209,22 +201,13 @@ final class _StartupFailurePage extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 480),
               child: SurfacePanel(
                 padding: const EdgeInsets.all(28),
-                borderColor: Theme.of(context).colorScheme.error,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error
-                            .withValues(alpha: 0.13),
-                      ),
-                      child: Icon(
-                        Icons.error_outline_rounded,
-                        size: 34,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 44,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                     const SizedBox(height: 22),
                     Text(

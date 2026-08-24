@@ -52,11 +52,13 @@ final class AddBikeConfirming extends AddBikeState {
     required this.candidate,
     required this.configuration,
     required this.suggestedName,
+    required this.versions,
   });
 
   final DiscoveredBike candidate;
   final BikeConfiguration configuration;
   final String suggestedName;
+  final BikeVersionInfo? versions;
 }
 
 final class AddBikeSaving extends AddBikeState {
@@ -202,6 +204,7 @@ final class AddBikeController {
       suggestedName: advertisedName.isEmpty
           ? defaultBikeName(candidate.deviceId)
           : advertisedName,
+      versions: session.versions.peek(),
     );
   }
 
@@ -233,6 +236,7 @@ final class AddBikeController {
       displayName: normalizedName,
       region: region,
       color: color,
+      moduleSerial: current.candidate.moduleSerial,
       preferences: RidePreferences(
         desiredLight: configuration.light,
         desiredMode: configuration.mode,
@@ -243,6 +247,7 @@ final class AddBikeController {
         backgroundRequested: false,
         backgroundConsentVersion: 0,
       ),
+      versions: current.versions,
     );
     await _resumeCoordinator();
     _state.value = AddBikeCompleted(saved);
@@ -277,6 +282,12 @@ final class AddBikeController {
     unawaited(_scanningSubscription?.cancel());
     unawaited(_adapterSubscription?.cancel());
     _resultsSubscription = transport.scanResults.listen((results) {
+      for (final result in results) {
+        if (_savedIds.contains(result.deviceId) &&
+            result.moduleSerial != null) {
+          unawaited(_saveSeenModuleSerial(result));
+        }
+      }
       _results = List.unmodifiable(
         results.where((result) => !_savedIds.contains(result.deviceId)),
       );
@@ -296,6 +307,14 @@ final class AddBikeController {
         _state.value = AddBikeAdapterUnavailable(adapter);
       }
     }, onError: _onScanError);
+  }
+
+  Future<void> _saveSeenModuleSerial(DiscoveredBike bike) async {
+    try {
+      await bikeRepository.saveModuleSerial(bike.deviceId, bike.moduleSerial!);
+    } on Object {
+      // Discovery remains usable if optional identity metadata cannot be saved.
+    }
   }
 
   void _publishScan() {

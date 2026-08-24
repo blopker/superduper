@@ -3,6 +3,33 @@ import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 void main() {
+  group('module serial', () {
+    test('decodes the eight-byte COMODULE manufacturer payload', () {
+      expect(
+        BikeProtocol.decodeModuleSerial(const [
+          0x00,
+          0x11,
+          0x22,
+          0x33,
+          0xaa,
+          0xbb,
+          0xcc,
+          0xdd,
+        ]),
+        '00112233aabbccdd',
+      );
+    });
+
+    test('ignores missing or malformed manufacturer payloads', () {
+      expect(BikeProtocol.decodeModuleSerial(null), isNull);
+      expect(BikeProtocol.decodeModuleSerial(const [0, 1]), isNull);
+      expect(
+        BikeProtocol.decodeModuleSerial(const [0, 1, 2, 3, 4, 5, 6, 256]),
+        isNull,
+      );
+    });
+  });
+
   group('protocol identification', () {
     test('uses only documented advertised names and firmware revisions', () {
       expect(
@@ -178,6 +205,67 @@ void main() {
           region: BikeRegion.us,
         ),
         throwsA(isA<UnsupportedBikeValue>()),
+      );
+    });
+  });
+
+  group('decodeVersionInfo', () {
+    test('combines Device Information with full FCFC and FAFA records', () {
+      expect(
+        BikeProtocol.decodeVersionInfo(
+          hardwareRevision: 'v3.3.0',
+          firmwareRevision: '250426',
+          softwareRevision: '250426',
+          fcfc: const [0xfc, 0xfc, 0x01, 0x23, 0x45, 0x96, 0x01, 0x08, 0, 1],
+          fafa: const [
+            0xfa,
+            0xfa,
+            0x12,
+            0x34,
+            0x56,
+            0x78,
+            0x9a,
+            0xbc,
+            0xde,
+            0xf0,
+          ],
+        ),
+        const BikeVersionInfo(
+          hardwareRevision: 'v3.3.0',
+          firmwareRevision: '250426',
+          softwareRevision: '250426',
+          stmFirmwareVersion: 0x012345,
+          controllerVariant: 0x0196,
+          bootloaderHandoff: 8,
+          motorControllerVersion: 0x12345678,
+          bmsVersion: 0x9abcdef0,
+        ),
+      );
+    });
+
+    test('rejects incomplete strings and mismatched history records', () {
+      const fcfc = [0xfc, 0xfc, 0, 0, 1, 0, 1, 8, 0, 1];
+      const fafa = [0xfa, 0xfa, 0, 0, 0, 1, 0, 0, 0, 2];
+
+      expect(
+        () => BikeProtocol.decodeVersionInfo(
+          hardwareRevision: '',
+          firmwareRevision: '250426',
+          softwareRevision: '250426',
+          fcfc: fcfc,
+          fafa: fafa,
+        ),
+        throwsA(isA<MalformedBikeFrame>()),
+      );
+      expect(
+        () => BikeProtocol.decodeVersionInfo(
+          hardwareRevision: 'v3.3.0',
+          firmwareRevision: '250426',
+          softwareRevision: '250426',
+          fcfc: const [0xfa, 0xfa, 0, 0, 1, 0, 1, 8, 0, 1],
+          fafa: fafa,
+        ),
+        throwsA(isA<UnexpectedBikePacket>()),
       );
     });
   });

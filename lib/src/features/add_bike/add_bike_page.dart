@@ -53,9 +53,12 @@ final class _AddBikePageState extends State<AddBikePage> {
       }
     }
 
+    final previewColor = state is AddBikeConfirming ? _color : null;
     return Scaffold(
+      backgroundColor: previewColor?.pageBaseColor,
       appBar: AppBar(title: const Text('Add bike')),
       body: AppPageBody(
+        bikeColor: previewColor,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           child: switch (state) {
@@ -360,9 +363,7 @@ final class _CandidateTile extends StatelessWidget {
     };
     return Material(
       color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -370,16 +371,10 @@ final class _CandidateTile extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: AppColors.violet.withValues(alpha: 0.16),
-                ),
-                child: const Icon(
-                  Icons.electric_bike_rounded,
-                  color: AppColors.magentaSoft,
-                ),
+              const Icon(
+                Icons.electric_bike_rounded,
+                color: AppColors.magentaSoft,
+                size: 32,
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -478,16 +473,10 @@ final class _AccessMessage extends StatelessWidget {
     return _CenteredMessage(
       child: SurfacePanel(
         padding: const EdgeInsets.all(28),
-        borderColor: accent.withValues(alpha: 0.58),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(color: accent.withValues(alpha: 0.14)),
-              child: Icon(icon, size: 34, color: accent),
-            ),
+            Icon(icon, size: 44, color: accent),
             const SizedBox(height: 20),
             Text(
               title,

@@ -7,11 +7,13 @@ final class DiscoveredBike {
     required this.deviceId,
     required this.name,
     required this.rssi,
+    this.moduleSerial,
   });
 
   final String deviceId;
   final String name;
   final int rssi;
+  final String? moduleSerial;
 }
 
 sealed class BikeTransportFailure implements Exception {

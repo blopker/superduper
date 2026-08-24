@@ -23,6 +23,8 @@ enum BikeProtocolVersion {
 }
 
 abstract final class BikeGatt {
+  static const manufacturerId = 0x020f;
+
   static const metricsService = '00001554-1212-efde-1523-785feabcd123';
   static const telemetry = '0000155e-1212-efde-1523-785feabcd123';
   static const stateRegister = '0000155f-1212-efde-1523-785feabcd123';
@@ -37,10 +39,14 @@ abstract final class BikeGatt {
   static const deviceInformationService =
       '0000180a-0000-1000-8000-00805f9b34fb';
   static const firmwareRevision = '00002a26-0000-1000-8000-00805f9b34fb';
+  static const hardwareRevision = '00002a27-0000-1000-8000-00805f9b34fb';
+  static const softwareRevision = '00002a28-0000-1000-8000-00805f9b34fb';
 
   static const v1StateSelector = <int>[0x03, 0x00];
   static const v2ControlSelector = <int>[0x00, 0xd0];
   static const v2ModeSelector = <int>[0x00, 0xd9];
+  static const displayVersionSelector = <int>[0xfc, 0xfc];
+  static const componentVersionsSelector = <int>[0xfa, 0xfa];
 }
 
 final class BikeConfiguration {
@@ -149,6 +155,20 @@ abstract final class BikeProtocol {
     return List.unmodifiable(sha1.convert([...challenge, ...key]).bytes);
   }
 
+  static String? decodeModuleSerial(List<int>? manufacturerData) {
+    if (manufacturerData == null || manufacturerData.length != 8) {
+      return null;
+    }
+    final serial = StringBuffer();
+    for (final byte in manufacturerData) {
+      if (byte < 0 || byte > 255) {
+        return null;
+      }
+      serial.write(byte.toRadixString(16).padLeft(2, '0'));
+    }
+    return serial.toString();
+  }
+
   static BikeConfiguration decodeV1State(List<int> packet) {
     _validatePacket(packet, BikeGatt.v1StateSelector);
     final assist = packet[2];
@@ -213,6 +233,33 @@ abstract final class BikeProtocol {
       ),
       _ => null,
     };
+  }
+
+  static BikeVersionInfo decodeVersionInfo({
+    required String hardwareRevision,
+    required String firmwareRevision,
+    required String softwareRevision,
+    required List<int> fcfc,
+    required List<int> fafa,
+  }) {
+    final hardware = hardwareRevision.trim();
+    final firmware = firmwareRevision.trim();
+    final software = softwareRevision.trim();
+    if (hardware.isEmpty || firmware.isEmpty || software.isEmpty) {
+      throw const MalformedBikeFrame('version string');
+    }
+    _validatePacket(fcfc, BikeGatt.displayVersionSelector);
+    _validatePacket(fafa, BikeGatt.componentVersionsSelector);
+    return BikeVersionInfo(
+      hardwareRevision: hardware,
+      firmwareRevision: firmware,
+      softwareRevision: software,
+      stmFirmwareVersion: _readBigEndian(fcfc, 2, 3),
+      controllerVariant: fcfc[5] | (fcfc[6] << 8),
+      bootloaderHandoff: fcfc[7],
+      motorControllerVersion: _readBigEndian(fafa, 2, 4),
+      bmsVersion: _readBigEndian(fafa, 6, 4),
+    );
   }
 
   static List<int> encodeConfiguration(
@@ -342,5 +389,13 @@ abstract final class BikeProtocol {
         .take(2)
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
         .join();
+  }
+
+  static int _readBigEndian(List<int> bytes, int offset, int length) {
+    var value = 0;
+    for (var index = offset; index < offset + length; index++) {
+      value = (value << 8) | bytes[index];
+    }
+    return value;
   }
 }

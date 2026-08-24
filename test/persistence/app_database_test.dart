@@ -13,7 +13,7 @@ void main() {
     await database.close();
   });
 
-  test('creates the complete first schema with foreign keys enabled', () async {
+  test('creates the complete schema with foreign keys enabled', () async {
     final tables = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
@@ -30,6 +30,7 @@ void main() {
       containsAll([
         'app_settings',
         'bike_preferences',
+        'bike_versions',
         'bikes',
         'data_imports',
       ]),

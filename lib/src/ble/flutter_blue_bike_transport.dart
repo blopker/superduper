@@ -27,6 +27,10 @@ final class FlutterBlueBikeTransport implements BikeTransport {
                   ? result.advertisementData.advName
                   : result.device.platformName,
               rssi: result.rssi,
+              moduleSerial: BikeProtocol.decodeModuleSerial(
+                result.advertisementData.manufacturerData[BikeGatt
+                    .manufacturerId],
+              ),
             ),
           )
           .toList();
@@ -453,4 +457,6 @@ const _knownCharacteristics = {
   BikeGatt.authenticationResponse,
   BikeGatt.authenticationState,
   BikeGatt.firmwareRevision,
+  BikeGatt.hardwareRevision,
+  BikeGatt.softwareRevision,
 };

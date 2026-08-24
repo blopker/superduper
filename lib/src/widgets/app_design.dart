@@ -3,16 +3,28 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 
 final class AppPageBody extends StatelessWidget {
-  const AppPageBody({required this.child, this.maxWidth = 760, super.key});
+  const AppPageBody({
+    required this.child,
+    this.maxWidth = 760,
+    this.bikeColor,
+    this.safeTop = true,
+    super.key,
+  });
 
   final Widget child;
   final double maxWidth;
+  final BikeColor? bikeColor;
+  final bool safeTop;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.ink,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        gradient: bikeColor?.pageGradient,
+      ),
       child: SafeArea(
+        top: safeTop,
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
@@ -24,44 +36,44 @@ final class AppPageBody extends StatelessWidget {
   }
 }
 
-final class BrandMark extends StatelessWidget {
-  const BrandMark({this.size = 42, super.key});
-
-  final double size;
+final class BrandMasthead extends StatelessWidget {
+  const BrandMasthead({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Superduper',
-      image: true,
-      child: Image.asset(
-        'assets/superduper-nobg.png',
-        width: size,
-        height: size,
-        filterQuality: FilterQuality.high,
-      ),
-    );
-  }
-}
-
-final class BrandLockup extends StatelessWidget {
-  const BrandLockup({this.compact = false, super.key});
-
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BrandMark(size: compact ? 34 : 44),
-        SizedBox(width: compact ? 8 : 11),
-        Text(
-          'SUPERDUPER',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(letterSpacing: 1.4, fontWeight: FontWeight.w900),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = (constraints.maxWidth * 0.255).clamp(104.0, 240.0);
+        return Semantics(
+          header: true,
+          child: SizedBox(
+            height: 108,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                maxWidth: double.infinity,
+                child: Transform.translate(
+                  offset: Offset(0, -fontSize * 0.23),
+                  child: Text(
+                    'SUPERDUPER',
+                    maxLines: 1,
+                    softWrap: false,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontFamily: 'monospace',
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w900,
+                      height: 0.8,
+                      letterSpacing: -fontSize * 0.07,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -116,24 +128,18 @@ final class SurfacePanel extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(20),
     this.color,
-    this.borderColor,
     super.key,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? color;
-  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: color ?? AppColors.surface,
-      shape: RoundedRectangleBorder(
-        side: borderColor == null
-            ? BorderSide.none
-            : BorderSide(color: borderColor!),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),
     );
@@ -154,28 +160,22 @@ final class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.18)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 15, color: color),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label.toUpperCase(),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.9,
-              ),
-            ),
-          ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
+        ],
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.9,
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -192,7 +192,10 @@ final class BikeAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: colors.last),
+      decoration: BoxDecoration(
+        color: colors.last,
+        borderRadius: BorderRadius.circular(size * 0.34),
+      ),
       child: Icon(
         Icons.electric_bike_rounded,
         color: color.iconColor,
@@ -231,6 +234,32 @@ final class BikeColorLabel extends StatelessWidget {
 
 extension BikeColorDesign on BikeColor {
   List<Color> get gradientColors => _bikeGradients[legacyIndex];
+
+  Color get pageBaseColor => Color.alphaBlend(
+    gradientColors.first.withValues(alpha: 0.2),
+    AppColors.ink,
+  );
+
+  LinearGradient get pageGradient {
+    final colors = gradientColors;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      stops: const [0, 0.45, 1],
+      colors: [
+        pageBaseColor,
+        Color.alphaBlend(colors.last.withValues(alpha: 0.1), AppColors.ink),
+        AppColors.ink,
+      ],
+    );
+  }
+
+  Color get panelTint {
+    return Color.alphaBlend(
+      gradientColors.last.withValues(alpha: 0.11),
+      AppColors.surface,
+    );
+  }
 
   Color get iconColor {
     return switch (this) {

@@ -51,6 +51,12 @@ final class AppServices {
                 assist: configuration.assist,
               );
             },
+            onVersionsRead: (versions) async {
+              await resolvedBikeRepository.saveVersions(
+                bike.bike.deviceId,
+                versions,
+              );
+            },
           ),
         );
     return AppServices._(

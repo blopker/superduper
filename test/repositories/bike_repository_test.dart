@@ -10,13 +10,12 @@ void main() {
   late AppDatabase database;
   late BikeRepository repository;
   late SettingsRepository settingsRepository;
+  late DateTime now;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
-    repository = BikeRepository(
-      database: database,
-      clock: () => DateTime.utc(2026, 8, 23, 12),
-    );
+    now = DateTime.utc(2026, 8, 23, 12);
+    repository = BikeRepository(database: database, clock: () => now);
     settingsRepository = SettingsRepository(database: database);
   });
 
@@ -142,4 +141,80 @@ void main() {
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.color, BikeColor.midnightSky);
   });
+
+  test('version snapshots are inserted with a newly saved bike', () async {
+    await settingsRepository.initialize();
+
+    final saved = await repository.addBike(
+      deviceId: 'bike',
+      versions: _versionInfo,
+    );
+
+    expect(saved.versions?.info, _versionInfo);
+    expect(saved.versions?.readAt.isAtSameMomentAs(now), isTrue);
+  });
+
+  test('module serials are normalized and only saved when changed', () async {
+    await settingsRepository.initialize();
+    final saved = await repository.addBike(
+      deviceId: 'bike',
+      moduleSerial: ' 00112233AABBCCDD ',
+    );
+    expect(saved.bike.moduleSerial, '00112233aabbccdd');
+
+    expect(
+      await repository.saveModuleSerial('bike', '00112233aabbccdd'),
+      isFalse,
+    );
+    expect(
+      await repository.saveModuleSerial('bike', 'ffeeddccbbaa9988'),
+      isTrue,
+    );
+    expect(
+      (await repository.getBikes()).single.bike.moduleSerial,
+      'ffeeddccbbaa9988',
+    );
+    expect(
+      () => repository.saveModuleSerial('bike', 'not-a-chip-id'),
+      throwsArgumentError,
+    );
+  });
+
+  test('version snapshots are only rewritten when a number changes', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(deviceId: 'bike');
+
+    expect(await repository.saveVersions('bike', _versionInfo), isTrue);
+    final firstReadAt = (await repository.getBikes()).single.versions!.readAt;
+
+    now = now.add(const Duration(hours: 1));
+    expect(await repository.saveVersions('bike', _versionInfo), isFalse);
+    expect((await repository.getBikes()).single.versions!.readAt, firstReadAt);
+
+    const changed = BikeVersionInfo(
+      hardwareRevision: 'v3.3.0',
+      firmwareRevision: '250426',
+      softwareRevision: '250426',
+      stmFirmwareVersion: 0x010203,
+      controllerVariant: 407,
+      bootloaderHandoff: 8,
+      motorControllerVersion: 0x12345678,
+      bmsVersion: 0xabcdef02,
+    );
+    expect(await repository.saveVersions('bike', changed), isTrue);
+    final saved = (await repository.getBikes()).single;
+    expect(saved.versions?.info, changed);
+    expect(saved.versions?.readAt.isAtSameMomentAs(now), isTrue);
+  });
 }
+
+const _versionInfo = BikeVersionInfo(
+  hardwareRevision: 'v3.3.0',
+  firmwareRevision: '250426',
+  softwareRevision: '250426',
+  stmFirmwareVersion: 0x010203,
+  controllerVariant: 407,
+  bootloaderHandoff: 8,
+  motorControllerVersion: 0x12345678,
+  bmsVersion: 0xabcdef01,
+);

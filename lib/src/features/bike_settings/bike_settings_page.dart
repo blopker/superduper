@@ -60,8 +60,10 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     final hasSession = coordinator.session.value?.deviceId == widget.deviceId;
 
     return Scaffold(
+      backgroundColor: _color.pageBaseColor,
       appBar: AppBar(title: const Text('Bike settings')),
       body: AppPageBody(
+        bikeColor: _color,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
@@ -215,13 +217,19 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
             ),
             const SizedBox(height: 34),
+            const SectionHeader(eyebrow: 'Technical', title: 'Bike versions'),
+            const SizedBox(height: 16),
+            _BikeVersionsPanel(
+              moduleSerial: saved.bike.moduleSerial,
+              versions: saved.versions,
+            ),
+            const SizedBox(height: 34),
             const SectionHeader(
               eyebrow: 'Technical',
               title: 'Connection details',
             ),
             const SizedBox(height: 16),
             SurfacePanel(
-              color: AppColors.inkLight,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -358,5 +366,119 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     if (mounted) {
       Navigator.pop(context, BikeSettingsOutcome.forgotten);
     }
+  }
+}
+
+final class _BikeVersionsPanel extends StatelessWidget {
+  const _BikeVersionsPanel({
+    required this.moduleSerial,
+    required this.versions,
+  });
+
+  final String? moduleSerial;
+  final CachedBikeVersions? versions;
+
+  @override
+  Widget build(BuildContext context) {
+    final cached = versions;
+    if (cached == null && moduleSerial == null) {
+      return const SurfacePanel(
+        child: Text(
+          'Connect to read version numbers. The module serial is captured when the bike is seen during discovery.',
+        ),
+      );
+    }
+    return SurfacePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (moduleSerial case final serial?)
+            _VersionRow(label: 'Module serial', value: serial),
+          if (cached case CachedBikeVersions(:final info, :final readAt)) ...[
+            _VersionRow(
+              label: 'Hardware revision',
+              value: info.hardwareRevision,
+            ),
+            _VersionRow(
+              label: 'Display firmware',
+              value: info.firmwareRevision,
+            ),
+            _VersionRow(
+              label: 'Software revision',
+              value: info.softwareRevision,
+            ),
+            _VersionRow(
+              label: 'STM firmware',
+              value: _hex(info.stmFirmwareVersion, 6),
+            ),
+            _VersionRow(
+              label: 'Controller variant',
+              value: info.controllerVariant.toString(),
+            ),
+            _VersionRow(
+              label: 'Bootloader handoff',
+              value: info.bootloaderHandoff.toString(),
+            ),
+            _VersionRow(
+              label: 'Motor controller',
+              value: _hex(info.motorControllerVersion, 8),
+            ),
+            _VersionRow(label: 'BMS', value: _hex(info.bmsVersion, 8)),
+            const SizedBox(height: 12),
+            Text(
+              'Cache updated ${_formatTimestamp(readAt)}',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textMuted),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(
+              'Version numbers will appear after a successful connection.',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _hex(int value, int width) {
+    return '0x${value.toRadixString(16).padLeft(width, '0').toUpperCase()}';
+  }
+
+  static String _formatTimestamp(DateTime value) {
+    final local = value.toLocal();
+    String two(int part) => part.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)} '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+}
+
+final class _VersionRow extends StatelessWidget {
+  const _VersionRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 20),
+          SelectionArea(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

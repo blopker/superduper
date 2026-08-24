@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/app.dart';
 import 'package:superduper/src/app_services.dart';
@@ -31,6 +32,7 @@ void main() {
     await services.bikeRepository.addBike(
       deviceId: 'active-bike',
       displayName: 'Commuter',
+      moduleSerial: '00112233aabbccdd',
     );
     await services.bikeRepository.setModeLock(
       'active-bike',
@@ -49,6 +51,10 @@ void main() {
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 
+    expect(find.byType(Image), findsNothing);
+    expect(find.text('SUPERDUPER'), findsOneWidget);
+    final masthead = tester.widget<Text>(find.text('SUPERDUPER'));
+    expect(masthead.style?.fontSize, greaterThanOrEqualTo(104));
     expect(find.text('READY TO RIDE'), findsOneWidget);
     expect(find.textContaining('Commuter'), findsWidgets);
     final configurationWrites = transport.connections['active-bike']!.writes
@@ -60,6 +66,20 @@ void main() {
     expect(find.text('Ride controls'), findsOneWidget);
     expect(find.text('SET UP YOUR RIDE'), findsOneWidget);
     expect(find.text('Keep on connect'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Bike actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bike settings'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('BIKE VERSIONS'), findsOneWidget);
+    expect(find.text('v3.2.0'), findsOneWidget);
+    expect(find.text('00112233aabbccdd'), findsOneWidget);
+    expect(find.text('221122'), findsNWidgets(2));
+    expect(find.text('0x010203'), findsOneWidget);
+    expect(find.text('0x12345678'), findsOneWidget);
+    expect(find.text('0xABCDEF01'), findsOneWidget);
   });
 
   testWidgets('Add Bike explains a blocked Bluetooth permission', (

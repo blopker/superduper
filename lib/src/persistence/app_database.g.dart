@@ -94,6 +94,17 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _moduleSerialMeta = const VerificationMeta(
+    'moduleSerial',
+  );
+  @override
+  late final GeneratedColumn<String> moduleSerial = GeneratedColumn<String>(
+    'module_serial',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     deviceId,
@@ -104,6 +115,7 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     createdAtMs,
     updatedAtMs,
     lastConnectedAtMs,
+    moduleSerial,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -189,6 +201,15 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
         ),
       );
     }
+    if (data.containsKey('module_serial')) {
+      context.handle(
+        _moduleSerialMeta,
+        moduleSerial.isAcceptableOrUnknown(
+          data['module_serial']!,
+          _moduleSerialMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -230,6 +251,10 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
         DriftSqlType.int,
         data['${effectivePrefix}last_connected_at_ms'],
       ),
+      moduleSerial: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}module_serial'],
+      ),
     );
   }
 
@@ -248,6 +273,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   final int createdAtMs;
   final int updatedAtMs;
   final int? lastConnectedAtMs;
+  final String? moduleSerial;
   const BikeRow({
     required this.deviceId,
     required this.displayName,
@@ -257,6 +283,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     required this.createdAtMs,
     required this.updatedAtMs,
     this.lastConnectedAtMs,
+    this.moduleSerial,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -272,6 +299,9 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     map['updated_at_ms'] = Variable<int>(updatedAtMs);
     if (!nullToAbsent || lastConnectedAtMs != null) {
       map['last_connected_at_ms'] = Variable<int>(lastConnectedAtMs);
+    }
+    if (!nullToAbsent || moduleSerial != null) {
+      map['module_serial'] = Variable<String>(moduleSerial);
     }
     return map;
   }
@@ -290,6 +320,9 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       lastConnectedAtMs: lastConnectedAtMs == null && nullToAbsent
           ? const Value.absent()
           : Value(lastConnectedAtMs),
+      moduleSerial: moduleSerial == null && nullToAbsent
+          ? const Value.absent()
+          : Value(moduleSerial),
     );
   }
 
@@ -307,6 +340,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
       updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
       lastConnectedAtMs: serializer.fromJson<int?>(json['lastConnectedAtMs']),
+      moduleSerial: serializer.fromJson<String?>(json['moduleSerial']),
     );
   }
   @override
@@ -321,6 +355,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       'createdAtMs': serializer.toJson<int>(createdAtMs),
       'updatedAtMs': serializer.toJson<int>(updatedAtMs),
       'lastConnectedAtMs': serializer.toJson<int?>(lastConnectedAtMs),
+      'moduleSerial': serializer.toJson<String?>(moduleSerial),
     };
   }
 
@@ -333,6 +368,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     int? createdAtMs,
     int? updatedAtMs,
     Value<int?> lastConnectedAtMs = const Value.absent(),
+    Value<String?> moduleSerial = const Value.absent(),
   }) => BikeRow(
     deviceId: deviceId ?? this.deviceId,
     displayName: displayName ?? this.displayName,
@@ -344,6 +380,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     lastConnectedAtMs: lastConnectedAtMs.present
         ? lastConnectedAtMs.value
         : this.lastConnectedAtMs,
+    moduleSerial: moduleSerial.present ? moduleSerial.value : this.moduleSerial,
   );
   BikeRow copyWithCompanion(BikesCompanion data) {
     return BikeRow(
@@ -363,6 +400,9 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       lastConnectedAtMs: data.lastConnectedAtMs.present
           ? data.lastConnectedAtMs.value
           : this.lastConnectedAtMs,
+      moduleSerial: data.moduleSerial.present
+          ? data.moduleSerial.value
+          : this.moduleSerial,
     );
   }
 
@@ -376,7 +416,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAtMs: $createdAtMs, ')
           ..write('updatedAtMs: $updatedAtMs, ')
-          ..write('lastConnectedAtMs: $lastConnectedAtMs')
+          ..write('lastConnectedAtMs: $lastConnectedAtMs, ')
+          ..write('moduleSerial: $moduleSerial')
           ..write(')'))
         .toString();
   }
@@ -391,6 +432,7 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     createdAtMs,
     updatedAtMs,
     lastConnectedAtMs,
+    moduleSerial,
   );
   @override
   bool operator ==(Object other) =>
@@ -403,7 +445,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
           other.sortOrder == this.sortOrder &&
           other.createdAtMs == this.createdAtMs &&
           other.updatedAtMs == this.updatedAtMs &&
-          other.lastConnectedAtMs == this.lastConnectedAtMs);
+          other.lastConnectedAtMs == this.lastConnectedAtMs &&
+          other.moduleSerial == this.moduleSerial);
 }
 
 class BikesCompanion extends UpdateCompanion<BikeRow> {
@@ -415,6 +458,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   final Value<int> createdAtMs;
   final Value<int> updatedAtMs;
   final Value<int?> lastConnectedAtMs;
+  final Value<String?> moduleSerial;
   final Value<int> rowid;
   const BikesCompanion({
     this.deviceId = const Value.absent(),
@@ -425,6 +469,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     this.createdAtMs = const Value.absent(),
     this.updatedAtMs = const Value.absent(),
     this.lastConnectedAtMs = const Value.absent(),
+    this.moduleSerial = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BikesCompanion.insert({
@@ -436,6 +481,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     required int createdAtMs,
     required int updatedAtMs,
     this.lastConnectedAtMs = const Value.absent(),
+    this.moduleSerial = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : deviceId = Value(deviceId),
        displayName = Value(displayName),
@@ -452,6 +498,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     Expression<int>? createdAtMs,
     Expression<int>? updatedAtMs,
     Expression<int>? lastConnectedAtMs,
+    Expression<String>? moduleSerial,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -463,6 +510,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
       if (createdAtMs != null) 'created_at_ms': createdAtMs,
       if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (lastConnectedAtMs != null) 'last_connected_at_ms': lastConnectedAtMs,
+      if (moduleSerial != null) 'module_serial': moduleSerial,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -476,6 +524,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     Value<int>? createdAtMs,
     Value<int>? updatedAtMs,
     Value<int?>? lastConnectedAtMs,
+    Value<String?>? moduleSerial,
     Value<int>? rowid,
   }) {
     return BikesCompanion(
@@ -487,6 +536,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
       createdAtMs: createdAtMs ?? this.createdAtMs,
       updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       lastConnectedAtMs: lastConnectedAtMs ?? this.lastConnectedAtMs,
+      moduleSerial: moduleSerial ?? this.moduleSerial,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -518,6 +568,9 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     if (lastConnectedAtMs.present) {
       map['last_connected_at_ms'] = Variable<int>(lastConnectedAtMs.value);
     }
+    if (moduleSerial.present) {
+      map['module_serial'] = Variable<String>(moduleSerial.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -535,6 +588,7 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
           ..write('createdAtMs: $createdAtMs, ')
           ..write('updatedAtMs: $updatedAtMs, ')
           ..write('lastConnectedAtMs: $lastConnectedAtMs, ')
+          ..write('moduleSerial: $moduleSerial, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1157,6 +1211,665 @@ class BikePreferencesCompanion extends UpdateCompanion<BikePreferenceRow> {
           ..write('keepAssist: $keepAssist, ')
           ..write('backgroundRequested: $backgroundRequested, ')
           ..write('backgroundConsentVersion: $backgroundConsentVersion, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BikeVersionsTable extends BikeVersions
+    with TableInfo<$BikeVersionsTable, BikeVersionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BikeVersionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES bikes (device_id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _hardwareRevisionMeta = const VerificationMeta(
+    'hardwareRevision',
+  );
+  @override
+  late final GeneratedColumn<String> hardwareRevision = GeneratedColumn<String>(
+    'hardware_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _firmwareRevisionMeta = const VerificationMeta(
+    'firmwareRevision',
+  );
+  @override
+  late final GeneratedColumn<String> firmwareRevision = GeneratedColumn<String>(
+    'firmware_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _softwareRevisionMeta = const VerificationMeta(
+    'softwareRevision',
+  );
+  @override
+  late final GeneratedColumn<String> softwareRevision = GeneratedColumn<String>(
+    'software_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stmFirmwareVersionMeta =
+      const VerificationMeta('stmFirmwareVersion');
+  @override
+  late final GeneratedColumn<int> stmFirmwareVersion = GeneratedColumn<int>(
+    'stm_firmware_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _controllerVariantMeta = const VerificationMeta(
+    'controllerVariant',
+  );
+  @override
+  late final GeneratedColumn<int> controllerVariant = GeneratedColumn<int>(
+    'controller_variant',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bootloaderHandoffMeta = const VerificationMeta(
+    'bootloaderHandoff',
+  );
+  @override
+  late final GeneratedColumn<int> bootloaderHandoff = GeneratedColumn<int>(
+    'bootloader_handoff',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _motorControllerVersionMeta =
+      const VerificationMeta('motorControllerVersion');
+  @override
+  late final GeneratedColumn<int> motorControllerVersion = GeneratedColumn<int>(
+    'motor_controller_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bmsVersionMeta = const VerificationMeta(
+    'bmsVersion',
+  );
+  @override
+  late final GeneratedColumn<int> bmsVersion = GeneratedColumn<int>(
+    'bms_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _readAtMsMeta = const VerificationMeta(
+    'readAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> readAtMs = GeneratedColumn<int>(
+    'read_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deviceId,
+    hardwareRevision,
+    firmwareRevision,
+    softwareRevision,
+    stmFirmwareVersion,
+    controllerVariant,
+    bootloaderHandoff,
+    motorControllerVersion,
+    bmsVersion,
+    readAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bike_versions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BikeVersionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('hardware_revision')) {
+      context.handle(
+        _hardwareRevisionMeta,
+        hardwareRevision.isAcceptableOrUnknown(
+          data['hardware_revision']!,
+          _hardwareRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_hardwareRevisionMeta);
+    }
+    if (data.containsKey('firmware_revision')) {
+      context.handle(
+        _firmwareRevisionMeta,
+        firmwareRevision.isAcceptableOrUnknown(
+          data['firmware_revision']!,
+          _firmwareRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_firmwareRevisionMeta);
+    }
+    if (data.containsKey('software_revision')) {
+      context.handle(
+        _softwareRevisionMeta,
+        softwareRevision.isAcceptableOrUnknown(
+          data['software_revision']!,
+          _softwareRevisionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_softwareRevisionMeta);
+    }
+    if (data.containsKey('stm_firmware_version')) {
+      context.handle(
+        _stmFirmwareVersionMeta,
+        stmFirmwareVersion.isAcceptableOrUnknown(
+          data['stm_firmware_version']!,
+          _stmFirmwareVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stmFirmwareVersionMeta);
+    }
+    if (data.containsKey('controller_variant')) {
+      context.handle(
+        _controllerVariantMeta,
+        controllerVariant.isAcceptableOrUnknown(
+          data['controller_variant']!,
+          _controllerVariantMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_controllerVariantMeta);
+    }
+    if (data.containsKey('bootloader_handoff')) {
+      context.handle(
+        _bootloaderHandoffMeta,
+        bootloaderHandoff.isAcceptableOrUnknown(
+          data['bootloader_handoff']!,
+          _bootloaderHandoffMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_bootloaderHandoffMeta);
+    }
+    if (data.containsKey('motor_controller_version')) {
+      context.handle(
+        _motorControllerVersionMeta,
+        motorControllerVersion.isAcceptableOrUnknown(
+          data['motor_controller_version']!,
+          _motorControllerVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_motorControllerVersionMeta);
+    }
+    if (data.containsKey('bms_version')) {
+      context.handle(
+        _bmsVersionMeta,
+        bmsVersion.isAcceptableOrUnknown(data['bms_version']!, _bmsVersionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bmsVersionMeta);
+    }
+    if (data.containsKey('read_at_ms')) {
+      context.handle(
+        _readAtMsMeta,
+        readAtMs.isAcceptableOrUnknown(data['read_at_ms']!, _readAtMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_readAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {deviceId};
+  @override
+  BikeVersionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BikeVersionRow(
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      hardwareRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hardware_revision'],
+      )!,
+      firmwareRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}firmware_revision'],
+      )!,
+      softwareRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}software_revision'],
+      )!,
+      stmFirmwareVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stm_firmware_version'],
+      )!,
+      controllerVariant: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}controller_variant'],
+      )!,
+      bootloaderHandoff: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bootloader_handoff'],
+      )!,
+      motorControllerVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}motor_controller_version'],
+      )!,
+      bmsVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bms_version'],
+      )!,
+      readAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}read_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $BikeVersionsTable createAlias(String alias) {
+    return $BikeVersionsTable(attachedDatabase, alias);
+  }
+}
+
+class BikeVersionRow extends DataClass implements Insertable<BikeVersionRow> {
+  final String deviceId;
+  final String hardwareRevision;
+  final String firmwareRevision;
+  final String softwareRevision;
+  final int stmFirmwareVersion;
+  final int controllerVariant;
+  final int bootloaderHandoff;
+  final int motorControllerVersion;
+  final int bmsVersion;
+  final int readAtMs;
+  const BikeVersionRow({
+    required this.deviceId,
+    required this.hardwareRevision,
+    required this.firmwareRevision,
+    required this.softwareRevision,
+    required this.stmFirmwareVersion,
+    required this.controllerVariant,
+    required this.bootloaderHandoff,
+    required this.motorControllerVersion,
+    required this.bmsVersion,
+    required this.readAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['device_id'] = Variable<String>(deviceId);
+    map['hardware_revision'] = Variable<String>(hardwareRevision);
+    map['firmware_revision'] = Variable<String>(firmwareRevision);
+    map['software_revision'] = Variable<String>(softwareRevision);
+    map['stm_firmware_version'] = Variable<int>(stmFirmwareVersion);
+    map['controller_variant'] = Variable<int>(controllerVariant);
+    map['bootloader_handoff'] = Variable<int>(bootloaderHandoff);
+    map['motor_controller_version'] = Variable<int>(motorControllerVersion);
+    map['bms_version'] = Variable<int>(bmsVersion);
+    map['read_at_ms'] = Variable<int>(readAtMs);
+    return map;
+  }
+
+  BikeVersionsCompanion toCompanion(bool nullToAbsent) {
+    return BikeVersionsCompanion(
+      deviceId: Value(deviceId),
+      hardwareRevision: Value(hardwareRevision),
+      firmwareRevision: Value(firmwareRevision),
+      softwareRevision: Value(softwareRevision),
+      stmFirmwareVersion: Value(stmFirmwareVersion),
+      controllerVariant: Value(controllerVariant),
+      bootloaderHandoff: Value(bootloaderHandoff),
+      motorControllerVersion: Value(motorControllerVersion),
+      bmsVersion: Value(bmsVersion),
+      readAtMs: Value(readAtMs),
+    );
+  }
+
+  factory BikeVersionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BikeVersionRow(
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      hardwareRevision: serializer.fromJson<String>(json['hardwareRevision']),
+      firmwareRevision: serializer.fromJson<String>(json['firmwareRevision']),
+      softwareRevision: serializer.fromJson<String>(json['softwareRevision']),
+      stmFirmwareVersion: serializer.fromJson<int>(json['stmFirmwareVersion']),
+      controllerVariant: serializer.fromJson<int>(json['controllerVariant']),
+      bootloaderHandoff: serializer.fromJson<int>(json['bootloaderHandoff']),
+      motorControllerVersion: serializer.fromJson<int>(
+        json['motorControllerVersion'],
+      ),
+      bmsVersion: serializer.fromJson<int>(json['bmsVersion']),
+      readAtMs: serializer.fromJson<int>(json['readAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'deviceId': serializer.toJson<String>(deviceId),
+      'hardwareRevision': serializer.toJson<String>(hardwareRevision),
+      'firmwareRevision': serializer.toJson<String>(firmwareRevision),
+      'softwareRevision': serializer.toJson<String>(softwareRevision),
+      'stmFirmwareVersion': serializer.toJson<int>(stmFirmwareVersion),
+      'controllerVariant': serializer.toJson<int>(controllerVariant),
+      'bootloaderHandoff': serializer.toJson<int>(bootloaderHandoff),
+      'motorControllerVersion': serializer.toJson<int>(motorControllerVersion),
+      'bmsVersion': serializer.toJson<int>(bmsVersion),
+      'readAtMs': serializer.toJson<int>(readAtMs),
+    };
+  }
+
+  BikeVersionRow copyWith({
+    String? deviceId,
+    String? hardwareRevision,
+    String? firmwareRevision,
+    String? softwareRevision,
+    int? stmFirmwareVersion,
+    int? controllerVariant,
+    int? bootloaderHandoff,
+    int? motorControllerVersion,
+    int? bmsVersion,
+    int? readAtMs,
+  }) => BikeVersionRow(
+    deviceId: deviceId ?? this.deviceId,
+    hardwareRevision: hardwareRevision ?? this.hardwareRevision,
+    firmwareRevision: firmwareRevision ?? this.firmwareRevision,
+    softwareRevision: softwareRevision ?? this.softwareRevision,
+    stmFirmwareVersion: stmFirmwareVersion ?? this.stmFirmwareVersion,
+    controllerVariant: controllerVariant ?? this.controllerVariant,
+    bootloaderHandoff: bootloaderHandoff ?? this.bootloaderHandoff,
+    motorControllerVersion:
+        motorControllerVersion ?? this.motorControllerVersion,
+    bmsVersion: bmsVersion ?? this.bmsVersion,
+    readAtMs: readAtMs ?? this.readAtMs,
+  );
+  BikeVersionRow copyWithCompanion(BikeVersionsCompanion data) {
+    return BikeVersionRow(
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      hardwareRevision: data.hardwareRevision.present
+          ? data.hardwareRevision.value
+          : this.hardwareRevision,
+      firmwareRevision: data.firmwareRevision.present
+          ? data.firmwareRevision.value
+          : this.firmwareRevision,
+      softwareRevision: data.softwareRevision.present
+          ? data.softwareRevision.value
+          : this.softwareRevision,
+      stmFirmwareVersion: data.stmFirmwareVersion.present
+          ? data.stmFirmwareVersion.value
+          : this.stmFirmwareVersion,
+      controllerVariant: data.controllerVariant.present
+          ? data.controllerVariant.value
+          : this.controllerVariant,
+      bootloaderHandoff: data.bootloaderHandoff.present
+          ? data.bootloaderHandoff.value
+          : this.bootloaderHandoff,
+      motorControllerVersion: data.motorControllerVersion.present
+          ? data.motorControllerVersion.value
+          : this.motorControllerVersion,
+      bmsVersion: data.bmsVersion.present
+          ? data.bmsVersion.value
+          : this.bmsVersion,
+      readAtMs: data.readAtMs.present ? data.readAtMs.value : this.readAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BikeVersionRow(')
+          ..write('deviceId: $deviceId, ')
+          ..write('hardwareRevision: $hardwareRevision, ')
+          ..write('firmwareRevision: $firmwareRevision, ')
+          ..write('softwareRevision: $softwareRevision, ')
+          ..write('stmFirmwareVersion: $stmFirmwareVersion, ')
+          ..write('controllerVariant: $controllerVariant, ')
+          ..write('bootloaderHandoff: $bootloaderHandoff, ')
+          ..write('motorControllerVersion: $motorControllerVersion, ')
+          ..write('bmsVersion: $bmsVersion, ')
+          ..write('readAtMs: $readAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    deviceId,
+    hardwareRevision,
+    firmwareRevision,
+    softwareRevision,
+    stmFirmwareVersion,
+    controllerVariant,
+    bootloaderHandoff,
+    motorControllerVersion,
+    bmsVersion,
+    readAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BikeVersionRow &&
+          other.deviceId == this.deviceId &&
+          other.hardwareRevision == this.hardwareRevision &&
+          other.firmwareRevision == this.firmwareRevision &&
+          other.softwareRevision == this.softwareRevision &&
+          other.stmFirmwareVersion == this.stmFirmwareVersion &&
+          other.controllerVariant == this.controllerVariant &&
+          other.bootloaderHandoff == this.bootloaderHandoff &&
+          other.motorControllerVersion == this.motorControllerVersion &&
+          other.bmsVersion == this.bmsVersion &&
+          other.readAtMs == this.readAtMs);
+}
+
+class BikeVersionsCompanion extends UpdateCompanion<BikeVersionRow> {
+  final Value<String> deviceId;
+  final Value<String> hardwareRevision;
+  final Value<String> firmwareRevision;
+  final Value<String> softwareRevision;
+  final Value<int> stmFirmwareVersion;
+  final Value<int> controllerVariant;
+  final Value<int> bootloaderHandoff;
+  final Value<int> motorControllerVersion;
+  final Value<int> bmsVersion;
+  final Value<int> readAtMs;
+  final Value<int> rowid;
+  const BikeVersionsCompanion({
+    this.deviceId = const Value.absent(),
+    this.hardwareRevision = const Value.absent(),
+    this.firmwareRevision = const Value.absent(),
+    this.softwareRevision = const Value.absent(),
+    this.stmFirmwareVersion = const Value.absent(),
+    this.controllerVariant = const Value.absent(),
+    this.bootloaderHandoff = const Value.absent(),
+    this.motorControllerVersion = const Value.absent(),
+    this.bmsVersion = const Value.absent(),
+    this.readAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BikeVersionsCompanion.insert({
+    required String deviceId,
+    required String hardwareRevision,
+    required String firmwareRevision,
+    required String softwareRevision,
+    required int stmFirmwareVersion,
+    required int controllerVariant,
+    required int bootloaderHandoff,
+    required int motorControllerVersion,
+    required int bmsVersion,
+    required int readAtMs,
+    this.rowid = const Value.absent(),
+  }) : deviceId = Value(deviceId),
+       hardwareRevision = Value(hardwareRevision),
+       firmwareRevision = Value(firmwareRevision),
+       softwareRevision = Value(softwareRevision),
+       stmFirmwareVersion = Value(stmFirmwareVersion),
+       controllerVariant = Value(controllerVariant),
+       bootloaderHandoff = Value(bootloaderHandoff),
+       motorControllerVersion = Value(motorControllerVersion),
+       bmsVersion = Value(bmsVersion),
+       readAtMs = Value(readAtMs);
+  static Insertable<BikeVersionRow> custom({
+    Expression<String>? deviceId,
+    Expression<String>? hardwareRevision,
+    Expression<String>? firmwareRevision,
+    Expression<String>? softwareRevision,
+    Expression<int>? stmFirmwareVersion,
+    Expression<int>? controllerVariant,
+    Expression<int>? bootloaderHandoff,
+    Expression<int>? motorControllerVersion,
+    Expression<int>? bmsVersion,
+    Expression<int>? readAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (deviceId != null) 'device_id': deviceId,
+      if (hardwareRevision != null) 'hardware_revision': hardwareRevision,
+      if (firmwareRevision != null) 'firmware_revision': firmwareRevision,
+      if (softwareRevision != null) 'software_revision': softwareRevision,
+      if (stmFirmwareVersion != null)
+        'stm_firmware_version': stmFirmwareVersion,
+      if (controllerVariant != null) 'controller_variant': controllerVariant,
+      if (bootloaderHandoff != null) 'bootloader_handoff': bootloaderHandoff,
+      if (motorControllerVersion != null)
+        'motor_controller_version': motorControllerVersion,
+      if (bmsVersion != null) 'bms_version': bmsVersion,
+      if (readAtMs != null) 'read_at_ms': readAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BikeVersionsCompanion copyWith({
+    Value<String>? deviceId,
+    Value<String>? hardwareRevision,
+    Value<String>? firmwareRevision,
+    Value<String>? softwareRevision,
+    Value<int>? stmFirmwareVersion,
+    Value<int>? controllerVariant,
+    Value<int>? bootloaderHandoff,
+    Value<int>? motorControllerVersion,
+    Value<int>? bmsVersion,
+    Value<int>? readAtMs,
+    Value<int>? rowid,
+  }) {
+    return BikeVersionsCompanion(
+      deviceId: deviceId ?? this.deviceId,
+      hardwareRevision: hardwareRevision ?? this.hardwareRevision,
+      firmwareRevision: firmwareRevision ?? this.firmwareRevision,
+      softwareRevision: softwareRevision ?? this.softwareRevision,
+      stmFirmwareVersion: stmFirmwareVersion ?? this.stmFirmwareVersion,
+      controllerVariant: controllerVariant ?? this.controllerVariant,
+      bootloaderHandoff: bootloaderHandoff ?? this.bootloaderHandoff,
+      motorControllerVersion:
+          motorControllerVersion ?? this.motorControllerVersion,
+      bmsVersion: bmsVersion ?? this.bmsVersion,
+      readAtMs: readAtMs ?? this.readAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (hardwareRevision.present) {
+      map['hardware_revision'] = Variable<String>(hardwareRevision.value);
+    }
+    if (firmwareRevision.present) {
+      map['firmware_revision'] = Variable<String>(firmwareRevision.value);
+    }
+    if (softwareRevision.present) {
+      map['software_revision'] = Variable<String>(softwareRevision.value);
+    }
+    if (stmFirmwareVersion.present) {
+      map['stm_firmware_version'] = Variable<int>(stmFirmwareVersion.value);
+    }
+    if (controllerVariant.present) {
+      map['controller_variant'] = Variable<int>(controllerVariant.value);
+    }
+    if (bootloaderHandoff.present) {
+      map['bootloader_handoff'] = Variable<int>(bootloaderHandoff.value);
+    }
+    if (motorControllerVersion.present) {
+      map['motor_controller_version'] = Variable<int>(
+        motorControllerVersion.value,
+      );
+    }
+    if (bmsVersion.present) {
+      map['bms_version'] = Variable<int>(bmsVersion.value);
+    }
+    if (readAtMs.present) {
+      map['read_at_ms'] = Variable<int>(readAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BikeVersionsCompanion(')
+          ..write('deviceId: $deviceId, ')
+          ..write('hardwareRevision: $hardwareRevision, ')
+          ..write('firmwareRevision: $firmwareRevision, ')
+          ..write('softwareRevision: $softwareRevision, ')
+          ..write('stmFirmwareVersion: $stmFirmwareVersion, ')
+          ..write('controllerVariant: $controllerVariant, ')
+          ..write('bootloaderHandoff: $bootloaderHandoff, ')
+          ..write('motorControllerVersion: $motorControllerVersion, ')
+          ..write('bmsVersion: $bmsVersion, ')
+          ..write('readAtMs: $readAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1908,6 +2621,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BikePreferencesTable bikePreferences = $BikePreferencesTable(
     this,
   );
+  late final $BikeVersionsTable bikeVersions = $BikeVersionsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $DataImportsTable dataImports = $DataImportsTable(this);
   @override
@@ -1917,6 +2631,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     bikes,
     bikePreferences,
+    bikeVersions,
     appSettings,
     dataImports,
   ];
@@ -1928,6 +2643,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('bike_preferences', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'bikes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('bike_versions', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(

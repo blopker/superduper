@@ -22,8 +22,6 @@ final class HelpPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
           children: [
-            const BrandMark(size: 68),
-            const SizedBox(height: 20),
             Text(
               'Get back to riding.',
               style: Theme.of(context).textTheme.headlineMedium,
@@ -116,12 +114,7 @@ final class _HelpTip extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(color: accent.withValues(alpha: 0.13)),
-            child: Icon(icon, color: accent),
-          ),
+          Icon(icon, color: accent, size: 30),
           const SizedBox(width: 15),
           Expanded(
             child: Column(

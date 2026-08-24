@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 abstract final class AppColors {
   static const ink = Color(0xFF000000);
-  static const inkLight = Color(0xFF050505);
-  static const surface = Color(0xFF080808);
-  static const surfaceRaised = Color(0xFF111111);
-  static const border = Color(0xFF2E2931);
+  static const inkLight = Color(0xFF101012);
+  static const surface = Color(0xFF19191C);
+  static const surfaceRaised = Color(0xFF242428);
+  static const border = Color(0xFF3A3A40);
   static const magenta = Color(0xFFF327AE);
   static const magentaSoft = Color(0xFFFF78CD);
   static const yellow = Color(0xFFFFD84A);
@@ -105,7 +105,6 @@ abstract final class AppTheme {
           fontWeight: FontWeight.w900,
           letterSpacing: 0,
         ),
-        shape: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       cardTheme: const CardThemeData(
         color: AppColors.surface,
@@ -113,7 +112,7 @@ abstract final class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.all(Radius.circular(26)),
         ),
       ),
       inputDecorationTheme: const InputDecorationTheme(
@@ -121,20 +120,23 @@ abstract final class AppTheme {
         fillColor: AppColors.surface,
         contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 17),
         border: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.magenta, width: 2),
+          borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(132, 52),
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          shape: const RoundedRectangleBorder(),
+          shape: const StadiumBorder(),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
@@ -143,13 +145,15 @@ abstract final class AppTheme {
           minimumSize: const Size(132, 52),
           padding: const EdgeInsets.symmetric(horizontal: 22),
           side: const BorderSide(color: AppColors.textMuted),
-          shape: const RoundedRectangleBorder(),
+          shape: const StadiumBorder(),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.magentaSoft,
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -158,7 +162,7 @@ abstract final class AppTheme {
           backgroundColor: Colors.transparent,
           foregroundColor: AppColors.text,
           minimumSize: const Size.square(44),
-          shape: const RoundedRectangleBorder(),
+          shape: const CircleBorder(),
         ),
       ),
       snackBarTheme: const SnackBarThemeData(
@@ -166,21 +170,21 @@ abstract final class AppTheme {
         contentTextStyle: TextStyle(color: AppColors.text),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.all(Radius.circular(20)),
         ),
       ),
       dialogTheme: const DialogThemeData(
         backgroundColor: AppColors.surfaceRaised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.all(Radius.circular(26)),
         ),
       ),
       popupMenuTheme: const PopupMenuThemeData(
         color: AppColors.surfaceRaised,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.all(Radius.circular(20)),
         ),
       ),
       dividerTheme: const DividerThemeData(

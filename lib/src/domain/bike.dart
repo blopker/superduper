@@ -74,6 +74,7 @@ final class Bike {
     required this.createdAt,
     required this.updatedAt,
     required this.lastConnectedAt,
+    this.moduleSerial,
   });
 
   final String deviceId;
@@ -84,6 +85,61 @@ final class Bike {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastConnectedAt;
+  final String? moduleSerial;
+}
+
+final class BikeVersionInfo {
+  const BikeVersionInfo({
+    required this.hardwareRevision,
+    required this.firmwareRevision,
+    required this.softwareRevision,
+    required this.stmFirmwareVersion,
+    required this.controllerVariant,
+    required this.bootloaderHandoff,
+    required this.motorControllerVersion,
+    required this.bmsVersion,
+  });
+
+  final String hardwareRevision;
+  final String firmwareRevision;
+  final String softwareRevision;
+  final int stmFirmwareVersion;
+  final int controllerVariant;
+  final int bootloaderHandoff;
+  final int motorControllerVersion;
+  final int bmsVersion;
+
+  @override
+  bool operator ==(Object other) {
+    return other is BikeVersionInfo &&
+        hardwareRevision == other.hardwareRevision &&
+        firmwareRevision == other.firmwareRevision &&
+        softwareRevision == other.softwareRevision &&
+        stmFirmwareVersion == other.stmFirmwareVersion &&
+        controllerVariant == other.controllerVariant &&
+        bootloaderHandoff == other.bootloaderHandoff &&
+        motorControllerVersion == other.motorControllerVersion &&
+        bmsVersion == other.bmsVersion;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    hardwareRevision,
+    firmwareRevision,
+    softwareRevision,
+    stmFirmwareVersion,
+    controllerVariant,
+    bootloaderHandoff,
+    motorControllerVersion,
+    bmsVersion,
+  );
+}
+
+final class CachedBikeVersions {
+  const CachedBikeVersions({required this.info, required this.readAt});
+
+  final BikeVersionInfo info;
+  final DateTime readAt;
 }
 
 final class RidePreferences {
@@ -167,10 +223,15 @@ final class RidePreferences {
 }
 
 final class SavedBike {
-  const SavedBike({required this.bike, required this.preferences});
+  const SavedBike({
+    required this.bike,
+    required this.preferences,
+    this.versions,
+  });
 
   final Bike bike;
   final RidePreferences preferences;
+  final CachedBikeVersions? versions;
 }
 
 final class BikeNotFoundException implements Exception {

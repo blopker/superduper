@@ -19,6 +19,10 @@ final class BikeRepository {
               database.bikes.deviceId,
             ),
           ),
+          leftOuterJoin(
+            database.bikeVersions,
+            database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
+          ),
         ])..orderBy([
           OrderingTerm.asc(database.bikes.sortOrder),
           OrderingTerm.asc(database.bikes.createdAtMs),
@@ -31,6 +35,7 @@ final class BikeRepository {
           (row) => _mapBike(
             row.readTable(database.bikes),
             row.readTable(database.bikePreferences),
+            row.readTableOrNull(database.bikeVersions),
           ),
         ),
       ),
@@ -47,6 +52,10 @@ final class BikeRepository {
         database.appSettings,
         database.appSettings.activeBikeId.equalsExp(database.bikes.deviceId),
       ),
+      leftOuterJoin(
+        database.bikeVersions,
+        database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
+      ),
     ]);
 
     return query.watch().map((rows) {
@@ -57,6 +66,7 @@ final class BikeRepository {
       return _mapBike(
         row.readTable(database.bikes),
         row.readTable(database.bikePreferences),
+        row.readTableOrNull(database.bikeVersions),
       );
     });
   }
@@ -70,6 +80,10 @@ final class BikeRepository {
               database.bikes.deviceId,
             ),
           ),
+          leftOuterJoin(
+            database.bikeVersions,
+            database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
+          ),
         ])..orderBy([
           OrderingTerm.asc(database.bikes.sortOrder),
           OrderingTerm.asc(database.bikes.createdAtMs),
@@ -81,6 +95,7 @@ final class BikeRepository {
         (row) => _mapBike(
           row.readTable(database.bikes),
           row.readTable(database.bikePreferences),
+          row.readTableOrNull(database.bikeVersions),
         ),
       ),
     );
@@ -101,13 +116,21 @@ final class BikeRepository {
     BikeRegion? region,
     BikeColor color = BikeColor.royalHorizon,
     RidePreferences preferences = const RidePreferences.defaults(),
+    BikeVersionInfo? versions,
+    String? moduleSerial,
   }) {
     final normalizedId = deviceId.trim();
     if (normalizedId.isEmpty) {
       throw ArgumentError.value(deviceId, 'deviceId', 'Must not be empty.');
     }
     _validatePreferences(preferences);
+    final normalizedVersions = versions == null
+        ? null
+        : _normalizeVersionInfo(versions);
     final normalizedName = _normalizeName(displayName, normalizedId);
+    final normalizedSerial = moduleSerial == null
+        ? null
+        : _normalizeModuleSerial(moduleSerial);
 
     return database.transaction(() async {
       await _ensureSettings();
@@ -125,11 +148,17 @@ final class BikeRepository {
               sortOrder: nextSortOrder,
               createdAtMs: now,
               updatedAtMs: now,
+              moduleSerial: Value(normalizedSerial),
             ),
           );
       await database
           .into(database.bikePreferences)
           .insert(_preferencesInsert(normalizedId, preferences));
+      if (normalizedVersions != null) {
+        await database
+            .into(database.bikeVersions)
+            .insert(_versionsInsert(normalizedId, normalizedVersions, now));
+      }
 
       final settings = await _getSettings();
       if (settings.activeBikeId == null) {
@@ -303,6 +332,43 @@ final class BikeRepository {
     );
   }
 
+  Future<bool> saveVersions(String deviceId, BikeVersionInfo versions) {
+    final normalized = _normalizeVersionInfo(versions);
+    return database.transaction(() async {
+      await _requireBike(deviceId);
+      final current = await (database.select(
+        database.bikeVersions,
+      )..where((table) => table.deviceId.equals(deviceId))).getSingleOrNull();
+      if (current != null && _mapVersionInfo(current) == normalized) {
+        return false;
+      }
+      await database
+          .into(database.bikeVersions)
+          .insertOnConflictUpdate(
+            _versionsInsert(
+              deviceId,
+              normalized,
+              _clock().millisecondsSinceEpoch,
+            ),
+          );
+      return true;
+    });
+  }
+
+  Future<bool> saveModuleSerial(String deviceId, String moduleSerial) {
+    final normalized = _normalizeModuleSerial(moduleSerial);
+    return database.transaction(() async {
+      final bike = await _requireBike(deviceId);
+      if (bike.moduleSerial == normalized) {
+        return false;
+      }
+      await (database.update(database.bikes)
+            ..where((table) => table.deviceId.equals(deviceId)))
+          .write(BikesCompanion(moduleSerial: Value(normalized)));
+      return true;
+    });
+  }
+
   Future<void> _updateBike(
     String deviceId,
     BikesCompanion changes, {
@@ -368,6 +434,10 @@ final class BikeRepository {
         database.bikePreferences,
         database.bikePreferences.deviceId.equalsExp(database.bikes.deviceId),
       ),
+      leftOuterJoin(
+        database.bikeVersions,
+        database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
+      ),
     ])..where(database.bikes.deviceId.equals(deviceId));
     final row = await query.getSingleOrNull();
     if (row == null) {
@@ -376,22 +446,18 @@ final class BikeRepository {
     return _mapBike(
       row.readTable(database.bikes),
       row.readTable(database.bikePreferences),
+      row.readTableOrNull(database.bikeVersions),
     );
   }
 
-  Future<void> _requireBike(String deviceId) async {
-    if (!await _bikeExists(deviceId)) {
+  Future<BikeRow> _requireBike(String deviceId) async {
+    final bike = await (database.select(
+      database.bikes,
+    )..where((table) => table.deviceId.equals(deviceId))).getSingleOrNull();
+    if (bike == null) {
       throw BikeNotFoundException(deviceId);
     }
-  }
-
-  Future<bool> _bikeExists(String deviceId) async {
-    final row =
-        await (database.selectOnly(database.bikes)
-              ..addColumns([database.bikes.deviceId])
-              ..where(database.bikes.deviceId.equals(deviceId)))
-            .getSingleOrNull();
-    return row != null;
+    return bike;
   }
 
   Future<int> _highestSortOrder() async {
@@ -415,7 +481,11 @@ final class BikeRepository {
     return row?.deviceId;
   }
 
-  SavedBike _mapBike(BikeRow bike, BikePreferenceRow preferences) {
+  SavedBike _mapBike(
+    BikeRow bike,
+    BikePreferenceRow preferences,
+    BikeVersionRow? versions,
+  ) {
     final region = switch (bike.region) {
       'us' => BikeRegion.us,
       'eu' => BikeRegion.eu,
@@ -438,6 +508,7 @@ final class BikeRepository {
         lastConnectedAt: bike.lastConnectedAtMs == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(bike.lastConnectedAtMs!),
+        moduleSerial: bike.moduleSerial,
       ),
       preferences: RidePreferences(
         desiredLight: preferences.desiredLight,
@@ -449,6 +520,25 @@ final class BikeRepository {
         backgroundRequested: preferences.backgroundRequested,
         backgroundConsentVersion: preferences.backgroundConsentVersion,
       ),
+      versions: versions == null
+          ? null
+          : CachedBikeVersions(
+              info: _mapVersionInfo(versions),
+              readAt: DateTime.fromMillisecondsSinceEpoch(versions.readAtMs),
+            ),
+    );
+  }
+
+  BikeVersionInfo _mapVersionInfo(BikeVersionRow row) {
+    return BikeVersionInfo(
+      hardwareRevision: row.hardwareRevision,
+      firmwareRevision: row.firmwareRevision,
+      softwareRevision: row.softwareRevision,
+      stmFirmwareVersion: row.stmFirmwareVersion,
+      controllerVariant: row.controllerVariant,
+      bootloaderHandoff: row.bootloaderHandoff,
+      motorControllerVersion: row.motorControllerVersion,
+      bmsVersion: row.bmsVersion,
     );
   }
 
@@ -469,9 +559,40 @@ final class BikeRepository {
     );
   }
 
+  BikeVersionsCompanion _versionsInsert(
+    String deviceId,
+    BikeVersionInfo versions,
+    int readAtMs,
+  ) {
+    return BikeVersionsCompanion.insert(
+      deviceId: deviceId,
+      hardwareRevision: versions.hardwareRevision,
+      firmwareRevision: versions.firmwareRevision,
+      softwareRevision: versions.softwareRevision,
+      stmFirmwareVersion: versions.stmFirmwareVersion,
+      controllerVariant: versions.controllerVariant,
+      bootloaderHandoff: versions.bootloaderHandoff,
+      motorControllerVersion: versions.motorControllerVersion,
+      bmsVersion: versions.bmsVersion,
+      readAtMs: readAtMs,
+    );
+  }
+
   String _normalizeName(String? displayName, String deviceId) {
     final normalized = displayName?.trim() ?? '';
     return normalized.isEmpty ? defaultBikeName(deviceId) : normalized;
+  }
+
+  String _normalizeModuleSerial(String moduleSerial) {
+    final normalized = moduleSerial.trim().toLowerCase();
+    if (!RegExp(r'^[0-9a-f]{16}$').hasMatch(normalized)) {
+      throw ArgumentError.value(
+        moduleSerial,
+        'moduleSerial',
+        'Must be a 16-character hexadecimal chip ID.',
+      );
+    }
+    return normalized;
   }
 
   void _validatePreferences(RidePreferences preferences) {
@@ -483,6 +604,48 @@ final class BikeRepository {
         'backgroundConsentVersion',
         'Must not be negative.',
       );
+    }
+  }
+
+  BikeVersionInfo _normalizeVersionInfo(BikeVersionInfo versions) {
+    final hardware = versions.hardwareRevision.trim();
+    final firmware = versions.firmwareRevision.trim();
+    final software = versions.softwareRevision.trim();
+    if (hardware.isEmpty || firmware.isEmpty || software.isEmpty) {
+      throw ArgumentError.value(
+        versions,
+        'versions',
+        'Revision strings must not be empty.',
+      );
+    }
+    _validateUnsigned(
+      versions.stmFirmwareVersion,
+      0xffffff,
+      'stmFirmwareVersion',
+    );
+    _validateUnsigned(versions.controllerVariant, 0xffff, 'controllerVariant');
+    _validateUnsigned(versions.bootloaderHandoff, 0xff, 'bootloaderHandoff');
+    _validateUnsigned(
+      versions.motorControllerVersion,
+      0xffffffff,
+      'motorControllerVersion',
+    );
+    _validateUnsigned(versions.bmsVersion, 0xffffffff, 'bmsVersion');
+    return BikeVersionInfo(
+      hardwareRevision: hardware,
+      firmwareRevision: firmware,
+      softwareRevision: software,
+      stmFirmwareVersion: versions.stmFirmwareVersion,
+      controllerVariant: versions.controllerVariant,
+      bootloaderHandoff: versions.bootloaderHandoff,
+      motorControllerVersion: versions.motorControllerVersion,
+      bmsVersion: versions.bmsVersion,
+    );
+  }
+
+  void _validateUnsigned(int value, int maximum, String name) {
+    if (value < 0 || value > maximum) {
+      throw RangeError.range(value, 0, maximum, name);
     }
   }
 
