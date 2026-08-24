@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/user_facing_error.dart';
 
 void main() {
@@ -29,6 +30,36 @@ void main() {
     expect(
       userFacingError(
         StateError('private database implementation detail'),
+        context: UserErrorContext.startup,
+      ),
+      'Your saved bikes couldn’t be opened. Try again.',
+    );
+  });
+
+  test('preserves an intentional hardware-test diagnostic', () {
+    expect(
+      userFacingError(
+        const BikeHardwareTestFailure('Light did not toggle.'),
+        context: UserErrorContext.hardwareTest,
+      ),
+      'Light did not toggle.',
+    );
+  });
+
+  test('classifies duplicate bikes by type', () {
+    expect(
+      userFacingError(
+        const BikeAlreadyExistsException('bike'),
+        context: UserErrorContext.saveBike,
+      ),
+      'This bike is already saved.',
+    );
+  });
+
+  test('does not apply bike heuristics to startup errors', () {
+    expect(
+      userFacingError(
+        StateError('no such column: protocol after timeout'),
         context: UserErrorContext.startup,
       ),
       'Your saved bikes couldn’t be opened. Try again.',

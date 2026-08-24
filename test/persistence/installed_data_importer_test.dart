@@ -346,7 +346,10 @@ void main() {
     final result = await importer.run() as InstalledDataImportSuccess;
 
     expect(result.bikesImported, 1);
-    expect(result.warnings.single.code, 'malformed_settings');
+    expect(
+      result.warnings.map((warning) => warning.code),
+      contains('malformed_settings'),
+    );
     final settings = await database.select(database.appSettings).getSingle();
     expect(settings.migrationNoticePending, isTrue);
   });

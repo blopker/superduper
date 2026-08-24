@@ -39,8 +39,7 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('SUPER73'),
+    requiredDuringInsert: true,
   );
   @override
   late final GeneratedColumnWithTypeConverter<BikeProtocolVersion, String>
@@ -49,8 +48,7 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('v1'),
+    requiredDuringInsert: true,
   ).withConverter<BikeProtocolVersion>($BikesTable.$converterprotocol);
   static const VerificationMeta _regionMeta = const VerificationMeta('region');
   @override
@@ -180,6 +178,8 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
           _advertisedNameMeta,
         ),
       );
+    } else if (isInserting) {
+      context.missing(_advertisedNameMeta);
     }
     if (data.containsKey('region')) {
       context.handle(
@@ -561,8 +561,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   BikesCompanion.insert({
     required String deviceId,
     required String displayName,
-    this.advertisedName = const Value.absent(),
-    this.protocol = const Value.absent(),
+    required String advertisedName,
+    required BikeProtocolVersion protocol,
     this.region = const Value.absent(),
     required String colorKey,
     required int sortOrder,
@@ -573,6 +573,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     this.rowid = const Value.absent(),
   }) : deviceId = Value(deviceId),
        displayName = Value(displayName),
+       advertisedName = Value(advertisedName),
+       protocol = Value(protocol),
        colorKey = Value(colorKey),
        sortOrder = Value(sortOrder),
        createdAtMs = Value(createdAtMs),

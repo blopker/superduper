@@ -12,6 +12,16 @@ enum UserErrorContext {
   savedBikes,
   startup,
   hardwareTest,
+  report,
+}
+
+final class BikeHardwareTestFailure implements Exception {
+  const BikeHardwareTestFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 String userFacingError(
@@ -39,16 +49,13 @@ String userFacingError(
       'This bike doesn’t provide the Bluetooth features Superduper needs.',
     BikeConnectionFailure(:final operation, :final message) =>
       _connectionMessage(operation, message, context),
+    BikeHardwareTestFailure(:final message) => message,
+    BikeAlreadyExistsException() => 'This bike is already saved.',
     BikeNotFoundException() => 'This bike is no longer saved.',
     _ => null,
   };
   if (known != null) {
     return known;
-  }
-
-  final hinted = _messageHint(error is String ? error : error.toString());
-  if (hinted != null) {
-    return hinted;
   }
 
   return switch (context) {
@@ -66,6 +73,7 @@ String userFacingError(
     UserErrorContext.startup =>
       'Your saved bikes couldn’t be opened. Try again.',
     UserErrorContext.hardwareTest => 'The test couldn’t complete this step.',
+    UserErrorContext.report => 'Couldn’t prepare the report. Try again.',
   };
 }
 

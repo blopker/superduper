@@ -30,18 +30,16 @@ class Bikes extends Table with TableInfo {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT \'SUPER73\'',
-    defaultValue: const CustomExpression('\'SUPER73\''),
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
   );
   late final GeneratedColumn<String> protocol = GeneratedColumn<String>(
     'protocol',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT \'v1\'',
-    defaultValue: const CustomExpression('\'v1\''),
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
   );
   late final GeneratedColumn<String> region = GeneratedColumn<String>(
     'region',
@@ -135,7 +133,9 @@ class Bikes extends Table with TableInfo {
     'PRIMARY KEY(device_id)',
     'CHECK(length(device_id) > 0)',
     'CHECK(length(display_name) > 0)',
-    'CHECK(region IS NULL OR region IN (\'us\', \'eu\'))',
+    'CHECK(length(advertised_name) > 0)',
+    'CHECK(protocol IN (\'v1\', \'v2\'))',
+    'CHECK((protocol = \'v1\' AND region IS NOT NULL AND region IN (\'us\', \'eu\'))OR(protocol = \'v2\' AND region IS NULL))',
     'CHECK(length(color_key) > 0)',
   ];
   @override

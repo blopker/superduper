@@ -6,6 +6,7 @@ import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/features/hardware_test/bike_hardware_test_controller.dart';
 import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/report_actions.dart';
 
@@ -169,9 +170,20 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
   }
 
   Future<ShareableReport> _createShareableReport() async {
+    final controller = _controller;
+    if (controller == null) {
+      throw const BikeHardwareTestFailure(
+        'The bike test report is no longer available.',
+      );
+    }
     final metadata = await ReportMetadata.fromPlatform();
+    if (!mounted || !identical(controller, _controller)) {
+      throw const BikeHardwareTestFailure(
+        'The bike test report is no longer available.',
+      );
+    }
     return ShareableReport(
-      content: _controller!.createReport(
+      content: controller.createReport(
         appVersion: metadata.appVersion,
         buildNumber: metadata.buildNumber,
         platform: metadata.platform,

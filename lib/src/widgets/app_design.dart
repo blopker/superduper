@@ -48,7 +48,7 @@ final class BikeColorPalette {
       ),
       outlineVariant: Color.alphaBlend(
         sourceAccent.withValues(alpha: 0.18),
-        const Color(0xFF34243D),
+        AppColors.borderTint,
       ),
     );
   }
@@ -518,15 +518,18 @@ final class StatusPill extends StatelessWidget {
           Icon(icon, size: 15, color: color),
           const SizedBox(width: 6),
         ],
-        Semantics(
-          label: label,
-          excludeSemantics: true,
-          child: Text(
-            label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.9,
+        Flexible(
+          child: Semantics(
+            label: label,
+            excludeSemantics: true,
+            child: Text(
+              label.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.9,
+              ),
             ),
           ),
         ),

@@ -48,7 +48,7 @@ final class BikeSessionPresentation {
         icon: Icons.warning_amber_rounded,
         label: 'Connected with warning',
         color: AppColors.orange,
-        title: 'A saved setting was not applied',
+        title: 'The bike did not accept a setting',
         detail: userFacingError(
           failure,
           context: UserErrorContext.bikeControl,
@@ -105,6 +105,17 @@ final class BikeSessionPresentation {
         canRetry: true,
       ),
     };
+  }
+
+  factory BikeSessionPresentation.savedBikesFailure(Object error) {
+    return BikeSessionPresentation(
+      icon: Icons.error_outline_rounded,
+      label: 'Needs attention',
+      color: AppColors.error,
+      title: 'Saved bikes unavailable',
+      detail: userFacingError(error, context: UserErrorContext.savedBikes),
+      canRetry: true,
+    );
   }
 
   final IconData icon;

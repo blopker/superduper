@@ -272,6 +272,7 @@ final class BikeSession {
   var _hasObservedConnection = false;
   Future<void>? _connectFuture;
   int? _connectFutureGeneration;
+  int? _platformConnectGeneration;
   Future<BikeConfiguration>? _configurationChangeFuture;
   int? _configurationChangeGeneration;
 
@@ -298,19 +299,21 @@ final class BikeSession {
 
   Future<void> connect() {
     _ensureNotDisposed();
-    final currentState = _state.peek();
-    if (_hasObservedConnection &&
-        (currentState is SessionReady ||
-            currentState is SessionSynchronizing)) {
-      return Future.value();
-    }
     final pending = _connectFuture;
     if (_connectFutureGeneration == _generation && pending != null) {
       return pending;
     }
+    final currentState = _state.peek();
+    if (!_disconnectRequested &&
+        _hasObservedConnection &&
+        (currentState is SessionReady ||
+            currentState is SessionSynchronizing)) {
+      return Future.value();
+    }
     _manualReconnectPaused = false;
     _foregroundPaused = false;
     _disconnectRequested = false;
+    _generation++;
     _reconnectAttempt = 0;
     _synchronizationRetryAttempt = 0;
     _reconnectTimer?.cancel();
@@ -336,6 +339,7 @@ final class BikeSession {
         if (failure is BikeSessionDisposedFailure) {
           throw failure;
         }
+        _pending.value = null;
         if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
           _scheduleSynchronizationRetry(failure);
         } else if (_isConnectionFailure(failure)) {
@@ -410,6 +414,9 @@ final class BikeSession {
     }
     _foregroundPaused = false;
     _disconnectRequested = false;
+    _generation++;
+    _reconnectTimer?.cancel();
+    _synchronizationRetryTimer?.cancel();
     await _startConnect();
   }
 
@@ -500,7 +507,14 @@ final class BikeSession {
       _versions.value = null;
       _state.value = const SessionConnecting();
       try {
-        await _timed(connection.connect(), 'Connecting');
+        _platformConnectGeneration = generation;
+        try {
+          await _timed(connection.connect(), 'Connecting');
+        } finally {
+          if (_platformConnectGeneration == generation) {
+            _platformConnectGeneration = null;
+          }
+        }
         if (!_isCurrent(generation)) {
           return;
         }
@@ -527,6 +541,7 @@ final class BikeSession {
           return;
         }
         final failure = _asFailure(error);
+        _pending.value = null;
         if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
           _scheduleSynchronizationRetry(failure);
         } else if (failure case BikeBluetoothUnavailable(canRetry: false)) {
@@ -759,12 +774,14 @@ final class BikeSession {
         forceLockedWrite &&
         LockedConfigurationPolicy.hasLockedSettings(_preferences);
 
+    BikeConfiguration? lastTarget;
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
       final target = LockedConfigurationPolicy.effective(
         observed: confirmed,
         preferences: _preferences,
         preferredRegion: _preferredRegion,
       );
+      lastTarget = target;
       if (!mustWrite &&
           LockedConfigurationPolicy.lockedValuesMatch(
             observed: confirmed,
@@ -797,13 +814,18 @@ final class BikeSession {
         target: target,
         preferences: _preferences,
       )) {
-        _pending.value = null;
-        _markReady(confirmed);
+        _markReady(confirmed, completedTarget: target);
         return;
       }
     }
 
-    _pending.value = null;
+    if (lastTarget != null) {
+      _clearPendingIf(lastTarget);
+    }
+    if (_pending.peek() != null) {
+      _state.value = const SessionSynchronizing(attempt: 1);
+      return;
+    }
     throw const BikeSettingsNotApplied();
   }
 
@@ -1021,12 +1043,11 @@ final class BikeSession {
       return;
     }
     _synchronizationRetryTimer?.cancel();
+    _reconnectTimer?.cancel();
     _synchronizationRetryAttempt = 0;
     _reconnectAttempt = 0;
     if (completedTarget != null) {
       _clearPendingIf(completedTarget);
-    } else {
-      _pending.value = null;
     }
     if (_pending.peek() != null) {
       _state.value = const SessionSynchronizing(attempt: 1);
@@ -1068,14 +1089,11 @@ final class BikeSession {
     required bool manuallyPaused,
     required bool abortPendingConnect,
   }) async {
+    final previousGeneration = _generation;
     final hadPendingConnect =
-        abortPendingConnect &&
-        _connectFuture != null &&
-        _connectFutureGeneration == _generation;
+        abortPendingConnect && _platformConnectGeneration == previousGeneration;
     _disconnectRequested = true;
-    if (hadPendingConnect) {
-      _generation++;
-    }
+    final disconnectGeneration = ++_generation;
     _expectedDisconnect = true;
     _pollTimer?.cancel();
     _reconnectTimer?.cancel();
@@ -1090,13 +1108,10 @@ final class BikeSession {
       }
     }
     return _commands.add(() async {
-      if (!hadPendingConnect) {
-        _generation++;
+      if (!_isCurrent(disconnectGeneration) || !_disconnectRequested) {
+        return;
       }
-      await _disconnectNow(
-        manuallyPaused: manuallyPaused,
-        disconnectPeripheral: !hadPendingConnect,
-      );
+      await _disconnectNow(manuallyPaused: manuallyPaused);
     });
   }
 
@@ -1170,8 +1185,11 @@ final class BikeSession {
       retryAfter: delay,
       failure: failure,
     );
+    final generation = _generation;
     _reconnectTimer = Timer(delay, () {
-      if (!_disposed && !_manualReconnectPaused && !_foregroundPaused) {
+      if (_isCurrent(generation) &&
+          !_manualReconnectPaused &&
+          !_foregroundPaused) {
         unawaited(_startConnect());
       }
     });

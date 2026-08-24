@@ -180,7 +180,9 @@ final class BikeHardwareTestController {
       );
     }
     if (_traceTruncated) {
-      report.writeln('TRACE TRUNCATED after $_maximumTraceEntries entries.');
+      report.writeln(
+        'TRACE TRUNCATED: only the newest $_maximumTraceEntries entries are included.',
+      );
     }
     return report.toString();
   }
@@ -271,10 +273,14 @@ final class BikeHardwareTestController {
     );
     _checkCurrent(generation);
     if (access.permission != BluetoothPermissionState.granted) {
-      throw StateError('Bluetooth permission is ${access.permission}.');
+      throw BikeHardwareTestFailure(
+        'Bluetooth permission is ${access.permission.name}.',
+      );
     }
     if (access.adapter != BikeAdapterState.on) {
-      throw StateError('Bluetooth adapter is ${access.adapter}.');
+      throw BikeHardwareTestFailure(
+        'Bluetooth adapter is ${access.adapter.name}.',
+      );
     }
     _addTrace(
       'bluetooth.ready',
@@ -332,7 +338,7 @@ final class BikeHardwareTestController {
     );
     _session = session;
     _sessionStateCleanup = session.state.subscribe((sessionState) {
-      _addTrace('session.state', sessionState.runtimeType.toString());
+      _addTrace('session.state', _sessionStateTraceName(sessionState));
       if (sessionState is SessionAuthenticating) {
         sawAuthenticationState = true;
       }
@@ -398,6 +404,11 @@ final class BikeHardwareTestController {
     await _testSettingToggles(session, initial, generation);
 
     if (connection.telemetryPackets == 0) {
+      _publish(
+        BikeHardwareTestPhase.exercising,
+        'Waiting for live bike data',
+        'The settings passed. Listening briefly for an unsolicited bike update.',
+      );
       await _waitFor(
         generation,
         () => connection.telemetryPackets > 0,
@@ -647,17 +658,19 @@ final class BikeHardwareTestController {
         return;
       }
       if (current is SessionFailed) {
-        throw StateError(current.failure.message);
+        throw current.failure;
       }
       if (current is SessionDegraded) {
-        throw StateError(current.failure.message);
+        throw current.failure;
       }
       if (current is SessionDisposed ||
           current is SessionDisconnected && current.manuallyPaused) {
-        throw StateError('The bike session stopped before becoming ready.');
+        throw const BikeHardwareTestFailure(
+          'The bike session stopped before becoming ready.',
+        );
       }
       if (!DateTime.now().isBefore(deadline)) {
-        throw TimeoutException(
+        throw BikeHardwareTestFailure(
           'The bike did not become ready within ${timeout.inSeconds} seconds.',
         );
       }
@@ -713,7 +726,7 @@ final class BikeHardwareTestController {
         final restorable = await _waitUntilRestorable(session);
         if (restorable) {
           await session.updatePreferences(const RidePreferences.defaults());
-          var current = session.observed.peek();
+          var current = session.pending.peek() ?? session.observed.peek();
           if (current?.light != original.light) {
             current = await session.setLight(original.light);
           }
@@ -774,15 +787,26 @@ final class BikeHardwareTestController {
 
   Future<bool> _waitUntilRestorable(BikeSession session) async {
     final deadline = DateTime.now().add(cleanupTimeout);
+    var retryAttempted = false;
     while (true) {
-      if (session.canChangeConfiguration) {
+      final current = session.state.peek();
+      if (session.canChangeConfiguration &&
+          (current is SessionReady || current is SessionDegraded)) {
         return true;
       }
-      final current = session.state.peek();
       if (current is SessionDisposed ||
           current is SessionDisconnected && current.manuallyPaused ||
           current is SessionFailed && !current.canRetry) {
         return false;
+      }
+      if (current is SessionFailed && !retryAttempted) {
+        retryAttempted = true;
+        try {
+          await session.retry();
+        } on Object {
+          // The resulting session state determines whether cleanup can proceed.
+        }
+        continue;
       }
       if (!DateTime.now().isBefore(deadline)) {
         return false;
@@ -881,7 +905,7 @@ final class BikeHardwareTestController {
     }
     if (_trace.length >= _maximumTraceEntries) {
       _traceTruncated = true;
-      return;
+      _trace.removeAt(0);
     }
     _trace.add(
       BikeHardwareTestTraceEntry(
@@ -902,7 +926,7 @@ final class BikeHardwareTestController {
 
   void _expect(bool condition, String message) {
     if (!condition) {
-      throw StateError(message);
+      throw BikeHardwareTestFailure(message);
     }
   }
 
@@ -915,6 +939,23 @@ final class BikeHardwareTestController {
     return protocol == BikeProtocolVersion.v1
         ? '$settings, ${value.region.label}'
         : settings;
+  }
+
+  static String _sessionStateTraceName(BikeSessionState state) {
+    return switch (state) {
+      SessionIdle() => 'idle',
+      SessionConnecting() => 'connecting',
+      SessionDiscovering() => 'discovering',
+      SessionAuthenticating() => 'authenticating',
+      SessionConnected() => 'connected',
+      SessionSynchronizing() => 'synchronizing',
+      SessionReady() => 'ready',
+      SessionDegraded() => 'degraded',
+      SessionReconnecting() => 'reconnecting',
+      SessionDisconnected() => 'disconnected',
+      SessionFailed() => 'failed',
+      SessionDisposed() => 'disposed',
+    };
   }
 
   static String _formatVersions(BikeVersionInfo value) {

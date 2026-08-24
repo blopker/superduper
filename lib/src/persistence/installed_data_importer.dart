@@ -104,8 +104,10 @@ final class InstalledDataImporter {
     }
 
     final documents = await _documentsDirectory();
-    final bikesFile = File(path.join(documents.path, 'bikes.json'));
-    final settingsFile = File(path.join(documents.path, 'settings.json'));
+    final bikesFile = File(path.join(documents.path, installedBikesFilename));
+    final settingsFile = File(
+      path.join(documents.path, installedSettingsFilename),
+    );
     final bikesExist = bikesFile.existsSync();
     final settingsExist = settingsFile.existsSync();
 
@@ -210,7 +212,8 @@ final class InstalledDataImporter {
               BikesCompanion.insert(
                 deviceId: imported.deviceId,
                 displayName: imported.displayName,
-                advertisedName: const Value('SUPER73'),
+                advertisedName: 'SUPER73',
+                protocol: BikeProtocolVersion.v1,
                 region: Value(imported.region?.name),
                 colorKey: imported.color.key,
                 sortOrder: imported.sortOrder,
@@ -446,7 +449,14 @@ final class InstalledDataImporter {
     List<ImportWarning> warnings,
   ) {
     if (value == null) {
-      return null;
+      warnings.add(
+        ImportWarning(
+          code: 'defaulted_bike_field',
+          record: index,
+          field: 'region',
+        ),
+      );
+      return BikeRegion.us;
     }
     if (value == 200 || (value is String && value.toLowerCase() == 'us')) {
       return BikeRegion.us;
@@ -457,7 +467,7 @@ final class InstalledDataImporter {
     warnings.add(
       ImportWarning(code: 'unknown_region', record: index, field: 'region'),
     );
-    return null;
+    return BikeRegion.us;
   }
 
   BikeColor _parseColor(

@@ -816,7 +816,8 @@ void main() {
         await Future<void>.delayed(Duration.zero);
       }
       final disconnect = session.disconnect();
-      await Future.wait([change, disconnect]);
+      await expectLater(change, throwsA(isA<BikeSessionDisposedFailure>()));
+      await disconnect;
 
       expect(connection.maxConcurrentOperations, 1);
       expect(connection.disconnectCalls, 1);
@@ -925,6 +926,105 @@ void main() {
       expect(session.state.value, isA<SessionReady>());
     },
   );
+
+  test(
+    'resuming invalidates a background pause queued behind a command',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+      ]);
+      session = createSession();
+      await session.connect();
+
+      final gate = Completer<void>();
+      connection.operationGate = gate;
+      final change = session.setLight(true);
+      await _waitUntil(() => connection.concurrentOperations == 1);
+
+      final pause = session.pauseForBackground();
+      final resume = session.resumeFromBackground();
+      gate.complete();
+
+      await expectLater(change, throwsA(isA<BikeSessionDisposedFailure>()));
+      await Future.wait([pause, resume]);
+
+      expect(connection.connectCalls, 2);
+      expect(session.state.value, isA<SessionReady>());
+      expect(session.manualReconnectPaused, isFalse);
+    },
+  );
+
+  test(
+    'resuming while a pending connect is cancelled keeps the new connection',
+    () async {
+      final connectGate = Completer<void>();
+      final disconnectGate = Completer<void>();
+      connection
+        ..connectGate = connectGate
+        ..disconnectGate = disconnectGate;
+      session = createSession();
+
+      final firstConnect = session.connect();
+      await _waitUntil(() => connection.connectCalls == 1);
+      final pause = session.pauseForBackground();
+      await _waitUntil(() => connection.disconnectCalls == 1);
+
+      connection.connectGate = null;
+      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+      final resume = session.resumeFromBackground();
+      disconnectGate.complete();
+      await Future.wait([firstConnect, pause, resume]);
+
+      expect(connection.connectCalls, 2);
+      expect(connection.disconnectCalls, greaterThanOrEqualTo(1));
+      expect(session.state.value, isA<SessionReady>());
+    },
+  );
+
+  test('a quick reconnect invalidates a queued manual disconnect', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
+    ]);
+    session = createSession();
+    await session.connect();
+
+    final disconnect = session.disconnect();
+    final reconnect = session.connect();
+    await Future.wait([disconnect, reconnect]);
+
+    expect(connection.connectCalls, 2);
+    expect(session.state.value, isA<SessionReady>());
+    expect(session.manualReconnectPaused, isFalse);
+  });
+
+  test('a failed synchronization clears its optimistic value', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 0],
+      [0xff],
+    ]);
+    session = createSession();
+    await session.connect();
+
+    await expectLater(
+      session.updatePreferences(
+        const RidePreferences(
+          desiredLight: false,
+          desiredMode: 3,
+          desiredAssist: 0,
+          keepLight: false,
+          keepMode: true,
+          keepAssist: false,
+        ),
+      ),
+      throwsA(isA<BikeSessionFailure>()),
+    );
+
+    expect(session.pending.value, isNull);
+    expect(session.state.value, isA<SessionFailed>());
+  });
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

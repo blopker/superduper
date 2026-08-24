@@ -6,6 +6,7 @@ abstract final class AppColors {
   static const surface = Color(0xFF19191C);
   static const surfaceRaised = Color(0xFF242428);
   static const border = Color(0xFF3A3A40);
+  static const borderTint = Color(0xFF34243D);
   static const magenta = Color(0xFFF327AE);
   static const magentaSoft = Color(0xFFFF78CD);
   static const yellow = Color(0xFFFFD84A);
@@ -45,7 +46,7 @@ abstract final class AppTheme {
       surfaceContainerHighest: Color(0xFF181818),
       onSurfaceVariant: AppColors.textMuted,
       outline: AppColors.border,
-      outlineVariant: Color(0xFF34243D),
+      outlineVariant: AppColors.borderTint,
     );
 
     final baseText = Typography.material2021().white.apply(

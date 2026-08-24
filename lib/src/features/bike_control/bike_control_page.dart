@@ -72,6 +72,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         : null;
     final session = matchingStatus?.session;
     final matchingSessionState = matchingStatus?.sessionState;
+    final coordinatorFailure = switch (activeState) {
+      ActiveBikeCoordinatorFailure(:final error) => error,
+      _ => null,
+    };
     final sessionState =
         matchingSessionState ??
         switch (activeState) {
@@ -82,22 +86,32 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
             canRetry: true,
           ),
-          ActiveBikeCoordinatorFailure(:final error) => SessionFailed(
-            failure: BikeSessionTransportFailure(error),
-            canRetry: true,
-          ),
+          ActiveBikeCoordinatorFailure() => null,
           _ => const SessionConnecting(),
         };
-    final configuration = session?.pending.value ?? session?.observed.value;
+    final pendingConfiguration = session?.pending.value;
+    final observedConfiguration = session?.observed.value;
+    final configuration = pendingConfiguration ?? observedConfiguration;
     final canControl =
         session?.canChangeConfiguration == true && configuration != null;
-    final canChangeLocks = configuration != null;
+    final canChangeLocks =
+        observedConfiguration != null &&
+        pendingConfiguration == null &&
+        (sessionState is SessionReady || sessionState is SessionDegraded);
     final canConnect =
         matchingSessionState is SessionDisconnected ||
         matchingSessionState is SessionFailed ||
         matchingSessionState == null &&
             (activeState is ActiveBikePermissionRequired ||
                 activeState is ActiveBikeCoordinatorFailure);
+    final canRetry =
+        coordinatorFailure != null ||
+        sessionState is SessionDegraded ||
+        sessionState is SessionDisconnected ||
+        switch (sessionState) {
+          SessionFailed(:final canRetry) => canRetry,
+          _ => false,
+        };
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
     final palette = BikeColorPalette.from(bike.bike.color);
 
@@ -147,7 +161,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           ),
         ),
         const SizedBox(height: 18),
-        _ConnectionSummary(state: sessionState),
+        _ConnectionSummary(
+          state: sessionState,
+          coordinatorFailure: coordinatorFailure,
+        ),
         const SizedBox(height: 14),
         _SettingSection(
           icon: Icons.lightbulb_outline_rounded,
@@ -163,10 +180,12 @@ final class _BikeControlPageState extends State<BikeControlPage> {
               : null,
           keep: bike.preferences.keepLight,
           onKeepChanged: canChangeLocks
-              ? (enabled) => _services.bikeRepository.setLightLock(
-                  widget.deviceId,
-                  enabled: enabled,
-                  confirmedValue: configuration.light,
+              ? (enabled) => _runLockChange(
+                  () => _services.bikeRepository.setLightLock(
+                    widget.deviceId,
+                    enabled: enabled,
+                    confirmedValue: observedConfiguration.light,
+                  ),
                 )
               : null,
         ),
@@ -187,10 +206,12 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           ),
           keep: bike.preferences.keepMode,
           onKeepChanged: canChangeLocks
-              ? (enabled) => _services.bikeRepository.setModeLock(
-                  widget.deviceId,
-                  enabled: enabled,
-                  confirmedValue: configuration.mode,
+              ? (enabled) => _runLockChange(
+                  () => _services.bikeRepository.setModeLock(
+                    widget.deviceId,
+                    enabled: enabled,
+                    confirmedValue: observedConfiguration.mode,
+                  ),
                 )
               : null,
         ),
@@ -212,10 +233,12 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           ),
           keep: bike.preferences.keepAssist,
           onKeepChanged: canChangeLocks
-              ? (enabled) => _services.bikeRepository.setAssistLock(
-                  widget.deviceId,
-                  enabled: enabled,
-                  confirmedValue: configuration.assist,
+              ? (enabled) => _runLockChange(
+                  () => _services.bikeRepository.setAssistLock(
+                    widget.deviceId,
+                    enabled: enabled,
+                    confirmedValue: observedConfiguration.assist,
+                  ),
                 )
               : null,
         ),
@@ -234,13 +257,16 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ],
           ),
         ),
-        if (sessionState is SessionFailed ||
-            sessionState is SessionDisconnected) ...[
+        if (canRetry) ...[
           const SizedBox(height: 18),
           FilledButton.icon(
             onPressed: coordinator.retry,
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reconnect'),
+            label: Text(
+              sessionState is SessionDegraded
+                  ? 'Retry saved settings'
+                  : 'Reconnect',
+            ),
           ),
         ],
       ],
@@ -256,6 +282,22 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           SnackBar(
             content: Text(
               userFacingError(error, context: UserErrorContext.bikeControl),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _runLockChange(Future<void> Function() change) async {
+    try {
+      await change();
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.bikeAction),
             ),
           ),
         );
@@ -321,9 +363,13 @@ final class _BikeControlPageState extends State<BikeControlPage> {
 }
 
 final class _ConnectionSummary extends StatelessWidget {
-  const _ConnectionSummary({required this.state});
+  const _ConnectionSummary({
+    required this.state,
+    required this.coordinatorFailure,
+  });
 
-  final BikeSessionState state;
+  final BikeSessionState? state;
+  final Object? coordinatorFailure;
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +393,9 @@ final class _ConnectionSummary extends StatelessWidget {
         ),
       );
     }
-    final presentation = BikeSessionPresentation.from(state);
+    final presentation = coordinatorFailure == null
+        ? BikeSessionPresentation.from(state ?? const SessionConnecting())
+        : BikeSessionPresentation.savedBikesFailure(coordinatorFailure!);
     return SurfacePanel(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +510,7 @@ final class _SettingSection extends StatelessWidget {
                   ? accent
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            title: const Text('Set on connect'),
+            title: Text('Set $title on connect'),
             value: keep,
             onChanged: onKeepChanged == null
                 ? null

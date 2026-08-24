@@ -8,15 +8,16 @@ import 'package:superduper/src/domain/bike.dart';
 
 part 'app_database.g.dart';
 
+const appDatabaseFilename = 'superduper.sqlite';
+const installedBikesFilename = 'bikes.json';
+const installedSettingsFilename = 'settings.json';
+
 @DataClassName('BikeRow')
 class Bikes extends Table {
   TextColumn get deviceId => text()();
   TextColumn get displayName => text()();
-  TextColumn get advertisedName =>
-      text().withDefault(const Constant('SUPER73'))();
-  TextColumn get protocol => textEnum<BikeProtocolVersion>().withDefault(
-    const Constant('v1'),
-  )();
+  TextColumn get advertisedName => text()();
+  TextColumn get protocol => textEnum<BikeProtocolVersion>()();
   TextColumn get region => text().nullable()();
   TextColumn get colorKey => text()();
   IntColumn get sortOrder => integer()();
@@ -29,7 +30,9 @@ class Bikes extends Table {
   List<String> get customConstraints => [
     'CHECK (length(device_id) > 0)',
     'CHECK (length(display_name) > 0)',
-    "CHECK (region IS NULL OR region IN ('us', 'eu'))",
+    'CHECK (length(advertised_name) > 0)',
+    "CHECK (protocol IN ('v1', 'v2'))",
+    "CHECK ((protocol = 'v1' AND region IS NOT NULL AND region IN ('us', 'eu')) OR (protocol = 'v2' AND region IS NULL))",
     'CHECK (length(color_key) > 0)',
   ];
 
@@ -145,10 +148,31 @@ final class AppDatabase extends _$AppDatabase {
     return AppDatabase(
       LazyDatabase(() async {
         final documents = await getApplicationDocumentsDirectory();
-        final file = File(path.join(documents.path, 'superduper.sqlite'));
+        final file = File(path.join(documents.path, appDatabaseFilename));
         return NativeDatabase.createInBackground(file);
       }),
     );
+  }
+
+  static Future<void> resetAppData({
+    Future<Directory> Function()? documentsDirectory,
+  }) async {
+    final documents =
+        await (documentsDirectory ?? getApplicationDocumentsDirectory)();
+    const filenames = [
+      appDatabaseFilename,
+      '$appDatabaseFilename-wal',
+      '$appDatabaseFilename-shm',
+      '$appDatabaseFilename-journal',
+      installedBikesFilename,
+      installedSettingsFilename,
+    ];
+    for (final filename in filenames) {
+      final file = File(path.join(documents.path, filename));
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
+    }
   }
 
   @override

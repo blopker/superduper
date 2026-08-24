@@ -41,7 +41,7 @@ final class BikeRepository {
     required String deviceId,
     String advertisedName = 'SUPER73',
     String? displayName,
-    BikeRegion? region,
+    BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
     RidePreferences preferences = const RidePreferences.defaults(),
     BackgroundPreference backgroundPreference =
@@ -69,6 +69,13 @@ final class BikeRepository {
         'Must be a supported bike advertised name.',
       );
     }
+    if (protocol == BikeProtocolVersion.v1 && region == null) {
+      throw ArgumentError.value(
+        region,
+        'region',
+        'A region is required for the V1 protocol.',
+      );
+    }
     final persistedRegion = protocol == BikeProtocolVersion.v1 ? region : null;
     final normalizedName = _normalizeName(displayName, normalizedId);
     final normalizedSerial = moduleSerial == null
@@ -94,8 +101,8 @@ final class BikeRepository {
             BikesCompanion.insert(
               deviceId: normalizedId,
               displayName: normalizedName,
-              advertisedName: Value(normalizedAdvertisedName),
-              protocol: Value(protocol),
+              advertisedName: normalizedAdvertisedName,
+              protocol: protocol,
               region: Value(persistedRegion?.name),
               colorKey: color.key,
               sortOrder: nextSortOrder,
@@ -162,6 +169,13 @@ final class BikeRepository {
         displayName,
         'displayName',
         'Must not be empty.',
+      );
+    }
+    if (protocol == BikeProtocolVersion.v1 && region == null) {
+      throw ArgumentError.value(
+        region,
+        'region',
+        'A region is required for the V1 protocol.',
       );
     }
     return _updateBike(
@@ -289,9 +303,14 @@ final class BikeRepository {
       if (bike.moduleSerial == normalized) {
         return false;
       }
-      await (database.update(database.bikes)
-            ..where((table) => table.deviceId.equals(deviceId)))
-          .write(BikesCompanion(moduleSerial: Value(normalized)));
+      await (database.update(
+        database.bikes,
+      )..where((table) => table.deviceId.equals(deviceId))).write(
+        BikesCompanion(
+          moduleSerial: Value(normalized),
+          updatedAtMs: Value(_clock().millisecondsSinceEpoch),
+        ),
+      );
       return true;
     });
   }

@@ -210,7 +210,11 @@ final class FakeBikeConnection implements BikeConnection {
   Object? writeError;
   bool emitInitialDisconnectedState = false;
   Duration operationDelay = Duration.zero;
+  Completer<void>? operationGate;
+  Completer<void>? configurationWriteGate;
   Completer<void>? connectGate;
+  Completer<void>? disconnectGate;
+  Completer<void>? _connectCancellation;
   int connectCalls = 0;
   int discoveryCalls = 0;
   int disconnectCalls = 0;
@@ -219,6 +223,7 @@ final class FakeBikeConnection implements BikeConnection {
   int concurrentOperations = 0;
   int maxConcurrentOperations = 0;
   int notificationChanges = 0;
+  int configurationWriteStarts = 0;
   bool notificationsEnabled = false;
   bool authenticated = false;
   List<int>? selectedHistoryId;
@@ -232,20 +237,34 @@ final class FakeBikeConnection implements BikeConnection {
   Future<void> connect() async {
     connectCalls++;
     final gate = connectGate;
-    if (gate != null) {
-      await gate.future;
+    final cancellation = Completer<void>();
+    _connectCancellation = cancellation;
+    try {
+      if (gate != null) {
+        await Future.any([gate.future, cancellation.future]);
+      }
+      if (cancellation.isCompleted) {
+        throw const BikeConnectionFailure(
+          'Connection',
+          'The connection was cancelled.',
+        );
+      }
+      await _operate(() async {
+        authenticated = false;
+        notificationsEnabled = false;
+        if (emitInitialDisconnectedState) {
+          _states.add(BikeConnectionState.disconnected);
+        }
+        if (connectError case final error?) {
+          _throw(error);
+        }
+        _states.add(BikeConnectionState.connected);
+      });
+    } finally {
+      if (identical(_connectCancellation, cancellation)) {
+        _connectCancellation = null;
+      }
     }
-    await _operate(() async {
-      authenticated = false;
-      notificationsEnabled = false;
-      if (emitInitialDisconnectedState) {
-        _states.add(BikeConnectionState.disconnected);
-      }
-      if (connectError case final error?) {
-        _throw(error);
-      }
-      _states.add(BikeConnectionState.connected);
-    });
   }
 
   @override
@@ -349,6 +368,10 @@ final class FakeBikeConnection implements BikeConnection {
     required List<int> value,
   }) {
     return _operate(() async {
+      if (characteristicUuid == BikeGatt.stateRegister) {
+        configurationWriteStarts++;
+        await configurationWriteGate?.future;
+      }
       if (writeError case final error?) {
         _throw(error);
       }
@@ -408,6 +431,11 @@ final class FakeBikeConnection implements BikeConnection {
   @override
   Future<void> disconnect() async {
     disconnectCalls++;
+    final cancellation = _connectCancellation;
+    if (cancellation != null && !cancellation.isCompleted) {
+      cancellation.complete();
+    }
+    await disconnectGate?.future;
     authenticated = false;
     notificationsEnabled = false;
     _states.add(BikeConnectionState.disconnected);
@@ -431,6 +459,7 @@ final class FakeBikeConnection implements BikeConnection {
       maxConcurrentOperations = concurrentOperations;
     }
     try {
+      await operationGate?.future;
       if (operationDelay > Duration.zero) {
         await Future<void>.delayed(operationDelay);
       }

@@ -13,6 +13,8 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
+import 'package:superduper/src/repositories/bike_repository.dart';
+import 'package:superduper/src/repositories/settings_repository.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
@@ -25,7 +27,9 @@ void main() {
     final fixture = await _pumpReadyBikeApp(tester, 'ready');
 
     expect(find.text('RIDE CONTROLS'), findsOneWidget);
-    expect(find.text('Set on connect'), findsNWidgets(3));
+    expect(find.text('Set Light on connect'), findsOneWidget);
+    expect(find.text('Set Mode on connect'), findsOneWidget);
+    expect(find.text('Set Assist on connect'), findsOneWidget);
     expect(find.widgetWithText(SwitchListTile, 'Light'), findsOneWidget);
     expect(find.byTooltip('Disconnect'), findsOneWidget);
 
@@ -58,6 +62,47 @@ void main() {
       Theme.of(tester.element(find.text('HELP & TIPS'))).colorScheme.primary,
       AppColors.magenta,
     );
+  });
+
+  testWidgets('lock controls wait for a confirmed bike value', (tester) async {
+    final fixture = await _pumpReadyBikeApp(tester, 'confirmed_lock');
+    final gate = Completer<void>();
+    addTearDown(() {
+      if (!gate.isCompleted) {
+        gate.complete();
+      }
+    });
+    fixture.connection
+      ..configurationWriteGate = gate
+      ..readFrames.add(v1StateFrame(light: true, mode: 3, assist: 4));
+
+    final lockFinder = find.widgetWithText(
+      SwitchListTile,
+      'Set Assist on connect',
+    );
+    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNotNull);
+    final initialWriteStarts = fixture.connection.configurationWriteStarts;
+    final activeState =
+        fixture.services.activeBikeCoordinator.state.peek()
+            as ActiveBikeSessionStatus;
+    late Future<BikeConfiguration> change;
+
+    await tester.runAsync(() async {
+      change = activeState.session.setAssist(4);
+      await _waitUntil(
+        () => fixture.connection.configurationWriteStarts > initialWriteStarts,
+      );
+    });
+    await tester.pump();
+
+    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNull);
+
+    await tester.runAsync(() async {
+      gate.complete();
+      await change;
+    });
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNotNull);
   });
 
   testWidgets(
@@ -175,10 +220,39 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
 ) async {
   final database = AppDatabase(NativeDatabase.memory());
   final transport = FakeBikeTransport();
+  final permissions = FakeBluetoothPermissionGateway();
+  final bikeRepository = BikeRepository(database: database);
+  final settingsRepository = SettingsRepository(database: database);
+  final coordinator = ActiveBikeCoordinator(
+    bikeRepository: bikeRepository,
+    settingsRepository: settingsRepository,
+    permissions: permissions,
+    buildSession: (bike) => BikeSession(
+      connection: transport.openConnection(bike.bike.deviceId),
+      preferredRegion: bike.bike.region,
+      preferences: bike.preferences,
+      protocol: bike.bike.protocol,
+      confirmationRetryDelays: const [],
+      onConfigurationConfirmed: (configuration) {
+        return bikeRepository.saveDesiredSettings(
+          bike.bike.deviceId,
+          light: configuration.light,
+          mode: configuration.mode,
+          assist: configuration.assist,
+        );
+      },
+      onVersionsRead: (versions) async {
+        await bikeRepository.saveVersions(bike.bike.deviceId, versions);
+      },
+    ),
+  );
   final services = AppServices(
     database: database,
     transport: transport,
-    permissions: FakeBluetoothPermissionGateway(),
+    permissions: permissions,
+    bikeRepository: bikeRepository,
+    settingsRepository: settingsRepository,
+    activeBikeCoordinator: coordinator,
     importer: _emptyImporter(database, suffix),
   );
   addTearDown(services.dispose);
@@ -222,19 +296,20 @@ Future<void> _waitForReady(ActiveBikeCoordinator coordinator) async {
   final current = coordinator.state.peek();
   if (current is ActiveBikeSessionStatus &&
       current.sessionState is SessionReady) {
+    await current.session.connect();
     return;
   }
-  final completer = Completer<void>();
+  final completer = Completer<BikeSession>();
   late final void Function() cleanup;
   cleanup = coordinator.state.subscribe((state) {
     if (!completer.isCompleted &&
         state is ActiveBikeSessionStatus &&
         state.sessionState is SessionReady) {
-      completer.complete();
+      completer.complete(state.session);
       cleanup();
     }
   });
-  await completer.future.timeout(
+  final session = await completer.future.timeout(
     const Duration(seconds: 2),
     onTimeout: () {
       final state = coordinator.state.peek();
@@ -246,6 +321,7 @@ Future<void> _waitForReady(ActiveBikeCoordinator coordinator) async {
       );
     },
   );
+  await session.connect();
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

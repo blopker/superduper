@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
@@ -205,6 +207,50 @@ void main() {
     await controller.cancel();
     await run;
     expect(controller.state.peek().phase, BikeHardwareTestPhase.cancelled);
+  });
+
+  test('cancel waits for an in-flight toggle before restoring', () async {
+    final gate = Completer<void>();
+    final connection = FakeBikeConnection(deviceId: 'bike')
+      ..configurationWriteGate = gate;
+    connection.readFrames.addAll([
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 1),
+      v1StateFrame(mode: 2, assist: 1),
+    ]);
+    transport.connections['bike'] = connection;
+
+    final run = controller.start();
+    await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
+    transport.emitResults(const [
+      DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
+    ]);
+    await _waitUntil(() => connection.configurationWriteStarts == 1);
+
+    final cancel = controller.cancel();
+    gate.complete();
+    await Future.wait([run, cancel]);
+
+    final writes = connection.writes
+        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .toList();
+    expect(writes, hasLength(2));
+    expect(writes.last.value, [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0]);
+    expect(controller.state.peek().phase, BikeHardwareTestPhase.cancelled);
+    expect(
+      controller.state.peek().log.last,
+      isA<BikeHardwareTestLogEntry>()
+          .having(
+            (entry) => entry.label,
+            'label',
+            'Cleanup',
+          )
+          .having(
+            (entry) => entry.status,
+            'status',
+            BikeHardwareTestLogStatus.passed,
+          ),
+    );
   });
 }
 

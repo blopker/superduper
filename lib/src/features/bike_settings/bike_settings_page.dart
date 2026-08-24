@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
+import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/bike_settings/bike_version_report.dart';
 import 'package:superduper/src/features/help/help_page.dart';
@@ -33,6 +34,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   String? _nameError;
   String? _regionError;
   var _saving = false;
+  var _forgetting = false;
 
   @override
   void initState() {
@@ -72,9 +74,15 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     final deviceId = widget.initialBike.bike.deviceId;
     final isActive = coordinator.activeBikeId.value == deviceId;
     final activeState = coordinator.state.value;
-    final hasSession =
+    final matchingStatus =
         activeState is ActiveBikeSessionStatus &&
-        activeState.bike.bike.deviceId == deviceId;
+            activeState.bike.bike.deviceId == deviceId
+        ? activeState
+        : null;
+    final hasSession = matchingStatus != null;
+    final sessionState = matchingStatus?.sessionState;
+    final canReconnect =
+        sessionState is SessionDisconnected || sessionState is SessionFailed;
     return BikePageScaffold(
       title: 'Bike settings',
       color: _color,
@@ -247,9 +255,13 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                     vertical: 5,
                   ),
                   leading: const Icon(Icons.bluetooth_disabled_rounded),
-                  title: const Text('Disconnect now'),
-                  subtitle: const Text(
-                    'Pause this connection until you reconnect or reopen the app.',
+                  title: Text(
+                    canReconnect ? 'Reconnect now' : 'Disconnect now',
+                  ),
+                  subtitle: Text(
+                    canReconnect
+                        ? 'Connect again and apply this bike’s kept settings.'
+                        : 'Pause this connection until you reconnect or reopen the app.',
                   ),
                   trailing: const Icon(
                     Icons.arrow_forward_ios_rounded,
@@ -257,7 +269,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   ),
                   onTap: () => unawaited(
                     _runCoordinatorAction(
-                      coordinator.disconnectManually,
+                      canReconnect
+                          ? coordinator.retry
+                          : coordinator.disconnectManually,
                     ),
                   ),
                 ),
@@ -324,9 +338,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
             backgroundColor: Theme.of(context).colorScheme.error,
             foregroundColor: Theme.of(context).colorScheme.onError,
           ),
-          onPressed: _saving ? null : () => _forget(saved),
+          onPressed: _saving || _forgetting ? null : () => _forget(saved),
           icon: const Icon(Icons.delete_outline_rounded),
-          label: const Text('Forget bike'),
+          label: Text(_forgetting ? 'Forgetting…' : 'Forget bike'),
         ),
       ],
     );
@@ -438,36 +452,44 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     } on Object catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update the bike. $error')),
+          SnackBar(
+            content: Text(
+              userFacingError(error, context: UserErrorContext.bikeAction),
+            ),
+          ),
         );
       }
     }
   }
 
   Future<void> _forget(SavedBike saved) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Forget ${saved.bike.displayName}?'),
-        content: const Text(
-          'This removes the bike and all its saved settings.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Forget bike'),
-          ),
-        ],
-      ),
-    );
-    if (!(confirmed ?? false)) {
+    if (_forgetting) {
       return;
     }
+    setState(() => _forgetting = true);
     try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Forget ${saved.bike.displayName}?'),
+          content: const Text(
+            'This removes the bike and all its saved settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Forget bike'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || !(confirmed ?? false)) {
+        return;
+      }
       try {
         await _services.activeBikeCoordinator.forgetBike(
           widget.initialBike.bike.deviceId,
@@ -486,11 +508,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           );
         }
       }
-    } on Object catch (error) {
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not forget the bike. $error')),
-        );
+        setState(() => _forgetting = false);
       }
     }
   }

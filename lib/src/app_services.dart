@@ -78,7 +78,7 @@ final class AppServices {
     );
   }
 
-  const AppServices._({
+  AppServices._({
     required this.database,
     required this.importer,
     required this.bikeRepository,
@@ -103,8 +103,19 @@ final class AppServices {
   final ExternalLinkLauncher externalLinks;
   final ActiveBikeCoordinator activeBikeCoordinator;
   final StartupController startup;
+  Future<void>? _disposeFuture;
 
-  Future<void> dispose() async {
+  Future<void> dispose() {
+    final existing = _disposeFuture;
+    if (existing != null) {
+      return existing;
+    }
+    final pending = _performDispose();
+    _disposeFuture = pending;
+    return pending;
+  }
+
+  Future<void> _performDispose() async {
     Object? firstError;
     StackTrace? firstStackTrace;
 

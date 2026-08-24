@@ -5,61 +5,97 @@ import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/features/home/home_page.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
+import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 typedef AppServicesFactory = AppServices Function();
+typedef AppDataReset = Future<void> Function();
 
 final class SuperduperBootstrap extends StatefulWidget {
   const SuperduperBootstrap({
     this.createServices = AppServices.standard,
+    this.resetData = AppDatabase.resetAppData,
     super.key,
   });
 
   final AppServicesFactory createServices;
+  final AppDataReset resetData;
 
   @override
   State<SuperduperBootstrap> createState() => _SuperduperBootstrapState();
 }
 
 final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
-  late AppServices _services;
+  AppServices? _services;
+  Object? _creationError;
   var _restarting = false;
 
   @override
   void initState() {
     super.initState();
-    _services = widget.createServices();
-    unawaited(_services.startup.initialize());
+    _createInitialServices();
   }
 
-  Future<void> _retryWithFreshServices() async {
+  void _createInitialServices() {
+    try {
+      final services = widget.createServices();
+      _services = services;
+      unawaited(services.startup.initialize());
+    } on Object catch (error) {
+      _creationError = error;
+    }
+  }
+
+  Future<void> _resetDataAndRestart() async {
     if (_restarting) {
       return;
     }
-    setState(() => _restarting = true);
     final old = _services;
-    try {
-      await old.dispose();
-    } on Object {
-      // A service graph that failed while opening may also fail while closing.
+    setState(() {
+      _restarting = true;
+      _services = null;
+    });
+    if (old != null) {
+      try {
+        await old.dispose();
+      } on Object {
+        // A service graph that failed while opening may also fail while closing.
+      }
     }
     if (!mounted) {
       return;
     }
-    final replacement = widget.createServices();
-    setState(() {
-      _services = replacement;
-      _restarting = false;
-    });
-    await replacement.startup.initialize();
+    try {
+      await widget.resetData();
+      if (!mounted) {
+        return;
+      }
+      final replacement = widget.createServices();
+      setState(() {
+        _services = replacement;
+        _creationError = null;
+        _restarting = false;
+      });
+      await replacement.startup.initialize();
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _creationError = error;
+          _restarting = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    unawaited(_services.dispose().catchError((Object _) {}));
+    final services = _services;
+    if (services != null) {
+      unawaited(services.dispose().catchError((Object _) {}));
+    }
     super.dispose();
   }
 
@@ -72,9 +108,23 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
         home: const _LoadingPage(),
       );
     }
-    return SuperduperApp(
-      services: _services,
-      onStartupRetry: _retryWithFreshServices,
+    final services = _services;
+    if (services != null) {
+      return SuperduperApp(
+        services: services,
+        onStartupReset: _resetDataAndRestart,
+      );
+    }
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark,
+      home: _StartupFailurePage(
+        message: userFacingError(
+          _creationError ?? StateError('Service creation failed.'),
+          context: UserErrorContext.startup,
+        ),
+        onReset: _resetDataAndRestart,
+      ),
     );
   }
 }
@@ -82,12 +132,12 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
 final class SuperduperApp extends StatefulWidget {
   const SuperduperApp({
     required this.services,
-    this.onStartupRetry,
+    this.onStartupReset,
     super.key,
   });
 
   final AppServices services;
-  final Future<void> Function()? onStartupRetry;
+  final Future<void> Function()? onStartupReset;
 
   @override
   State<SuperduperApp> createState() => _SuperduperAppState();
@@ -137,16 +187,16 @@ final class _SuperduperAppState extends State<SuperduperApp>
         debugShowCheckedModeBanner: false,
         title: 'Superduper',
         theme: AppTheme.dark,
-        home: StartupPage(onStartupRetry: widget.onStartupRetry),
+        home: StartupPage(onStartupReset: widget.onStartupReset),
       ),
     );
   }
 }
 
 final class StartupPage extends SignalWidget {
-  const StartupPage({this.onStartupRetry, super.key});
+  const StartupPage({this.onStartupReset, super.key});
 
-  final Future<void> Function()? onStartupRetry;
+  final Future<void> Function()? onStartupReset;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +217,7 @@ final class StartupPage extends SignalWidget {
           error,
           context: UserErrorContext.startup,
         ),
-        onRetry: onStartupRetry ?? services.startup.initialize,
+        onReset: onStartupReset,
       ),
     };
   }
@@ -297,10 +347,10 @@ final class _LoadingPage extends StatelessWidget {
 }
 
 final class _StartupFailurePage extends StatelessWidget {
-  const _StartupFailurePage({required this.message, required this.onRetry});
+  const _StartupFailurePage({required this.message, required this.onReset});
 
   final String message;
-  final Future<void> Function() onRetry;
+  final Future<void> Function()? onReset;
 
   @override
   Widget build(BuildContext context) {
@@ -329,11 +379,22 @@ final class _StartupFailurePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(message, textAlign: TextAlign.center),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Resetting removes every saved bike, its settings, and cached bike information from this device.',
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: onRetry,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Try again'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                      ),
+                      onPressed: onReset == null
+                          ? null
+                          : () => _confirmReset(context),
+                      icon: const Icon(Icons.delete_forever_outlined),
+                      label: const Text('Reset app data'),
                     ),
                   ],
                 ),
@@ -343,5 +404,38 @@ final class _StartupFailurePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final reset = onReset;
+    if (reset == null) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('RESET APP DATA?'),
+        content: const Text(
+          'This permanently removes every saved bike and setting from this device. You’ll need to add your bike again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset app data'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await reset();
+    }
   }
 }

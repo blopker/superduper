@@ -41,7 +41,7 @@
             "moor_type": "string",
             "nullable": false,
             "customConstraints": null,
-            "default_dart": "const CustomExpression('\\'SUPER73\\'')",
+            "default_dart": null,
             "default_client_dart": null,
             "dsl_features": []
           },
@@ -51,7 +51,7 @@
             "moor_type": "string",
             "nullable": false,
             "customConstraints": null,
-            "default_dart": "const CustomExpression('\\'v1\\'')",
+            "default_dart": null,
             "default_client_dart": null,
             "dsl_features": [],
             "type_converter": {
@@ -135,7 +135,9 @@
         "constraints": [
           "CHECK (length(device_id) > 0)",
           "CHECK (length(display_name) > 0)",
-          "CHECK (region IS NULL OR region IN ('us', 'eu'))",
+          "CHECK (length(advertised_name) > 0)",
+          "CHECK (protocol IN ('v1', 'v2'))",
+          "CHECK ((protocol = 'v1' AND region IS NOT NULL AND region IN ('us', 'eu')) OR (protocol = 'v2' AND region IS NULL))",
           "CHECK (length(color_key) > 0)"
         ],
         "explicit_pk": [
@@ -610,7 +612,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"bikes\" (\"device_id\" TEXT NOT NULL, \"display_name\" TEXT NOT NULL, \"advertised_name\" TEXT NOT NULL DEFAULT 'SUPER73', \"protocol\" TEXT NOT NULL DEFAULT 'v1', \"region\" TEXT NULL, \"color_key\" TEXT NOT NULL, \"sort_order\" INTEGER NOT NULL, \"created_at_ms\" INTEGER NOT NULL, \"updated_at_ms\" INTEGER NOT NULL, \"last_connected_at_ms\" INTEGER NULL, \"module_serial\" TEXT NULL, PRIMARY KEY (\"device_id\"), CHECK (length(device_id) > 0), CHECK (length(display_name) > 0), CHECK (region IS NULL OR region IN ('us', 'eu')), CHECK (length(color_key) > 0));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"bikes\" (\"device_id\" TEXT NOT NULL, \"display_name\" TEXT NOT NULL, \"advertised_name\" TEXT NOT NULL, \"protocol\" TEXT NOT NULL, \"region\" TEXT NULL, \"color_key\" TEXT NOT NULL, \"sort_order\" INTEGER NOT NULL, \"created_at_ms\" INTEGER NOT NULL, \"updated_at_ms\" INTEGER NOT NULL, \"last_connected_at_ms\" INTEGER NULL, \"module_serial\" TEXT NULL, PRIMARY KEY (\"device_id\"), CHECK (length(device_id) > 0), CHECK (length(display_name) > 0), CHECK (length(advertised_name) > 0), CHECK (protocol IN ('v1', 'v2')), CHECK ((protocol = 'v1' AND region IS NOT NULL AND region IN ('us', 'eu')) OR (protocol = 'v2' AND region IS NULL)), CHECK (length(color_key) > 0));"
         }
       ]
     },

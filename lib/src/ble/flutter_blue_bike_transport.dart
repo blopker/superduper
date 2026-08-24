@@ -154,10 +154,15 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
     _ensureNotDisposed();
     try {
       final adapterState = fbp.FlutterBluePlus.adapterStateNow;
-      if (adapterState == fbp.BluetoothAdapterState.unauthorized ||
-          adapterState == fbp.BluetoothAdapterState.unavailable) {
+      if (adapterState == fbp.BluetoothAdapterState.unauthorized) {
         throw const BikeAdapterUnavailable(
-          'Bluetooth access is unavailable on this device.',
+          'Bluetooth permission is not authorized on this device.',
+          canRetry: false,
+        );
+      }
+      if (adapterState == fbp.BluetoothAdapterState.unavailable) {
+        throw const BikeAdapterUnavailable(
+          'Bluetooth is unavailable on this device.',
           canRetry: false,
         );
       }

@@ -392,7 +392,6 @@ final class ActiveBikeCoordinator {
           generation != _switchGeneration) {
         return;
       }
-      _state.value = const ActiveBikeLoading();
       final permission = await _ensurePermission(
         request: requestPermission,
       );
@@ -406,6 +405,7 @@ final class ActiveBikeCoordinator {
         _state.value = ActiveBikePermissionRequired(permission: permission);
         return;
       }
+      _state.value = const ActiveBikeLoading();
 
       final next = buildSession(bike);
       if (_disposed ||

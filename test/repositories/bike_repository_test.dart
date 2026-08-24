@@ -129,6 +129,26 @@ void main() {
     expect(saved.bike.color, BikeColor.midnightSky);
   });
 
+  test('V1 bikes always require a region', () async {
+    await settingsRepository.initialize();
+
+    expect(
+      () => repository.addBike(deviceId: 'bike', region: null),
+      throwsArgumentError,
+    );
+    await repository.addBike(deviceId: 'bike');
+    expect(
+      () => repository.updateBikeDetails(
+        'bike',
+        displayName: 'Bike',
+        region: null,
+        color: BikeColor.royalHorizon,
+        protocol: BikeProtocolVersion.v1,
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test(
     'bike protocol can be overridden with the other advertised name',
     () async {

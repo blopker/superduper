@@ -236,10 +236,10 @@ final class _HomePageState extends State<HomePage> {
       if (!stillReady) {
         return;
       }
-      _autoOpenHandled = true;
-      if (ModalRoute.of(context)?.isCurrent != true) {
+      if (ModalRoute.isCurrentOf(context) != true) {
         return;
       }
+      _autoOpenHandled = true;
       unawaited(_openBike(context, deviceId));
     });
   }
@@ -387,9 +387,13 @@ final class _ActiveStatus extends StatelessWidget {
             icon: presentation.icon,
           ),
           const SizedBox(height: 28),
-          Text(
-            presentation.title.toUpperCase(),
-            style: Theme.of(context).textTheme.displaySmall,
+          Semantics(
+            label: presentation.title,
+            excludeSemantics: true,
+            child: Text(
+              presentation.title.toUpperCase(),
+              style: Theme.of(context).textTheme.displaySmall,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
