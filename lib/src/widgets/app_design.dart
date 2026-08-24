@@ -288,6 +288,93 @@ final class AppPageBody extends StatelessWidget {
   }
 }
 
+final class BikePageScaffold extends StatelessWidget {
+  const BikePageScaffold({
+    required this.title,
+    required this.color,
+    required this.children,
+    this.actions = const [],
+    this.maxWidth = 760,
+    super.key,
+  });
+
+  final String title;
+  final BikeColor color;
+  final List<Widget> children;
+  final List<Widget> actions;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return BikeColorTheme(
+      color: color,
+      child: Scaffold(
+        backgroundColor: color.pageBaseColor,
+        appBar: AppBar(title: Text(title.toUpperCase()), actions: actions),
+        body: AppPageBody(
+          maxWidth: maxWidth,
+          bikeColor: color,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class BikeHeader extends StatelessWidget {
+  const BikeHeader({
+    required this.color,
+    required this.name,
+    required this.isActive,
+    this.region,
+    this.trailing,
+    this.avatarSize = 68,
+    super.key,
+  });
+
+  final BikeColor color;
+  final String name;
+  final bool isActive;
+  final BikeRegion? region;
+  final Widget? trailing;
+  final double avatarSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = BikeColorPalette.from(color);
+    return Row(
+      children: [
+        BikeAvatar(color: color, size: avatarSize),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isActive)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: StatusPill(
+                    label: 'Active bike',
+                    color: palette.accent,
+                  ),
+                ),
+              Text(name, style: Theme.of(context).textTheme.headlineMedium),
+              if (region case final bikeRegion?) ...[
+                const SizedBox(height: 3),
+                Text('${bikeRegion.label} region'),
+              ],
+            ],
+          ),
+        ),
+        ?trailing,
+      ],
+    );
+  }
+}
+
 final class BrandMasthead extends StatelessWidget {
   const BrandMasthead({super.key});
 

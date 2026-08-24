@@ -15,6 +15,7 @@ import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
+import 'package:superduper/src/widgets/bike_session_presentation.dart';
 
 final class HomePage extends SignalStatefulWidget {
   const HomePage({super.key});
@@ -481,13 +482,13 @@ final class _ActiveStatus extends StatelessWidget {
         needsSettings: permission == BluetoothPermissionState.permanentlyDenied,
         bike: null,
       ),
-      ActiveBikeCoordinatorFailure(:final message) => (
+      ActiveBikeCoordinatorFailure(:final error) => (
         icon: Icons.error_outline_rounded,
         label: 'Needs attention',
         color: AppColors.error,
         title: 'Saved bikes unavailable',
         detail: userFacingError(
-          message,
+          error,
           context: UserErrorContext.savedBikes,
         ),
         canRetry: true,
@@ -509,107 +510,17 @@ final class _ActiveStatus extends StatelessWidget {
     bool isTemporary,
   ) {
     final name = isTemporary ? 'Temporary bike' : bike.bike.displayName;
-    return switch (state) {
-      SessionIdle() || SessionConnecting() => (
-        icon: Icons.bluetooth_searching_rounded,
-        label: 'Connecting',
-        color: AppColors.yellow,
-        title: 'Finding $name',
-        detail: 'Keep the bike powered on and nearby.',
-        canRetry: false,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionDiscovering() || SessionAuthenticating() || SessionConnected() => (
-        icon: Icons.bluetooth_connected_rounded,
-        label: 'Checking',
-        color: AppColors.yellow,
-        title: 'Connected to $name',
-        detail: 'Checking compatibility and reading the current setup…',
-        canRetry: false,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionSynchronizing() => (
-        icon: Icons.sync_rounded,
-        label: 'Synchronizing',
-        color: AppColors.yellow,
-        title: 'Applying saved settings',
-        detail: 'Preparing $name for your ride.',
-        canRetry: false,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionDegraded(:final failure) => (
-        icon: Icons.warning_amber_rounded,
-        label: 'Connected with warning',
-        color: AppColors.orange,
-        title: 'Saved setup needs attention',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.bikeControl,
-        ),
-        canRetry: true,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionReady() => (
-        icon: Icons.check_circle_rounded,
-        label: 'Connected',
-        color: AppColors.mint,
-        title: 'Ready to ride',
-        detail: '$name is connected and its kept settings are confirmed.',
-        canRetry: false,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionReconnecting(:final retryAfter, :final failure) => (
-        icon: Icons.refresh_rounded,
-        label: 'Reconnecting',
-        color: AppColors.orange,
-        title: 'Trying to reconnect…',
-        detail:
-            '${userFacingError(failure, context: UserErrorContext.reconnect)} Trying again in ${retryAfter.inSeconds} seconds.',
-        canRetry: false,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionDisconnected(:final manuallyPaused) => (
-        icon: Icons.bluetooth_disabled_rounded,
-        label: 'Disconnected',
-        color: AppColors.orange,
-        title: manuallyPaused ? 'Connection paused' : 'Bike disconnected',
-        detail: manuallyPaused
-            ? 'Reconnect when you are ready to use this bike.'
-            : 'Check bike power and Bluetooth, then reconnect.',
-        canRetry: true,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionFailed(:final failure, :final canRetry) => (
-        icon: Icons.error_outline_rounded,
-        label: 'Needs attention',
-        color: AppColors.error,
-        title: 'Bike setup failed',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.bikeConnection,
-        ),
-        canRetry: canRetry,
-        needsSettings: false,
-        bike: bike,
-      ),
-      SessionDisposed() => (
-        icon: Icons.bluetooth_disabled_rounded,
-        label: 'Closed',
-        color: AppColors.orange,
-        title: 'Connection closed',
-        detail: 'Open the bike to connect again.',
-        canRetry: true,
-        needsSettings: false,
-        bike: bike,
-      ),
-    };
+    final presentation = BikeSessionPresentation.from(state, bikeName: name);
+    return (
+      icon: presentation.icon,
+      label: presentation.label,
+      color: presentation.color,
+      title: presentation.title,
+      detail: presentation.detail,
+      canRetry: presentation.canRetry,
+      needsSettings: false,
+      bike: bike,
+    );
   }
 }
 

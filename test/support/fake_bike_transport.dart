@@ -4,11 +4,18 @@ import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 
+List<int> v1StateFrame({
+  bool light = false,
+  int mode = 0,
+  int assist = 0,
+}) => [0, 0, assist, 0, if (light) 1 else 0, mode];
+
 final class FakeBluetoothPermissionGateway
     implements BluetoothPermissionGateway {
   BluetoothPermissionState state = BluetoothPermissionState.granted;
   Object? ensureError;
   Duration ensureDelay = Duration.zero;
+  Completer<void>? ensureGate;
   int requests = 0;
   int checks = 0;
   int concurrentChecks = 0;
@@ -29,6 +36,7 @@ final class FakeBluetoothPermissionGateway
       if (ensureDelay > Duration.zero) {
         await Future<void>.delayed(ensureDelay);
       }
+      await ensureGate?.future;
       if (ensureError case final error?) {
         _throw(error);
       }

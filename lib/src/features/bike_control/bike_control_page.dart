@@ -6,11 +6,13 @@ import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/bike_settings/bike_settings_page.dart';
 import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
+import 'package:superduper/src/widgets/bike_session_presentation.dart';
 
 final class BikeControlPage extends SignalStatefulWidget {
   const BikeControlPage({required this.deviceId, super.key});
@@ -63,13 +65,13 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     }
     final bike = saved.single;
     final activeState = coordinator.state.value;
-    final session = coordinator.session.value;
-    final isCurrentSession = session?.deviceId == widget.deviceId;
-    final matchingSessionState =
+    final matchingStatus =
         activeState is ActiveBikeSessionStatus &&
             activeState.bike.bike.deviceId == widget.deviceId
-        ? activeState.sessionState
+        ? activeState
         : null;
+    final session = matchingStatus?.session;
+    final matchingSessionState = matchingStatus?.sessionState;
     final sessionState =
         matchingSessionState ??
         switch (activeState) {
@@ -80,19 +82,15 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
             canRetry: true,
           ),
-          ActiveBikeCoordinatorFailure(:final message) => SessionFailed(
-            failure: BikeSessionTransportFailure(message),
+          ActiveBikeCoordinatorFailure(:final error) => SessionFailed(
+            failure: BikeSessionTransportFailure(error),
             canRetry: true,
           ),
           _ => const SessionConnecting(),
         };
-    final configuration = isCurrentSession
-        ? session?.pending.value ?? session?.observed.value
-        : null;
+    final configuration = session?.pending.value ?? session?.observed.value;
     final canControl =
-        isCurrentSession &&
-        session!.canChangeConfiguration &&
-        configuration != null;
+        session?.canChangeConfiguration == true && configuration != null;
     final canChangeLocks = configuration != null;
     final canConnect =
         matchingSessionState is SessionDisconnected ||
@@ -101,186 +99,151 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             (activeState is ActiveBikePermissionRequired ||
                 activeState is ActiveBikeCoordinatorFailure);
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
-    final region = bike.bike.region;
     final palette = BikeColorPalette.from(bike.bike.color);
 
-    return BikeColorTheme(
+    return BikePageScaffold(
+      title: 'Ride controls',
       color: bike.bike.color,
-      child: Scaffold(
-        backgroundColor: bike.bike.color.pageBaseColor,
-        appBar: AppBar(
-          title: const Text('RIDE CONTROLS'),
-          actions: [
-            IconButton(
-              tooltip: 'Help & tips',
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (_) => const HelpPage()),
-              ),
-              icon: const Icon(Icons.help_outline_rounded),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: canConnect ? 'Connect' : 'Disconnect',
-              onPressed: isCurrentSession || canConnect
-                  ? () => unawaited(
-                      _runConnectionAction(
-                        canConnect
-                            ? coordinator.retry
-                            : coordinator.disconnectManually,
-                      ),
-                    )
-                  : null,
-              icon: Icon(
-                canConnect
-                    ? Icons.bluetooth_rounded
-                    : Icons.bluetooth_disabled_rounded,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
+      maxWidth: 860,
+      actions: [
+        IconButton(
+          tooltip: 'Help & tips',
+          onPressed: () => Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+          ),
+          icon: const Icon(Icons.help_outline_rounded),
         ),
-        body: AppPageBody(
-          maxWidth: 860,
-          bikeColor: bike.bike.color,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: canConnect ? 'Connect' : 'Disconnect',
+          onPressed: session != null || canConnect
+              ? () => unawaited(
+                  _runConnectionAction(
+                    canConnect
+                        ? coordinator.retry
+                        : coordinator.disconnectManually,
+                  ),
+                )
+              : null,
+          icon: Icon(
+            canConnect
+                ? Icons.bluetooth_rounded
+                : Icons.bluetooth_disabled_rounded,
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+      children: [
+        BikeHeader(
+          color: bike.bike.color,
+          name: bike.bike.displayName,
+          isActive: isActive,
+          region: bike.bike.region,
+          avatarSize: 70,
+          trailing: IconButton(
+            tooltip: 'Bike settings',
+            onPressed: () => _openSettings(bike),
+            icon: const Icon(Icons.tune_rounded),
+          ),
+        ),
+        const SizedBox(height: 18),
+        _ConnectionSummary(state: sessionState),
+        const SizedBox(height: 14),
+        _SettingSection(
+          icon: Icons.lightbulb_outline_rounded,
+          title: 'Light',
+          value: configuration == null
+              ? 'Waiting for bike'
+              : configuration.light
+              ? 'On'
+              : 'Off',
+          toggleValue: configuration?.light ?? false,
+          onToggleChanged: canControl
+              ? (value) => _runCommand(() => session!.setLight(value))
+              : null,
+          keep: bike.preferences.keepLight,
+          onKeepChanged: canChangeLocks
+              ? (enabled) => _services.bikeRepository.setLightLock(
+                  widget.deviceId,
+                  enabled: enabled,
+                  confirmedValue: configuration.light,
+                )
+              : null,
+        ),
+        const SizedBox(height: 14),
+        _SettingSection(
+          icon: Icons.speed_rounded,
+          title: 'Mode',
+          value: configuration == null
+              ? 'Waiting for bike'
+              : 'Mode ${configuration.mode + 1}',
+          control: _ValueSelector(
+            values: const [0, 1, 2, 3],
+            selected: configuration?.mode,
+            enabled: canControl,
+            semanticLabel: 'Mode',
+            label: (mode) => '${mode + 1}',
+            onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
+          ),
+          keep: bike.preferences.keepMode,
+          onKeepChanged: canChangeLocks
+              ? (enabled) => _services.bikeRepository.setModeLock(
+                  widget.deviceId,
+                  enabled: enabled,
+                  confirmedValue: configuration.mode,
+                )
+              : null,
+        ),
+        const SizedBox(height: 14),
+        _SettingSection(
+          icon: Icons.bolt_rounded,
+          title: 'Assist',
+          value: configuration == null
+              ? 'Waiting for bike'
+              : 'Level ${configuration.assist}',
+          control: _ValueSelector(
+            values: const [0, 1, 2, 3, 4],
+            selected: configuration?.assist,
+            enabled: canControl,
+            semanticLabel: 'Assist level',
+            label: (assist) => '$assist',
+            onChanged: (assist) =>
+                _runCommand(() => session!.setAssist(assist)),
+          ),
+          keep: bike.preferences.keepAssist,
+          onKeepChanged: canChangeLocks
+              ? (enabled) => _services.bikeRepository.setAssistLock(
+                  widget.deviceId,
+                  enabled: enabled,
+                  confirmedValue: configuration.assist,
+                )
+              : null,
+        ),
+        const SizedBox(height: 18),
+        SurfacePanel(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  BikeAvatar(color: bike.bike.color, size: 70),
-                  const SizedBox(width: 17),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (isActive)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: StatusPill(
-                              label: 'Active bike',
-                              color: palette.accent,
-                            ),
-                          ),
-                        Text(
-                          bike.bike.displayName,
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                        if (region != null) ...[
-                          const SizedBox(height: 3),
-                          Text('${region.label} region'),
-                        ],
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Bike settings',
-                    onPressed: _openSettings,
-                    icon: const Icon(Icons.tune_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              _ConnectionSummary(state: sessionState),
-              const SizedBox(height: 14),
-              _SettingSection(
-                icon: Icons.lightbulb_outline_rounded,
-                title: 'Light',
-                value: configuration == null
-                    ? 'Waiting for bike'
-                    : configuration.light
-                    ? 'On'
-                    : 'Off',
-                toggleValue: configuration?.light ?? false,
-                onToggleChanged: canControl
-                    ? (value) => _runCommand(() => session.setLight(value))
-                    : null,
-                keep: bike.preferences.keepLight,
-                onKeepChanged: canChangeLocks
-                    ? (enabled) => _services.bikeRepository.setLightLock(
-                        widget.deviceId,
-                        enabled: enabled,
-                        confirmedValue: configuration.light,
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              _SettingSection(
-                icon: Icons.speed_rounded,
-                title: 'Mode',
-                value: configuration == null
-                    ? 'Waiting for bike'
-                    : 'Mode ${configuration.mode + 1}',
-                control: _ValueSelector(
-                  values: const [0, 1, 2, 3],
-                  selected: configuration?.mode,
-                  enabled: canControl,
-                  semanticLabel: 'Mode',
-                  label: (mode) => '${mode + 1}',
-                  onChanged: (mode) =>
-                      _runCommand(() => session!.setMode(mode)),
-                ),
-                keep: bike.preferences.keepMode,
-                onKeepChanged: canChangeLocks
-                    ? (enabled) => _services.bikeRepository.setModeLock(
-                        widget.deviceId,
-                        enabled: enabled,
-                        confirmedValue: configuration.mode,
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 14),
-              _SettingSection(
-                icon: Icons.bolt_rounded,
-                title: 'Assist',
-                value: configuration == null
-                    ? 'Waiting for bike'
-                    : 'Level ${configuration.assist}',
-                control: _ValueSelector(
-                  values: const [0, 1, 2, 3, 4],
-                  selected: configuration?.assist,
-                  enabled: canControl,
-                  semanticLabel: 'Assist level',
-                  label: (assist) => '$assist',
-                  onChanged: (assist) =>
-                      _runCommand(() => session!.setAssist(assist)),
-                ),
-                keep: bike.preferences.keepAssist,
-                onKeepChanged: canChangeLocks
-                    ? (enabled) => _services.bikeRepository.setAssistLock(
-                        widget.deviceId,
-                        enabled: enabled,
-                        confirmedValue: configuration.assist,
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 18),
-              SurfacePanel(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.lock_rounded, color: palette.accent),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Text(
-                        'Set on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
-                      ),
-                    ),
-                  ],
+              Icon(Icons.lock_rounded, color: palette.accent),
+              const SizedBox(width: 13),
+              const Expanded(
+                child: Text(
+                  'Set on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
                 ),
               ),
-              if (sessionState is SessionFailed ||
-                  sessionState is SessionDisconnected) ...[
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: coordinator.retry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reconnect'),
-                ),
-              ],
             ],
           ),
         ),
-      ),
+        if (sessionState is SessionFailed ||
+            sessionState is SessionDisconnected) ...[
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: coordinator.retry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Reconnect'),
+          ),
+        ],
+      ],
     );
   }
 
@@ -345,10 +308,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     }
   }
 
-  Future<void> _openSettings() async {
+  Future<void> _openSettings(SavedBike bike) async {
     final result = await Navigator.of(context).push<BikeSettingsOutcome>(
       MaterialPageRoute<BikeSettingsOutcome>(
-        builder: (_) => BikeSettingsPage(deviceId: widget.deviceId),
+        builder: (_) => BikeSettingsPage(initialBike: bike),
       ),
     );
     if (result == BikeSettingsOutcome.forgotten && mounted) {
@@ -356,14 +319,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     }
   }
 }
-
-typedef _ConnectionPresentation = ({
-  IconData icon,
-  String label,
-  Color color,
-  String title,
-  String detail,
-});
 
 final class _ConnectionSummary extends StatelessWidget {
   const _ConnectionSummary({required this.state});
@@ -392,7 +347,7 @@ final class _ConnectionSummary extends StatelessWidget {
         ),
       );
     }
-    final presentation = _presentation(state);
+    final presentation = BikeSessionPresentation.from(state);
     return SurfacePanel(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,94 +375,6 @@ final class _ConnectionSummary extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static _ConnectionPresentation _presentation(BikeSessionState state) {
-    return switch (state) {
-      SessionReady() => (
-        icon: Icons.check_circle_rounded,
-        label: 'Connected',
-        color: AppColors.mint,
-        title: 'Ready to ride',
-        detail: 'The bike is connected and kept settings are confirmed.',
-      ),
-      SessionSynchronizing() => (
-        icon: Icons.sync_rounded,
-        label: 'Synchronizing',
-        color: AppColors.yellow,
-        title: 'Applying settings…',
-        detail: 'You can keep making changes while the bike catches up.',
-      ),
-      SessionDegraded(:final failure) => (
-        icon: Icons.warning_amber_rounded,
-        label: 'Connected with warning',
-        color: AppColors.orange,
-        title: 'A saved setting was not applied',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.bikeControl,
-        ),
-      ),
-      SessionConnecting() => (
-        icon: Icons.bluetooth_searching_rounded,
-        label: 'Connecting',
-        color: AppColors.yellow,
-        title: 'Finding your bike…',
-        detail: 'Keep the bike powered on and nearby.',
-      ),
-      SessionDiscovering() || SessionAuthenticating() || SessionConnected() => (
-        icon: Icons.bluetooth_connected_rounded,
-        label: 'Checking',
-        color: AppColors.yellow,
-        title: 'Checking bike…',
-        detail: 'Validating services and reading current settings.',
-      ),
-      SessionReconnecting(:final failure) => (
-        icon: Icons.refresh_rounded,
-        label: 'Reconnecting',
-        color: AppColors.orange,
-        title: failure is BikeBluetoothUnavailable
-            ? 'Bluetooth is unavailable'
-            : 'Trying to reconnect…',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.reconnect,
-        ),
-      ),
-      SessionDisconnected(:final manuallyPaused) => (
-        icon: Icons.bluetooth_disabled_rounded,
-        label: 'Disconnected',
-        color: AppColors.orange,
-        title: manuallyPaused ? 'Connection paused' : 'Bike disconnected',
-        detail: manuallyPaused
-            ? 'Reconnect when you are ready to use this bike.'
-            : 'Check Bluetooth and make sure the bike is powered on.',
-      ),
-      SessionFailed(:final failure) => (
-        icon: Icons.error_outline_rounded,
-        label: 'Needs attention',
-        color: AppColors.error,
-        title: 'Bike needs attention',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.bikeConnection,
-        ),
-      ),
-      SessionIdle() => (
-        icon: Icons.bluetooth_searching_rounded,
-        label: 'Preparing',
-        color: AppColors.yellow,
-        title: 'Starting bike session…',
-        detail: 'This should only take a moment.',
-      ),
-      SessionDisposed() => (
-        icon: Icons.bluetooth_disabled_rounded,
-        label: 'Closed',
-        color: AppColors.orange,
-        title: 'Connection closed',
-        detail: 'Return home and select the bike to try again.',
-      ),
-    };
   }
 }
 

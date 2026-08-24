@@ -109,8 +109,6 @@ void main() {
         keepLight: true,
         keepMode: false,
         keepAssist: true,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
     );
 
@@ -168,7 +166,6 @@ void main() {
     await session.connect();
 
     expect(session.state.value, isA<SessionReconnecting>());
-    expect(session.state.value, isNot(isA<SessionFailed>()));
   });
 
   test('advertised-name protocol accepts untested firmware', () async {
@@ -323,8 +320,6 @@ void main() {
           keepLight: true,
           keepMode: true,
           keepAssist: true,
-          backgroundRequested: false,
-          backgroundConsentVersion: 0,
         ),
         correctiveAttempts: 1,
         reconnectDelays: const [Duration.zero],
@@ -387,8 +382,6 @@ void main() {
         keepLight: true,
         keepMode: true,
         keepAssist: true,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
     );
 
@@ -416,8 +409,6 @@ void main() {
         keepLight: false,
         keepMode: true,
         keepAssist: false,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
     );
 
@@ -509,8 +500,6 @@ void main() {
           keepLight: true,
           keepMode: false,
           keepAssist: false,
-          backgroundRequested: false,
-          backgroundConsentVersion: 0,
         ),
       );
       await session.connect();
@@ -587,8 +576,6 @@ void main() {
         keepLight: true,
         keepMode: false,
         keepAssist: false,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
       confirmationRetryDelays: const [Duration.zero, Duration.zero],
     );
@@ -744,8 +731,6 @@ void main() {
         keepLight: true,
         keepMode: false,
         keepAssist: false,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
       confirmationRetryDelays: const [Duration.zero],
     );
@@ -903,8 +888,6 @@ void main() {
           keepLight: false,
           keepMode: true,
           keepAssist: false,
-          backgroundRequested: false,
-          backgroundConsentVersion: 0,
         ),
         correctiveAttempts: 1,
         synchronizationRetryDelays: const [Duration(milliseconds: 1)],

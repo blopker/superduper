@@ -52,30 +52,24 @@ void main() {
   test(
     'runs discovery, settings, reconnect, locked sync, and cleanup in order',
     () async {
-      List<int> frame({
-        required bool light,
-        required int mode,
-        required int assist,
-      }) => [0, 0, assist, 0, if (light) 1 else 0, mode];
-
       final connection = FakeBikeConnection(deviceId: 'bike')
         ..operationDelay = const Duration(milliseconds: 1);
       connection.readFrames.addAll([
-        frame(light: false, mode: 2, assist: 1),
-        frame(light: true, mode: 2, assist: 1),
-        frame(light: false, mode: 2, assist: 1),
-        frame(light: false, mode: 3, assist: 1),
-        frame(light: false, mode: 2, assist: 1),
-        frame(light: false, mode: 2, assist: 2),
-        frame(light: false, mode: 2, assist: 1),
-        frame(light: true, mode: 2, assist: 1),
-        frame(light: true, mode: 2, assist: 2),
-        frame(light: true, mode: 2, assist: 2),
-        frame(light: true, mode: 2, assist: 2),
-        frame(light: true, mode: 2, assist: 2),
-        frame(light: true, mode: 2, assist: 2),
-        frame(light: false, mode: 2, assist: 2),
-        frame(light: false, mode: 2, assist: 1),
+        v1StateFrame(mode: 2, assist: 1),
+        v1StateFrame(light: true, mode: 2, assist: 1),
+        v1StateFrame(mode: 2, assist: 1),
+        v1StateFrame(mode: 3, assist: 1),
+        v1StateFrame(mode: 2, assist: 1),
+        v1StateFrame(mode: 2, assist: 2),
+        v1StateFrame(mode: 2, assist: 1),
+        v1StateFrame(light: true, mode: 2, assist: 1),
+        v1StateFrame(light: true, mode: 2, assist: 2),
+        v1StateFrame(light: true, mode: 2, assist: 2),
+        v1StateFrame(light: true, mode: 2, assist: 2),
+        v1StateFrame(light: true, mode: 2, assist: 2),
+        v1StateFrame(light: true, mode: 2, assist: 2),
+        v1StateFrame(mode: 2, assist: 2),
+        v1StateFrame(mode: 2, assist: 1),
       ]);
       transport.connections['bike'] = connection;
 
@@ -155,20 +149,19 @@ void main() {
           (write) =>
               write.characteristicUuid == BikeGatt.authenticationResponse,
         ),
-        hasLength(greaterThanOrEqualTo(2)),
+        hasLength(2),
       );
       final stateWrites = connection.writes
           .where(
             (write) => write.characteristicUuid == BikeGatt.stateRegister,
           )
           .toList();
-      expect(stateWrites, hasLength(greaterThanOrEqualTo(11)));
       expect(
         stateWrites.last.value,
         [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0],
         reason: 'cleanup must restore the exact starting configuration',
       );
-      expect(connection.discoveryCalls, greaterThanOrEqualTo(2));
+      expect(connection.discoveryCalls, 2);
       expect(connection.isDisposed, isTrue);
 
       final report = controller.createReport(
@@ -203,7 +196,8 @@ void main() {
 
     final run = controller.start();
     await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
-    await Future<void>.delayed(const Duration(milliseconds: 180));
+    await _waitUntil(() => transport.scanStarts == 1);
+    await Future<void>.delayed(Duration.zero);
 
     expect(transport.connections, isEmpty);
     expect(controller.state.peek().phase, BikeHardwareTestPhase.scanning);

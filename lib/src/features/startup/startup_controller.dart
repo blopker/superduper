@@ -34,9 +34,9 @@ final class StartupMigrationRecovery extends StartupState {
 }
 
 final class StartupFailure extends StartupState {
-  const StartupFailure({required this.message});
+  const StartupFailure({required this.error});
 
-  final String message;
+  final Object error;
 }
 
 final class StartupController {
@@ -55,22 +55,23 @@ final class StartupController {
     const StartupLoading(),
     options: const SignalOptions(name: 'startup.state'),
   );
-  bool _initializing = false;
   bool _disposed = false;
   Future<void>? _initializationFuture;
 
   ReadonlySignal<StartupState> get state => _state.readonly();
 
-  Future<void> initialize() => _startInitialization(retryImport: false);
+  Future<void> initialize() => _startInitialization(importer.run);
 
-  Future<void> _startInitialization({required bool retryImport}) {
+  Future<void> _startInitialization(
+    Future<InstalledDataImportResult> Function() importData,
+  ) {
     if (_disposed) {
       return Future.value();
     }
     if (_initializationFuture case final pending?) {
       return pending;
     }
-    final pending = _initialize(retryImport: retryImport);
+    final pending = _initialize(importData);
     _initializationFuture = pending;
     unawaited(
       pending.then<void>(
@@ -89,8 +90,9 @@ final class StartupController {
     return pending;
   }
 
-  Future<void> _initialize({required bool retryImport}) async {
-    _initializing = true;
+  Future<void> _initialize(
+    Future<InstalledDataImportResult> Function() importData,
+  ) async {
     _state.value = const StartupLoading();
 
     try {
@@ -98,9 +100,7 @@ final class StartupController {
       if (_disposed) {
         return;
       }
-      final importResult = retryImport
-          ? await importer.retry()
-          : await importer.run();
+      final importResult = await importData();
       if (_disposed) {
         return;
       }
@@ -125,42 +125,15 @@ final class StartupController {
       }
     } on Object catch (error) {
       if (!_disposed) {
-        _state.value = StartupFailure(message: error.toString());
+        _state.value = StartupFailure(error: error);
       }
-    } finally {
-      _initializing = false;
     }
   }
 
-  Future<void> retryImport() {
-    return _startInitialization(retryImport: true);
-  }
+  Future<void> retryImport() => _startInitialization(importer.retry);
 
-  Future<void> continueWithoutImport() async {
-    if (_initializing || _disposed) {
-      return;
-    }
-    _initializing = true;
-    _state.value = const StartupLoading();
-    try {
-      final importResult = await importer.continueWithoutImport();
-      final repositoryInitialization = await settingsRepository.initialize();
-      await onReady?.call();
-      if (_disposed) {
-        return;
-      }
-      _state.value = StartupReady(
-        importResult: importResult,
-        repositoryInitialization: repositoryInitialization,
-      );
-    } on Object catch (error) {
-      if (!_disposed) {
-        _state.value = StartupFailure(message: error.toString());
-      }
-    } finally {
-      _initializing = false;
-    }
-  }
+  Future<void> continueWithoutImport() =>
+      _startInitialization(importer.continueWithoutImport);
 
   void dispose() {
     _disposed = true;

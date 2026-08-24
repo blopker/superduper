@@ -31,26 +31,22 @@ void main() {
       await repository.addBike(deviceId: 'second');
 
       final bikes = await repository.getBikes();
-      final active = await repository.getActiveBike();
+      final settings = await settingsRepository.get();
 
       expect(bikes.map((saved) => saved.bike.deviceId), ['first', 'second']);
       expect(bikes.map((saved) => saved.bike.sortOrder), [0, 1]);
-      expect(active?.bike.deviceId, 'first');
+      expect(settings.activeBikeId, 'first');
     },
   );
 
-  test('switching active bike is independent from last viewed bike', () async {
+  test('switching the active bike persists the new selection', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'first');
     await repository.addBike(deviceId: 'second');
 
-    await settingsRepository.setLastViewedBike('second');
-    expect((await repository.getActiveBike())?.bike.deviceId, 'first');
-
     await settingsRepository.makeBikeActive('second');
     final settings = await settingsRepository.get();
     expect(settings.activeBikeId, 'second');
-    expect(settings.lastViewedBikeId, 'second');
   });
 
   test('forgetting the active bike promotes the lowest sorted bike', () async {
@@ -62,7 +58,7 @@ void main() {
 
     await repository.forgetBike('second');
 
-    expect((await repository.getActiveBike())?.bike.deviceId, 'first');
+    expect((await settingsRepository.get()).activeBikeId, 'first');
     expect(await database.select(database.bikePreferences).get(), hasLength(2));
   });
 
@@ -255,7 +251,6 @@ void main() {
         region: BikeRegion.eu,
       );
 
-      expect(await repository.saveVersions('bike', _versionInfo), isTrue);
       final v2 = (await repository.getBikes()).single.bike;
       expect(v2.advertisedName, 'S73 FTEX');
       expect(v2.protocol, BikeProtocolVersion.v2);
@@ -266,7 +261,6 @@ void main() {
         deviceId: 'v1',
         region: BikeRegion.eu,
       );
-      expect(await repository.saveVersions('v1', _versionInfo), isTrue);
       final v1 = (await repository.getBikes()).single.bike;
       expect(v1.advertisedName, 'SUPER73');
       expect(v1.protocol, BikeProtocolVersion.v1);

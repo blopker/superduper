@@ -11,25 +11,7 @@ final class BikeRepository {
   final DateTime Function() _clock;
 
   Stream<List<SavedBike>> watchBikes() {
-    final query =
-        database.select(database.bikes).join([
-          innerJoin(
-            database.bikePreferences,
-            database.bikePreferences.deviceId.equalsExp(
-              database.bikes.deviceId,
-            ),
-          ),
-          leftOuterJoin(
-            database.bikeVersions,
-            database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
-          ),
-        ])..orderBy([
-          OrderingTerm.asc(database.bikes.sortOrder),
-          OrderingTerm.asc(database.bikes.createdAtMs),
-          OrderingTerm.asc(database.bikes.deviceId),
-        ]);
-
-    return query.watch().map(
+    return _savedBikesQuery().watch().map(
       (rows) => List.unmodifiable(
         rows.map(
           (row) => _mapBike(
@@ -43,24 +25,7 @@ final class BikeRepository {
   }
 
   Future<List<SavedBike>> getBikes() async {
-    final query =
-        database.select(database.bikes).join([
-          innerJoin(
-            database.bikePreferences,
-            database.bikePreferences.deviceId.equalsExp(
-              database.bikes.deviceId,
-            ),
-          ),
-          leftOuterJoin(
-            database.bikeVersions,
-            database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
-          ),
-        ])..orderBy([
-          OrderingTerm.asc(database.bikes.sortOrder),
-          OrderingTerm.asc(database.bikes.createdAtMs),
-          OrderingTerm.asc(database.bikes.deviceId),
-        ]);
-    final rows = await query.get();
+    final rows = await _savedBikesQuery().get();
     return List.unmodifiable(
       rows.map(
         (row) => _mapBike(
@@ -72,15 +37,6 @@ final class BikeRepository {
     );
   }
 
-  Future<SavedBike?> getActiveBike() async {
-    final settings = await _getSettings();
-    final deviceId = settings.activeBikeId;
-    if (deviceId == null) {
-      return null;
-    }
-    return _getBikeOrNull(deviceId);
-  }
-
   Future<SavedBike> addBike({
     required String deviceId,
     String advertisedName = 'SUPER73',
@@ -88,6 +44,8 @@ final class BikeRepository {
     BikeRegion? region,
     BikeColor color = BikeColor.royalHorizon,
     RidePreferences preferences = const RidePreferences.defaults(),
+    BackgroundPreference backgroundPreference =
+        const BackgroundPreference.defaults(),
     BikeVersionInfo? versions,
     String? moduleSerial,
   }) {
@@ -96,6 +54,7 @@ final class BikeRepository {
       throw ArgumentError.value(deviceId, 'deviceId', 'Must not be empty.');
     }
     _validatePreferences(preferences);
+    _validateBackgroundPreference(backgroundPreference);
     final normalizedVersions = versions == null
         ? null
         : _normalizeVersionInfo(versions);
@@ -147,7 +106,13 @@ final class BikeRepository {
           );
       await database
           .into(database.bikePreferences)
-          .insert(_preferencesInsert(normalizedId, preferences));
+          .insert(
+            _preferencesInsert(
+              normalizedId,
+              preferences,
+              backgroundPreference,
+            ),
+          );
       if (normalizedVersions != null) {
         await database
             .into(database.bikeVersions)
@@ -182,29 +147,6 @@ final class BikeRepository {
         );
       }
     });
-  }
-
-  Future<void> renameBike(String deviceId, String displayName) {
-    final normalizedName = displayName.trim();
-    if (normalizedName.isEmpty) {
-      throw ArgumentError.value(
-        displayName,
-        'displayName',
-        'Must not be empty.',
-      );
-    }
-    return _updateBike(
-      deviceId,
-      BikesCompanion(displayName: Value(normalizedName)),
-    );
-  }
-
-  Future<void> setRegion(String deviceId, BikeRegion? region) {
-    return _updateBike(deviceId, BikesCompanion(region: Value(region?.name)));
-  }
-
-  Future<void> setColor(String deviceId, BikeColor color) {
-    return _updateBike(deviceId, BikesCompanion(colorKey: Value(color.key)));
   }
 
   Future<void> updateBikeDetails(
@@ -297,27 +239,6 @@ final class BikeRepository {
       BikePreferencesCompanion(
         keepAssist: Value(enabled),
         desiredAssist: enabled ? Value(confirmedValue) : const Value.absent(),
-      ),
-    );
-  }
-
-  Future<void> setBackgroundRequest(
-    String deviceId, {
-    required bool requested,
-    required int consentVersion,
-  }) {
-    if (consentVersion < 0) {
-      throw ArgumentError.value(
-        consentVersion,
-        'consentVersion',
-        'Must not be negative.',
-      );
-    }
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        backgroundRequested: Value(requested),
-        backgroundConsentVersion: Value(consentVersion),
       ),
     );
   }
@@ -435,16 +356,8 @@ final class BikeRepository {
   }
 
   Future<SavedBike?> _getBikeOrNull(String deviceId) async {
-    final query = database.select(database.bikes).join([
-      innerJoin(
-        database.bikePreferences,
-        database.bikePreferences.deviceId.equalsExp(database.bikes.deviceId),
-      ),
-      leftOuterJoin(
-        database.bikeVersions,
-        database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
-      ),
-    ])..where(database.bikes.deviceId.equals(deviceId));
+    final query = _savedBikesQuery()
+      ..where(database.bikes.deviceId.equals(deviceId));
     final row = await query.getSingleOrNull();
     if (row == null) {
       return null;
@@ -454,6 +367,24 @@ final class BikeRepository {
       row.readTable(database.bikePreferences),
       row.readTableOrNull(database.bikeVersions),
     );
+  }
+
+  JoinedSelectStatement<HasResultSet, dynamic> _savedBikesQuery() {
+    final query = database.select(database.bikes).join([
+      innerJoin(
+        database.bikePreferences,
+        database.bikePreferences.deviceId.equalsExp(database.bikes.deviceId),
+      ),
+      leftOuterJoin(
+        database.bikeVersions,
+        database.bikeVersions.deviceId.equalsExp(database.bikes.deviceId),
+      ),
+    ]);
+    return query..orderBy([
+      OrderingTerm.asc(database.bikes.sortOrder),
+      OrderingTerm.asc(database.bikes.createdAtMs),
+      OrderingTerm.asc(database.bikes.deviceId),
+    ]);
   }
 
   Future<BikeRow> _requireBike(String deviceId) async {
@@ -525,8 +456,10 @@ final class BikeRepository {
         keepLight: preferences.keepLight,
         keepMode: preferences.keepMode,
         keepAssist: preferences.keepAssist,
-        backgroundRequested: preferences.backgroundRequested,
-        backgroundConsentVersion: preferences.backgroundConsentVersion,
+      ),
+      backgroundPreference: BackgroundPreference(
+        requested: preferences.backgroundRequested,
+        consentVersion: preferences.backgroundConsentVersion,
       ),
       versions: versions == null
           ? null
@@ -553,6 +486,7 @@ final class BikeRepository {
   BikePreferencesCompanion _preferencesInsert(
     String deviceId,
     RidePreferences preferences,
+    BackgroundPreference backgroundPreference,
   ) {
     return BikePreferencesCompanion.insert(
       deviceId: deviceId,
@@ -562,8 +496,8 @@ final class BikeRepository {
       keepLight: preferences.keepLight,
       keepMode: preferences.keepMode,
       keepAssist: preferences.keepAssist,
-      backgroundRequested: preferences.backgroundRequested,
-      backgroundConsentVersion: preferences.backgroundConsentVersion,
+      backgroundRequested: backgroundPreference.requested,
+      backgroundConsentVersion: backgroundPreference.consentVersion,
     );
   }
 
@@ -606,10 +540,13 @@ final class BikeRepository {
   void _validatePreferences(RidePreferences preferences) {
     _validateMode(preferences.desiredMode);
     _validateAssist(preferences.desiredAssist);
-    if (preferences.backgroundConsentVersion < 0) {
+  }
+
+  void _validateBackgroundPreference(BackgroundPreference preference) {
+    if (preference.consentVersion < 0) {
       throw ArgumentError.value(
-        preferences.backgroundConsentVersion,
-        'backgroundConsentVersion',
+        preference.consentVersion,
+        'consentVersion',
         'Must not be negative.',
       );
     }

@@ -25,6 +25,24 @@ class Bikes extends Table with TableInfo {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
+  late final GeneratedColumn<String> advertisedName = GeneratedColumn<String>(
+    'advertised_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'SUPER73\'',
+    defaultValue: const CustomExpression('\'SUPER73\''),
+  );
+  late final GeneratedColumn<String> protocol = GeneratedColumn<String>(
+    'protocol',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'v1\'',
+    defaultValue: const CustomExpression('\'v1\''),
+  );
   late final GeneratedColumn<String> region = GeneratedColumn<String>(
     'region',
     aliasedName,
@@ -73,16 +91,27 @@ class Bikes extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<String> moduleSerial = GeneratedColumn<String>(
+    'module_serial',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     deviceId,
     displayName,
+    advertisedName,
+    protocol,
     region,
     colorKey,
     sortOrder,
     createdAtMs,
     updatedAtMs,
     lastConnectedAtMs,
+    moduleSerial,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -226,6 +255,137 @@ class BikePreferences extends Table with TableInfo {
     'CHECK(desired_mode BETWEEN 0 AND 3)',
     'CHECK(desired_assist BETWEEN 0 AND 4)',
     'CHECK(background_consent_version >= 0)',
+  ];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class BikeVersions extends Table with TableInfo {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  BikeVersions(this.attachedDatabase, [this._alias]);
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES bikes(device_id)ON DELETE CASCADE',
+  );
+  late final GeneratedColumn<String> hardwareRevision = GeneratedColumn<String>(
+    'hardware_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<String> firmwareRevision = GeneratedColumn<String>(
+    'firmware_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<String> softwareRevision = GeneratedColumn<String>(
+    'software_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> stmFirmwareVersion = GeneratedColumn<int>(
+    'stm_firmware_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> controllerVariant = GeneratedColumn<int>(
+    'controller_variant',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> bootloaderHandoff = GeneratedColumn<int>(
+    'bootloader_handoff',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> motorControllerVersion = GeneratedColumn<int>(
+    'motor_controller_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> bmsVersion = GeneratedColumn<int>(
+    'bms_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  late final GeneratedColumn<int> readAtMs = GeneratedColumn<int>(
+    'read_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deviceId,
+    hardwareRevision,
+    firmwareRevision,
+    softwareRevision,
+    stmFirmwareVersion,
+    controllerVariant,
+    bootloaderHandoff,
+    motorControllerVersion,
+    bmsVersion,
+    readAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bike_versions';
+  @override
+  Set<GeneratedColumn> get $primaryKey => {deviceId};
+  @override
+  Never map(Map<String, dynamic> data, {String? tablePrefix}) {
+    throw UnsupportedError('TableInfo.map in schema verification code');
+  }
+
+  @override
+  BikeVersions createAlias(String alias) {
+    return BikeVersions(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const [
+    'PRIMARY KEY(device_id)',
+    'CHECK(length(hardware_revision) > 0)',
+    'CHECK(length(firmware_revision) > 0)',
+    'CHECK(length(software_revision) > 0)',
+    'CHECK(stm_firmware_version BETWEEN 0 AND 16777215)',
+    'CHECK(controller_variant BETWEEN 0 AND 65535)',
+    'CHECK(bootloader_handoff BETWEEN 0 AND 255)',
+    'CHECK(motor_controller_version BETWEEN 0 AND 4294967295)',
+    'CHECK(bms_version BETWEEN 0 AND 4294967295)',
   ];
   @override
   bool get dontWriteConstraints => true;
@@ -385,6 +545,7 @@ class DatabaseAtV1 extends GeneratedDatabase {
   DatabaseAtV1(QueryExecutor e) : super(e);
   late final Bikes bikes = Bikes(this);
   late final BikePreferences bikePreferences = BikePreferences(this);
+  late final BikeVersions bikeVersions = BikeVersions(this);
   late final AppSettings appSettings = AppSettings(this);
   late final DataImports dataImports = DataImports(this);
   @override
@@ -394,6 +555,7 @@ class DatabaseAtV1 extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     bikes,
     bikePreferences,
+    bikeVersions,
     appSettings,
     dataImports,
   ];
@@ -405,6 +567,13 @@ class DatabaseAtV1 extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('bike_preferences', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'bikes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('bike_versions', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(

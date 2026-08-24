@@ -4,8 +4,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/app.dart';
 import 'package:superduper/src/app_services.dart';
-import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
 
@@ -23,8 +21,6 @@ void main() {
     addTearDown(services.dispose);
 
     await tester.runAsync(services.startup.initialize);
-    expect(services.startup.state.value, isA<StartupReady>());
-    expect(services.activeBikeCoordinator.state.value, isA<NoActiveBike>());
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 

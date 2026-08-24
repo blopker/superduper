@@ -193,7 +193,7 @@ void main() {
           state is ActiveBikeSessionStatus &&
           state.bike.bike.protocol == BikeProtocolVersion.v2 &&
           state.sessionState is SessionReady &&
-          coordinator.session.peek()?.protocolVersion == BikeProtocolVersion.v2,
+          _sessionOf(coordinator)?.protocolVersion == BikeProtocolVersion.v2,
     );
 
     expect(connections['first'], hasLength(2));
@@ -205,7 +205,7 @@ void main() {
           .protocol,
       BikeProtocolVersion.v2,
     );
-    expect(coordinator.session.value?.protocolVersion, BikeProtocolVersion.v2);
+    expect(_sessionOf(coordinator)?.protocolVersion, BikeProtocolVersion.v2);
     expect(
       coordinator.state.value,
       isA<ActiveBikeSessionStatus>().having(
@@ -225,8 +225,11 @@ void main() {
       (state) => state is ActiveBikePermissionRequired,
     );
 
-    expect(state, isA<ActiveBikePermissionRequired>());
-    expect(coordinator.session.value, isNull);
+    expect(
+      (state as ActiveBikePermissionRequired).permission,
+      BluetoothPermissionState.permanentlyDenied,
+    );
+    expect(_sessionOf(coordinator), isNull);
     expect(connections, isEmpty);
   });
 
@@ -242,8 +245,8 @@ void main() {
     expect(
       state,
       isA<ActiveBikeCoordinatorFailure>().having(
-        (value) => value.message,
-        'message',
+        (value) => value.error.toString(),
+        'error',
         contains('permission channel unavailable'),
       ),
     );
@@ -258,7 +261,10 @@ void main() {
       (state) => state is ActiveBikeCoordinatorFailure,
     );
 
-    expect(state, isA<ActiveBikeCoordinatorFailure>());
+    expect(
+      (state as ActiveBikeCoordinatorFailure).error.toString(),
+      contains('session factory unavailable'),
+    );
   });
 
   test('foreground resume rechecks a permission granted in settings', () async {
@@ -271,14 +277,13 @@ void main() {
 
     permissions.state = BluetoothPermissionState.granted;
     await coordinator.setForeground(true);
-    final ready = await _waitFor(
+    await _waitFor(
       coordinator.state,
       (state) =>
           state is ActiveBikeSessionStatus &&
           state.sessionState is SessionReady,
     );
 
-    expect(ready, isA<ActiveBikeSessionStatus>());
     expect(permissions.requests, 1);
     expect(permissions.checks, 2);
   });
@@ -286,13 +291,15 @@ void main() {
   test(
     'foreground resume never overlaps the startup permission request',
     () async {
-      permissions.ensureDelay = const Duration(milliseconds: 40);
+      final permissionGate = Completer<void>();
+      permissions.ensureGate = permissionGate;
 
       await coordinator.start();
       while (permissions.checks == 0) {
         await Future<void>.delayed(Duration.zero);
       }
       final resumed = coordinator.setForeground(true);
+      permissionGate.complete();
       await resumed;
       await _waitFor(
         coordinator.state,
@@ -352,7 +359,7 @@ void main() {
 
     await coordinator.pauseForDiscovery();
     await settings.makeBikeActive('second');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await _waitUntil(() => coordinator.activeBikeId.peek() == 'second');
 
     expect(connections['second'], isNull);
 
@@ -372,17 +379,19 @@ void main() {
   test(
     'discovery pause invalidates permission work already in flight',
     () async {
-      permissions.ensureDelay = const Duration(milliseconds: 40);
+      final permissionGate = Completer<void>();
+      permissions.ensureGate = permissionGate;
       await coordinator.start();
       while (permissions.requests == 0) {
         await Future<void>.delayed(Duration.zero);
       }
 
       await coordinator.pauseForDiscovery();
-      await Future<void>.delayed(const Duration(milliseconds: 60));
+      permissionGate.complete();
+      await _waitUntil(() => permissions.concurrentChecks == 0);
 
       expect(connections, isEmpty);
-      expect(coordinator.session.value, isNull);
+      expect(_sessionOf(coordinator), isNull);
     },
   );
 
@@ -466,4 +475,21 @@ Future<ActiveBikeState> _waitFor(
     }
   });
   return completer.future.timeout(const Duration(seconds: 2));
+}
+
+BikeSession? _sessionOf(ActiveBikeCoordinator coordinator) {
+  return switch (coordinator.state.peek()) {
+    ActiveBikeSessionStatus(:final session) => session,
+    _ => null,
+  };
+}
+
+Future<void> _waitUntil(bool Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  while (!condition()) {
+    if (!DateTime.now().isBefore(deadline)) {
+      fail('Timed out waiting for the coordinator test condition.');
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
 }

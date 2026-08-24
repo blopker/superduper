@@ -5,6 +5,7 @@ import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/user_facing_error.dart';
@@ -112,6 +113,12 @@ final class BikeHardwareTestController {
   final List<Duration> confirmationRetryDelays;
   final Duration stepTimeout;
   final Duration cleanupTimeout;
+  late final ExclusiveBluetoothOperation _exclusiveBluetooth =
+      ExclusiveBluetoothOperation(
+        transport: transport,
+        permissions: permissions,
+        activeBikeCoordinator: activeBikeCoordinator,
+      );
   final Signal<BikeHardwareTestState> _state = signal(
     const BikeHardwareTestState.idle(),
     options: const SignalOptions(name: 'bikeHardwareTest.state'),
@@ -122,7 +129,6 @@ final class BikeHardwareTestController {
   EffectCleanup? _sessionStateCleanup;
   BikeConfiguration? _originalConfiguration;
   var _generation = 0;
-  var _ownsCoordinatorPause = false;
   DateTime? _startedAt;
   var _traceTruncated = false;
   var _disposed = false;
@@ -259,29 +265,20 @@ final class BikeHardwareTestController {
   }
 
   Future<void> _run(int generation) async {
-    _ownsCoordinatorPause = true;
-    await activeBikeCoordinator.pauseForDiscovery();
+    final access = await _exclusiveBluetooth.acquire(
+      requestPermission: true,
+      adapterTimeout: const Duration(seconds: 5),
+    );
     _checkCurrent(generation);
-
-    final permission = await permissions.ensureAccess(request: true);
-    _checkCurrent(generation);
-    if (permission != BluetoothPermissionState.granted) {
-      throw StateError('Bluetooth permission is $permission.');
+    if (access.permission != BluetoothPermissionState.granted) {
+      throw StateError('Bluetooth permission is ${access.permission}.');
     }
-    final adapter = await transport.adapterStates
-        .where((value) => value != BikeAdapterState.unknown)
-        .first
-        .timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => BikeAdapterState.unknown,
-        );
-    _checkCurrent(generation);
-    if (adapter != BikeAdapterState.on) {
-      throw StateError('Bluetooth adapter is $adapter.');
+    if (access.adapter != BikeAdapterState.on) {
+      throw StateError('Bluetooth adapter is ${access.adapter}.');
     }
     _addTrace(
       'bluetooth.ready',
-      'Permission granted; adapter ${adapter.name}.',
+      'Permission granted; adapter ${access.adapter.name}.',
     );
     _addLog(
       BikeHardwareTestLogStatus.passed,
@@ -441,8 +438,6 @@ final class BikeHardwareTestController {
         keepLight: true,
         keepMode: false,
         keepAssist: true,
-        backgroundRequested: false,
-        backgroundConsentVersion: 0,
       ),
     );
     await _waitForReady(session, generation, timeout: stepTimeout);
@@ -711,12 +706,6 @@ final class BikeHardwareTestController {
   }
 
   Future<void> _performReleaseBike({required bool restore}) async {
-    try {
-      await transport.stopScan();
-    } on Object {
-      // The scan may already have ended.
-    }
-
     final session = _session;
     final original = _originalConfiguration;
     if (restore && session != null && original != null) {
@@ -766,10 +755,9 @@ final class BikeHardwareTestController {
         // Normal app control must still resume after a failed test disconnect.
       }
     }
-    if (_ownsCoordinatorPause) {
-      _ownsCoordinatorPause = false;
+    if (_exclusiveBluetooth.isAcquired) {
       try {
-        await activeBikeCoordinator.resumeAfterDiscovery();
+        await _exclusiveBluetooth.release();
         _addTrace('test.release', 'Normal auto-connect resumed.');
       } on Object catch (error) {
         _addLog(

@@ -196,8 +196,6 @@ final class RidePreferences {
     required this.keepLight,
     required this.keepMode,
     required this.keepAssist,
-    required this.backgroundRequested,
-    required this.backgroundConsentVersion,
   });
 
   const RidePreferences.defaults()
@@ -206,9 +204,7 @@ final class RidePreferences {
       desiredAssist = 0,
       keepLight = false,
       keepMode = false,
-      keepAssist = false,
-      backgroundRequested = false,
-      backgroundConsentVersion = 0;
+      keepAssist = false;
 
   final bool desiredLight;
   final int desiredMode;
@@ -216,8 +212,6 @@ final class RidePreferences {
   final bool keepLight;
   final bool keepMode;
   final bool keepAssist;
-  final bool backgroundRequested;
-  final int backgroundConsentVersion;
 
   RidePreferences copyWith({
     bool? desiredLight,
@@ -226,8 +220,6 @@ final class RidePreferences {
     bool? keepLight,
     bool? keepMode,
     bool? keepAssist,
-    bool? backgroundRequested,
-    int? backgroundConsentVersion,
   }) {
     return RidePreferences(
       desiredLight: desiredLight ?? this.desiredLight,
@@ -236,9 +228,6 @@ final class RidePreferences {
       keepLight: keepLight ?? this.keepLight,
       keepMode: keepMode ?? this.keepMode,
       keepAssist: keepAssist ?? this.keepAssist,
-      backgroundRequested: backgroundRequested ?? this.backgroundRequested,
-      backgroundConsentVersion:
-          backgroundConsentVersion ?? this.backgroundConsentVersion,
     );
   }
 
@@ -250,9 +239,7 @@ final class RidePreferences {
         desiredAssist == other.desiredAssist &&
         keepLight == other.keepLight &&
         keepMode == other.keepMode &&
-        keepAssist == other.keepAssist &&
-        backgroundRequested == other.backgroundRequested &&
-        backgroundConsentVersion == other.backgroundConsentVersion;
+        keepAssist == other.keepAssist;
   }
 
   @override
@@ -263,20 +250,32 @@ final class RidePreferences {
     keepLight,
     keepMode,
     keepAssist,
-    backgroundRequested,
-    backgroundConsentVersion,
   );
+}
+
+final class BackgroundPreference {
+  const BackgroundPreference({
+    required this.requested,
+    required this.consentVersion,
+  });
+
+  const BackgroundPreference.defaults() : requested = false, consentVersion = 0;
+
+  final bool requested;
+  final int consentVersion;
 }
 
 final class SavedBike {
   const SavedBike({
     required this.bike,
     required this.preferences,
+    this.backgroundPreference = const BackgroundPreference.defaults(),
     this.versions,
   });
 
   final Bike bike;
   final RidePreferences preferences;
+  final BackgroundPreference backgroundPreference;
   final CachedBikeVersions? versions;
 }
 

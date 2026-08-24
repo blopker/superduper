@@ -77,16 +77,6 @@ final class SettingsRepository {
     });
   }
 
-  Future<void> setLastViewedBike(String? deviceId) {
-    return database.transaction(() async {
-      if (deviceId != null) {
-        await _requireBike(deviceId);
-      }
-      await _ensureSettings();
-      await _update(AppSettingsCompanion(lastViewedBikeId: Value(deviceId)));
-    });
-  }
-
   Future<void> dismissMigrationNotice() async {
     await _ensureSettings();
     await _update(

@@ -5,6 +5,7 @@ import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/domain/bike_names.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
@@ -95,6 +96,12 @@ final class AddBikeController {
   final BikeRepository bikeRepository;
   final ActiveBikeCoordinator activeBikeCoordinator;
   final Duration scanTimeout;
+  late final ExclusiveBluetoothOperation _exclusiveBluetooth =
+      ExclusiveBluetoothOperation(
+        transport: transport,
+        permissions: permissions,
+        activeBikeCoordinator: activeBikeCoordinator,
+      );
   final Signal<AddBikeState> _state = signal(
     const AddBikeIdle(),
     options: const SignalOptions(name: 'addBike.state'),
@@ -109,7 +116,6 @@ final class AddBikeController {
   var _isScanning = false;
   var _acceptScanStop = false;
   var _disposed = false;
-  var _coordinatorPaused = false;
   var _operationGeneration = 0;
 
   ReadonlySignal<AddBikeState> get state => _state.readonly();
@@ -123,37 +129,19 @@ final class AddBikeController {
         return;
       }
       _state.value = const AddBikeCheckingAccess();
-      if (!_coordinatorPaused) {
-        _coordinatorPaused = true;
-        await activeBikeCoordinator.pauseForDiscovery();
-      }
-      if (!_isCurrent(generation)) {
-        return;
-      }
-
-      final permission = await permissions.ensureAccess(
-        request: requestPermission,
+      final access = await _exclusiveBluetooth.acquire(
+        requestPermission: requestPermission,
+        adapterTimeout: const Duration(seconds: 3),
       );
       if (!_isCurrent(generation)) {
         return;
       }
-      if (permission != BluetoothPermissionState.granted) {
-        _state.value = AddBikePermissionRequired(permission);
+      if (access.permission != BluetoothPermissionState.granted) {
+        _state.value = AddBikePermissionRequired(access.permission);
         return;
       }
-
-      final adapter = await transport.adapterStates
-          .where((state) => state != BikeAdapterState.unknown)
-          .first
-          .timeout(
-            const Duration(seconds: 3),
-            onTimeout: () => BikeAdapterState.unknown,
-          );
-      if (!_isCurrent(generation)) {
-        return;
-      }
-      if (adapter != BikeAdapterState.on) {
-        _state.value = AddBikeAdapterUnavailable(adapter);
+      if (access.adapter != BikeAdapterState.on) {
+        _state.value = AddBikeAdapterUnavailable(access.adapter);
         return;
       }
 
@@ -301,8 +289,6 @@ final class AddBikeController {
           keepLight: false,
           keepMode: false,
           keepAssist: false,
-          backgroundRequested: false,
-          backgroundConsentVersion: 0,
         ),
         versions: current.versions,
       );
@@ -426,12 +412,9 @@ final class AddBikeController {
   }
 
   Future<void> _resumeCoordinator({SavedBike? temporarilySelect}) async {
-    if (!_coordinatorPaused) {
-      return;
-    }
-    _coordinatorPaused = false;
-    await activeBikeCoordinator.resumeAfterDiscovery(
+    await _exclusiveBluetooth.release(
       temporarilySelect: temporarilySelect,
+      stopScan: false,
     );
   }
 

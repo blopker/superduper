@@ -28,22 +28,33 @@ final class ActiveBikePermissionRequired extends ActiveBikeState {
 final class ActiveBikeSessionStatus extends ActiveBikeState {
   const ActiveBikeSessionStatus({
     required this.bike,
+    required this.session,
     required this.sessionState,
     required this.isTemporary,
   });
 
   final SavedBike bike;
+  final BikeSession session;
   final BikeSessionState sessionState;
   final bool isTemporary;
 }
 
 final class ActiveBikeCoordinatorFailure extends ActiveBikeState {
-  const ActiveBikeCoordinatorFailure(this.message);
+  const ActiveBikeCoordinatorFailure(this.error);
 
-  final String message;
+  final Object error;
 }
 
 typedef BikeSessionBuilder = BikeSession Function(SavedBike bike);
+
+final class _CoordinatorInputs {
+  const _CoordinatorInputs({this.bikes, this.settings});
+
+  final List<SavedBike>? bikes;
+  final AppPreferences? settings;
+
+  bool get isReady => bikes != null && settings != null;
+}
 
 final class ActiveBikeCoordinator {
   ActiveBikeCoordinator({
@@ -73,20 +84,20 @@ final class ActiveBikeCoordinator {
     false,
     options: const SignalOptions(name: 'activeBike.migrationNoticePending'),
   );
-  final Signal<BikeSession?> _session = signal(
-    null,
-    options: const SignalOptions(name: 'activeBike.session'),
-  );
   final Completer<void> _disposeSignal = Completer<void>();
 
   StreamSubscription<List<SavedBike>>? _bikesSubscription;
   StreamSubscription<AppPreferences>? _settingsSubscription;
   EffectCleanup? _sessionStateCleanup;
   Future<BluetoothPermissionState>? _permissionCheck;
+  Future<void>? _reconcileFuture;
+  _CoordinatorInputs _inputs = const _CoordinatorInputs();
+  BikeSession? _session;
   SavedBike? _currentBike;
   String? _temporaryBikeId;
-  var _hasBikes = false;
-  var _hasSettings = false;
+  var _reconcileRequested = false;
+  var _reconcileForce = false;
+  var _reconcileMayRequestPermission = false;
   var _switchGeneration = 0;
   var _started = false;
   var _disposed = false;
@@ -99,7 +110,6 @@ final class ActiveBikeCoordinator {
   ReadonlySignal<String?> get activeBikeId => _activeBikeId.readonly();
   ReadonlySignal<bool> get migrationNoticePending =>
       _migrationNoticePending.readonly();
-  ReadonlySignal<BikeSession?> get session => _session.readonly();
 
   Future<void> start() async {
     if (_started || _disposed) {
@@ -114,13 +124,12 @@ final class ActiveBikeCoordinator {
         if (_disposed) {
           return;
         }
-        _hasBikes = true;
-        _bikes.value = bikes;
+        _acceptBikes(bikes);
         if (!bikesReady.isCompleted) {
           bikesReady.complete();
         }
         if (initialized) {
-          _scheduleRecompute();
+          _scheduleReconcile();
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -135,17 +144,12 @@ final class ActiveBikeCoordinator {
         if (_disposed) {
           return;
         }
-        _hasSettings = true;
-        _activeBikeId.value = settings.activeBikeId;
-        if (_temporaryBikeId == settings.activeBikeId) {
-          _temporaryBikeId = null;
-        }
-        _migrationNoticePending.value = settings.migrationNoticePending;
+        _acceptSettings(settings);
         if (!settingsReady.isCompleted) {
           settingsReady.complete();
         }
         if (initialized) {
-          _scheduleRecompute();
+          _scheduleReconcile();
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -170,16 +174,16 @@ final class ActiveBikeCoordinator {
     if (!hasTarget) {
       _state.value = const NoActiveBike();
     }
-    _scheduleRecompute();
+    _scheduleReconcile();
   }
 
   Future<void> selectTemporarily(String deviceId) async {
     _requireSavedBike(deviceId);
-    if (_temporaryBikeId == deviceId && _session.peek()?.deviceId == deviceId) {
+    if (_temporaryBikeId == deviceId && _session?.deviceId == deviceId) {
       return;
     }
     _temporaryBikeId = deviceId;
-    await _recompute(force: true);
+    await _reconcile(force: true);
   }
 
   Future<void> returnToActiveBike() async {
@@ -187,28 +191,32 @@ final class ActiveBikeCoordinator {
       return;
     }
     _temporaryBikeId = null;
-    await _recompute(force: true);
+    await _reconcile(force: true);
   }
 
   Future<void> makeBikeActive(String deviceId) async {
     await settingsRepository.makeBikeActive(deviceId);
+    _acceptSettings(await settingsRepository.get());
     _temporaryBikeId = null;
-    await _recompute(force: _session.peek()?.deviceId != deviceId);
+    await _reconcile(force: _session?.deviceId != deviceId);
   }
 
   Future<void> forgetBike(String deviceId) async {
     _switchGeneration++;
-    if (_session.peek()?.deviceId == deviceId) {
+    if (_session?.deviceId == deviceId) {
       await _clearSession();
     }
     if (_temporaryBikeId == deviceId) {
       _temporaryBikeId = null;
     }
     await bikeRepository.forgetBike(deviceId);
+    _acceptBikes(await bikeRepository.getBikes());
+    _acceptSettings(await settingsRepository.get());
+    await _reconcile();
   }
 
   Future<void> retry() async {
-    final current = _session.peek();
+    final current = _session;
     if (current != null) {
       if (current.state.peek() case SessionReady() || SessionSynchronizing()) {
         return;
@@ -216,11 +224,11 @@ final class ActiveBikeCoordinator {
       await current.retry();
       return;
     }
-    await _recompute(force: true);
+    await _reconcile(force: true);
   }
 
   Future<void> disconnectManually() async {
-    await _session.peek()?.disconnect();
+    await _session?.disconnect();
   }
 
   Future<void> dismissMigrationNotice() {
@@ -238,21 +246,12 @@ final class ActiveBikeCoordinator {
       return;
     }
     if (temporarilySelect != null) {
-      final updated = [..._bikes.peek()];
-      final existingIndex = updated.indexWhere(
-        (bike) => bike.bike.deviceId == temporarilySelect.bike.deviceId,
-      );
-      if (existingIndex == -1) {
-        updated.add(temporarilySelect);
-      } else {
-        updated[existingIndex] = temporarilySelect;
-      }
-      _bikes.value = List.unmodifiable(updated);
+      _acceptBikes(await bikeRepository.getBikes());
       _temporaryBikeId = temporarilySelect.bike.deviceId;
     }
     _discoveryPaused = false;
     if (_foreground) {
-      await _recompute(force: true);
+      await _reconcile(force: true);
     }
   }
 
@@ -262,14 +261,14 @@ final class ActiveBikeCoordinator {
       return;
     }
     if (foreground) {
-      final current = _session.peek();
+      final current = _session;
       if (current == null) {
-        await _recompute(force: true, requestPermission: false);
+        await _reconcile(force: true, requestPermission: false);
       } else {
         await current.resumeFromBackground();
       }
     } else {
-      await _session.peek()?.pauseForBackground();
+      await _session?.pauseForBackground();
     }
   }
 
@@ -291,22 +290,60 @@ final class ActiveBikeCoordinator {
     _bikes.dispose();
     _activeBikeId.dispose();
     _migrationNoticePending.dispose();
-    _session.dispose();
   }
 
-  Future<void> _recompute({
+  Future<void> _reconcile({
+    bool force = false,
+    bool requestPermission = true,
+  }) {
+    if (_disposed) {
+      return Future.value();
+    }
+    _reconcileRequested = true;
+    _reconcileForce = _reconcileForce || force;
+    _reconcileMayRequestPermission =
+        _reconcileMayRequestPermission || requestPermission;
+    if (_reconcileFuture case final pending?) {
+      return pending;
+    }
+
+    late final Future<void> pending;
+    pending = _drainReconciliation();
+    _reconcileFuture = pending;
+    unawaited(
+      pending.whenComplete(() {
+        if (identical(_reconcileFuture, pending)) {
+          _reconcileFuture = null;
+        }
+      }),
+    );
+    return pending;
+  }
+
+  Future<void> _drainReconciliation() async {
+    while (_reconcileRequested && !_disposed) {
+      final force = _reconcileForce;
+      final requestPermission = _reconcileMayRequestPermission;
+      _reconcileRequested = false;
+      _reconcileForce = false;
+      _reconcileMayRequestPermission = false;
+      await _recomputeOnce(
+        force: force,
+        requestPermission: requestPermission,
+      );
+    }
+  }
+
+  Future<void> _recomputeOnce({
     bool force = false,
     bool requestPermission = true,
   }) async {
-    if (_disposed ||
-        !_hasBikes ||
-        !_hasSettings ||
-        _discoveryPaused ||
-        !_foreground) {
+    final inputs = _inputs;
+    if (_disposed || !inputs.isReady || _discoveryPaused || !_foreground) {
       return;
     }
     try {
-      final targetId = _temporaryBikeId ?? _activeBikeId.peek();
+      final targetId = _temporaryBikeId ?? inputs.settings!.activeBikeId;
       if (targetId == null) {
         await _clearSession();
         if (!_disposed) {
@@ -314,7 +351,7 @@ final class ActiveBikeCoordinator {
         }
         return;
       }
-      final target = _bikes.peek().where(
+      final target = inputs.bikes!.where(
         (saved) => saved.bike.deviceId == targetId,
       );
       if (target.isEmpty) {
@@ -325,7 +362,7 @@ final class ActiveBikeCoordinator {
         return;
       }
       final bike = target.single;
-      final current = _session.peek();
+      final current = _session;
       if (!force &&
           current?.deviceId == targetId &&
           current?.protocolVersion == bike.bike.protocol) {
@@ -340,7 +377,7 @@ final class ActiveBikeCoordinator {
         }
         if (!_disposed &&
             !_discoveryPaused &&
-            _session.peek() == current &&
+            _session == current &&
             _currentBike?.bike.deviceId == bike.bike.deviceId) {
           _publishSessionState(current.state.peek());
         }
@@ -380,23 +417,23 @@ final class ActiveBikeCoordinator {
       }
       _readyRecorded = false;
       _currentBike = bike;
-      _session.value = next;
+      _session = next;
       _sessionStateCleanup = next.state.subscribe((sessionState) {
-        if (!_disposed && _session.peek() == next) {
+        if (!_disposed && _session == next) {
           _publishSessionState(sessionState);
         }
       });
       _publishSessionState(next.state.peek());
       unawaited(
         next.connect().catchError((Object error) {
-          if (!_disposed && _session.peek() == next) {
-            _state.value = ActiveBikeCoordinatorFailure(error.toString());
+          if (!_disposed && _session == next) {
+            _state.value = ActiveBikeCoordinatorFailure(error);
           }
         }),
       );
     } on Object catch (error) {
       if (!_disposed && !_discoveryPaused && _foreground) {
-        _state.value = ActiveBikeCoordinatorFailure(error.toString());
+        _state.value = ActiveBikeCoordinatorFailure(error);
       }
     }
   }
@@ -423,8 +460,8 @@ final class ActiveBikeCoordinator {
   Future<void> _clearSession() async {
     _sessionStateCleanup?.call();
     _sessionStateCleanup = null;
-    final old = _session.peek();
-    _session.value = null;
+    final old = _session;
+    _session = null;
     _currentBike = null;
     _readyRecorded = false;
     if (old != null) {
@@ -434,11 +471,13 @@ final class ActiveBikeCoordinator {
 
   void _publishSessionState(BikeSessionState sessionState) {
     final bike = _currentBike;
-    if (bike == null) {
+    final session = _session;
+    if (bike == null || session == null) {
       return;
     }
     _state.value = ActiveBikeSessionStatus(
       bike: bike,
+      session: session,
       sessionState: sessionState,
       isTemporary: _temporaryBikeId != null,
     );
@@ -465,11 +504,29 @@ final class ActiveBikeCoordinator {
 
   void _onStreamError(Object error, StackTrace stackTrace) {
     if (!_disposed) {
-      _state.value = ActiveBikeCoordinatorFailure(error.toString());
+      _state.value = ActiveBikeCoordinatorFailure(error);
     }
   }
 
-  void _scheduleRecompute() {
-    unawaited(_recompute().catchError((Object _, StackTrace _) {}));
+  void _acceptBikes(List<SavedBike> bikes) {
+    final immutable = List<SavedBike>.unmodifiable(bikes);
+    _inputs = _CoordinatorInputs(
+      bikes: immutable,
+      settings: _inputs.settings,
+    );
+    _bikes.value = immutable;
+  }
+
+  void _acceptSettings(AppPreferences settings) {
+    _inputs = _CoordinatorInputs(bikes: _inputs.bikes, settings: settings);
+    _activeBikeId.value = settings.activeBikeId;
+    if (_temporaryBikeId == settings.activeBikeId) {
+      _temporaryBikeId = null;
+    }
+    _migrationNoticePending.value = settings.migrationNoticePending;
+  }
+
+  void _scheduleReconcile() {
+    unawaited(_reconcile().catchError((Object _, StackTrace _) {}));
   }
 }

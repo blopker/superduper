@@ -162,9 +162,9 @@ final class StartupPage extends SignalWidget {
           onRetry: services.startup.retryImport,
           onContinue: services.startup.continueWithoutImport,
         ),
-      StartupFailure(:final message) => _StartupFailurePage(
+      StartupFailure(:final error) => _StartupFailurePage(
         message: userFacingError(
-          message,
+          error,
           context: UserErrorContext.startup,
         ),
         onRetry: onStartupRetry ?? services.startup.initialize,

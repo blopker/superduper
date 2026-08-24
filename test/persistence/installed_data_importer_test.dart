@@ -125,8 +125,8 @@ void main() {
     expect(bikes.first.preferences.keepLight, isTrue);
     expect(bikes.first.preferences.keepMode, isTrue);
     expect(bikes.first.preferences.keepAssist, isTrue);
-    expect(bikes.first.preferences.backgroundRequested, isTrue);
-    expect(bikes.first.preferences.backgroundConsentVersion, 0);
+    expect(bikes.first.backgroundPreference.requested, isTrue);
+    expect(bikes.first.backgroundPreference.consentVersion, 0);
     expect(bikes.last.bike.region, BikeRegion.eu);
     expect(settings.activeBikeId, 'first');
     expect(settings.lastViewedBikeId, 'second');
@@ -244,7 +244,10 @@ void main() {
           .displayName,
       'V2 Name',
     );
-    expect((await repository.getActiveBike())?.bike.deviceId, 'existing');
+    expect(
+      (await SettingsRepository(database: database).get()).activeBikeId,
+      'existing',
+    );
   });
 
   test(

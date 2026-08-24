@@ -156,47 +156,11 @@ final class AppDatabase extends _$AppDatabase {
     onCreate: (migrator) async {
       await migrator.createAll();
     },
-    onUpgrade: (migrator, from, to) async {
-      await transaction(() async {
-        if (from < 2) {
-          await migrator.createTable(bikeVersions);
-        }
-        if (from < 3 && !await _columnExists('bikes', 'module_serial')) {
-          await migrator.addColumn(bikes, bikes.moduleSerial);
-        }
-        if (from < 4) {
-          await customStatement(
-            'UPDATE bikes SET region = NULL WHERE device_id IN '
-            '(SELECT device_id FROM bike_versions '
-            "WHERE firmware_revision = '250426')",
-          );
-        }
-        if (from < 5 && !await _columnExists('bikes', 'advertised_name')) {
-          await migrator.addColumn(bikes, bikes.advertisedName);
-          await customStatement(
-            "UPDATE bikes SET advertised_name = 'S73 FTEX' "
-            'WHERE region IS NULL',
-          );
-        }
-        if (from < 6 && !await _columnExists('bikes', 'protocol')) {
-          await migrator.addColumn(bikes, bikes.protocol);
-          await customStatement(
-            "UPDATE bikes SET protocol = 'v2' "
-            "WHERE advertised_name = 'S73 FTEX'",
-          );
-        }
-      });
-    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
 
   @override
-  int get schemaVersion => 6;
-
-  Future<bool> _columnExists(String table, String column) async {
-    final rows = await customSelect('PRAGMA table_info($table)').get();
-    return rows.any((row) => row.read<String>('name') == column);
-  }
+  int get schemaVersion => 1;
 }

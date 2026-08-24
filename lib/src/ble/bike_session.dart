@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/ble/locked_configuration_policy.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 sealed class BikeSessionFailure implements Exception {
@@ -369,7 +370,7 @@ final class BikeSession {
     if (_preferences == preferences) {
       return Future.value();
     }
-    final requiresSynchronization = !_sameEnforcement(
+    final requiresSynchronization = !LockedConfigurationPolicy.sameEnforcement(
       _preferences,
       preferences,
     );
@@ -707,8 +708,17 @@ final class BikeSession {
         updated = updated.copyWith(region: region);
       }
       _publishObserved(updated);
+      final target = LockedConfigurationPolicy.effective(
+        observed: updated,
+        preferences: _preferences,
+        preferredRegion: _preferredRegion,
+      );
       if (_state.peek() is SessionReady &&
-          !_lockedValuesMatch(updated, _effectiveConfiguration(updated)) &&
+          !LockedConfigurationPolicy.lockedValuesMatch(
+            observed: updated,
+            target: target,
+            preferences: _preferences,
+          ) &&
           !_commands.isBusy) {
         unawaited(synchronize().catchError((Object _) {}));
       }
@@ -745,11 +755,22 @@ final class BikeSession {
       throw const BikeSessionDisposedFailure();
     }
     _publishObserved(confirmed);
-    var mustWrite = forceLockedWrite && _hasLockedSettings;
+    var mustWrite =
+        forceLockedWrite &&
+        LockedConfigurationPolicy.hasLockedSettings(_preferences);
 
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
-      final target = _effectiveConfiguration(confirmed);
-      if (!mustWrite && _lockedValuesMatch(confirmed, target)) {
+      final target = LockedConfigurationPolicy.effective(
+        observed: confirmed,
+        preferences: _preferences,
+        preferredRegion: _preferredRegion,
+      );
+      if (!mustWrite &&
+          LockedConfigurationPolicy.lockedValuesMatch(
+            observed: confirmed,
+            target: target,
+            preferences: _preferences,
+          )) {
         _markReady(confirmed);
         return;
       }
@@ -761,13 +782,21 @@ final class BikeSession {
       }
       mustWrite = false;
       confirmed = await _readConfigurationUntil(
-        (candidate) => _lockedValuesMatch(candidate, target),
+        (candidate) => LockedConfigurationPolicy.lockedValuesMatch(
+          observed: candidate,
+          target: target,
+          preferences: _preferences,
+        ),
       );
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
       _publishObserved(confirmed);
-      if (_lockedValuesMatch(confirmed, target)) {
+      if (LockedConfigurationPolicy.lockedValuesMatch(
+        observed: confirmed,
+        target: target,
+        preferences: _preferences,
+      )) {
         _pending.value = null;
         _markReady(confirmed);
         return;
@@ -983,42 +1012,6 @@ final class BikeSession {
       'Writing bike settings',
     );
   }
-
-  BikeConfiguration _effectiveConfiguration(BikeConfiguration observed) {
-    return BikeConfiguration(
-      light: _preferences.keepLight
-          ? _preferences.desiredLight
-          : observed.light,
-      mode: _preferences.keepMode ? _preferences.desiredMode : observed.mode,
-      assist: _preferences.keepAssist
-          ? _preferences.desiredAssist
-          : observed.assist,
-      region: _preferredRegion ?? observed.region,
-    );
-  }
-
-  bool _lockedValuesMatch(
-    BikeConfiguration observed,
-    BikeConfiguration target,
-  ) {
-    return (!_preferences.keepLight || observed.light == target.light) &&
-        (!_preferences.keepMode || observed.mode == target.mode) &&
-        (!_preferences.keepAssist || observed.assist == target.assist);
-  }
-
-  bool _sameEnforcement(RidePreferences previous, RidePreferences next) {
-    return previous.keepLight == next.keepLight &&
-        (!next.keepLight || previous.desiredLight == next.desiredLight) &&
-        previous.keepMode == next.keepMode &&
-        (!next.keepMode || previous.desiredMode == next.desiredMode) &&
-        previous.keepAssist == next.keepAssist &&
-        (!next.keepAssist || previous.desiredAssist == next.desiredAssist);
-  }
-
-  bool get _hasLockedSettings =>
-      _preferences.keepLight ||
-      _preferences.keepMode ||
-      _preferences.keepAssist;
 
   void _markReady(
     BikeConfiguration configuration, {
