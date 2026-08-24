@@ -218,11 +218,12 @@ final class BikeColorLabel extends StatelessWidget {
         SizedBox(
           width: 24,
           height: 18,
-          child: Row(
-            children: [
-              Expanded(child: ColoredBox(color: color.gradientColors.first)),
-              Expanded(child: ColoredBox(color: color.gradientColors.last)),
-            ],
+          child: DecoratedBox(
+            key: const ValueKey('bike-color-swatch'),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              gradient: LinearGradient(colors: color.gradientColors),
+            ),
           ),
         ),
         const SizedBox(width: 10),

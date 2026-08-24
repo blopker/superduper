@@ -64,7 +64,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
 
     return Scaffold(
       backgroundColor: _color.pageBaseColor,
-      appBar: AppBar(title: const Text('Bike settings')),
+      appBar: AppBar(title: const Text('BIKE SETTINGS')),
       body: AppPageBody(
         bikeColor: _color,
         child: ListView(

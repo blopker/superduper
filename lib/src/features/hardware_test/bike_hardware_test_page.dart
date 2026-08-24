@@ -55,7 +55,7 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Bike test')),
+        appBar: AppBar(title: const Text('BIKE TEST')),
         body: AppPageBody(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),

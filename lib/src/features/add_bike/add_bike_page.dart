@@ -60,7 +60,7 @@ final class _AddBikePageState extends State<AddBikePage> {
     final previewColor = state is AddBikeConfirming ? _color : null;
     return Scaffold(
       backgroundColor: previewColor?.pageBaseColor,
-      appBar: AppBar(title: const Text('Add bike')),
+      appBar: AppBar(title: const Text('ADD BIKE')),
       body: AppPageBody(
         bikeColor: previewColor,
         child: AnimatedSwitcher(

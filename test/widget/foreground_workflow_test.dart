@@ -51,7 +51,7 @@ void main() {
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ride controls'), findsOneWidget);
+    expect(find.text('RIDE CONTROLS'), findsOneWidget);
     expect(find.text('SET UP YOUR RIDE'), findsOneWidget);
     expect(find.text('Keep on connect'), findsWidgets);
     expect(find.text('Light'), findsOneWidget);
@@ -59,7 +59,7 @@ void main() {
     expect(find.text('Light off'), findsNothing);
     expect(find.widgetWithText(SwitchListTile, 'Light'), findsOneWidget);
 
-    Navigator.of(tester.element(find.text('Ride controls'))).pop();
+    Navigator.of(tester.element(find.text('RIDE CONTROLS'))).pop();
     await tester.pumpAndSettle();
 
     expect(find.byType(Image), findsNothing);
@@ -75,10 +75,11 @@ void main() {
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Bike actions'));
+    expect(find.byTooltip('Disconnect'), findsOneWidget);
+    expect(find.byTooltip('Bike actions'), findsNothing);
+    await tester.tap(find.byTooltip('Bike settings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Bike settings'));
-    await tester.pumpAndSettle();
+    expect(find.text('BIKE SETTINGS'), findsOneWidget);
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pumpAndSettle();
     expect(find.text('BIKE VERSIONS'), findsOneWidget);
@@ -112,6 +113,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => _waitUntil(() => permissions.requests == 1));
     await tester.pump();
+    expect(find.text('ADD BIKE'), findsOneWidget);
     expect(find.text('Bluetooth permission needed'), findsOneWidget);
     expect(find.text('Open settings'), findsOneWidget);
     expect(transport.scanStarts, 0);
@@ -150,7 +152,7 @@ void main() {
 
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
-    expect(find.text('Ride controls'), findsOneWidget);
+    expect(find.text('RIDE CONTROLS'), findsOneWidget);
     expect(find.text('Waiting for bike'), findsWidgets);
   });
 }

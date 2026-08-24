@@ -18,7 +18,7 @@ final class HelpPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final links = AppServicesScope.of(context).externalLinks;
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & tips')),
+      appBar: AppBar(title: const Text('HELP & TIPS')),
       body: AppPageBody(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),

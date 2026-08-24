@@ -70,13 +70,15 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         : const SessionConnecting();
     final configuration = isCurrentSession ? session?.observed.value : null;
     final ready = sessionState is SessionReady && configuration != null;
+    final canConnect =
+        sessionState is SessionDisconnected || sessionState is SessionFailed;
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
     final region = bike.bike.region;
 
     return Scaffold(
       backgroundColor: bike.bike.color.pageBaseColor,
       appBar: AppBar(
-        title: const Text('Ride controls'),
+        title: const Text('RIDE CONTROLS'),
         actions: [
           IconButton(
             tooltip: 'Help & tips',
@@ -86,24 +88,18 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             icon: const Icon(Icons.help_outline_rounded),
           ),
           const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            tooltip: 'Bike actions',
-            onSelected: (value) => unawaited(_handleMenu(value)),
-            itemBuilder: (_) => [
-              if (!isActive)
-                const PopupMenuItem(
-                  value: 'active',
-                  child: Text('Make active'),
-                ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Text('Bike settings'),
-              ),
-              const PopupMenuItem(
-                value: 'disconnect',
-                child: Text('Disconnect'),
-              ),
-            ],
+          IconButton(
+            tooltip: canConnect ? 'Connect' : 'Disconnect',
+            onPressed: () => unawaited(
+              canConnect
+                  ? coordinator.retry()
+                  : coordinator.disconnectManually(),
+            ),
+            icon: Icon(
+              canConnect
+                  ? Icons.bluetooth_rounded
+                  : Icons.bluetooth_disabled_rounded,
+            ),
           ),
           const SizedBox(width: 12),
         ],
@@ -149,20 +145,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            _ConnectionSummary(state: sessionState),
-            const SizedBox(height: 32),
-            const SectionHeader(
-              eyebrow: 'Live setup',
-              title: 'Set up your ride',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              ready
-                  ? 'Changes are sent to the bike and confirmed immediately.'
-                  : 'Controls unlock after the bike connects and confirms its settings.',
-            ),
             const SizedBox(height: 18),
+            _ConnectionSummary(state: sessionState),
+            const SizedBox(height: 14),
             _SettingSection(
               icon: Icons.lightbulb_outline_rounded,
               title: 'Light',
@@ -288,17 +273,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.toString())));
       }
-    }
-  }
-
-  Future<void> _handleMenu(String value) async {
-    switch (value) {
-      case 'active':
-        await _services.activeBikeCoordinator.makeBikeActive(widget.deviceId);
-      case 'settings':
-        await _openSettings();
-      case 'disconnect':
-        await _services.activeBikeCoordinator.disconnectManually();
     }
   }
 
