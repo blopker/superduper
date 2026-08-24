@@ -26,8 +26,8 @@ Features:
 
 - No account or internet connection required
 - Quickly switch between multiple bikes
-- Lock settings, like Mode, to automatically switch when the bike is turned on and the app is running
-- (Android only) Background Lock, which will keep your bike on whatever settings you set it at, even the phone is locked
+- Automatically connect to one active bike when the app opens
+- Keep settings, like Mode, so they are reapplied and confirmed while the app is open
 - Open source
 
 See [the feature-set baseline](docs/FEATURE_SET.md) for the complete behavioral
@@ -36,19 +36,23 @@ in the [V2 plan](V2.md).
 
 ## Getting Started
 
-- Open the app and select the "Select Bike" button. This will find any bikes around you that are on and save the details into the app.
-- Select your bike in the list.
-- Set the settings you want to use. These can be changed at any time.
+1. Power on your bike and choose `Add bike`.
+2. Allow the Bluetooth access needed by your operating system.
+3. Select the bike found nearby, confirm its name and region, and save it.
+4. Set Light, Mode, and Assist from Bike Control. Enable
+   `Keep this setting` for each value Superduper should restore.
 
-Optionally, you can tap the "Edit" button to change the name of the bike.
-
-**Make sure your bluetooth is on**
+The first saved bike becomes active. On later launches, Superduper connects to
+that bike directly, applies its kept settings, confirms them, and reports
+`Ready to ride` without requiring Bike Control to be opened. With multiple
+bikes, use `Make active` to choose the one that auto-connects.
 
 ## Bike Functions
 
-Control your bike's functions by tapping the buttons on the screen. Press the lock icon to lock the setting.
-A locked setting tells the bike to use that setting when it turns on. An unlocked setting will reset to the default
-when the bike turns on.
+Bike Control sends changes immediately and confirms the resulting state before
+showing it as ready. `Keep this setting` stores the currently confirmed value
+and reapplies it whenever that bike connects while Superduper is open. Unkept
+values follow the bike.
 
 ### Light
 
@@ -84,9 +88,11 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 Changes the amount of assist your bike will provide while pedaling.
 0 is no assist, 4 is full assist. This does not affect throttle power.
 
-### Background Lock (Android Only)
+### Background enforcement
 
-**Uses extra battery.** Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
+Background enforcement is not currently shipped. It remains an Android
+experiment and will only return if it can perform real BLE synchronization
+reliably under the documented lifecycle, battery, and Play policy tests.
 
 
 ## FAQ
@@ -101,11 +107,12 @@ You can also try restarting the bike and your phone.
 
 Finally, older bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
 
-### How does Background Lock work and how is it different from the setting lock?
+### How does Keep this setting work?
 
-The setting lock feature tells Superduper to ignore whatever the bike is set to and use the settings you have set in the app. This is useful for when the bike starts up and settings reset, like lights and mode. However, the app only enforces the setting lock when the app is open. If you close the app, the bike will go back to whatever settings it was set to. To use it, long press the setting button you want to lock.
-
-Background Lock is a feature that will keep the bike on the settings you set in the app, even if the app is closed. This is useful for when you want to leave the bike on a certain setting, like lights and mode, but don't want to keep the app open. For now, this feature is only available on Android. It also takes extra battery to keep the app running in the background.
+It saves the value the bike most recently confirmed. While Superduper is open,
+the active-bike session reads the bike, restores any kept value that differs,
+and reads again before reporting `Ready to ride`. Closing or backgrounding the
+app pauses that guarantee; reopening the app resynchronizes the active bike.
 
 ### What's up with the bike names?
 
@@ -113,7 +120,7 @@ The bike names are randomly generated from your bike's unique ID, to make it eas
 
 ### What are the supported devices?
 
-Right now the app requires Android 10+ and iOS 12+.
+The V2 baseline requires Android 10+, iOS 15+, or macOS 12+.
 
 ### What bikes are supported?
 
@@ -128,6 +135,22 @@ Superduper can only add automation around what the official app already does. It
 I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
 
 ## Developers
+
+V2 uses Flutter 3.47.1 stable with Dart 3.13.1. Run `flutter pub get`, then
+`dart run build_runner build` after changing the Drift schema. SQLite schema
+versions are checked into `drift_schemas`; after incrementing `schemaVersion`,
+refresh them with:
+
+```sh
+dart run drift_dev schema dump lib/src/persistence/app_database.dart drift_schemas
+dart run drift_dev schema generate drift_schemas test/generated
+```
+
+The iOS and macOS projects use Swift Package Manager; do not run `pod install`.
+
+Run `flutter analyze` and `flutter test` before building. Debug builds use
+`flutter build apk --debug`, `flutter build ios --simulator --debug`, and
+`flutter build macos --debug`.
 
 ### Releases
 

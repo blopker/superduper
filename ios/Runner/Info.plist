@@ -40,7 +40,7 @@
 					<key>UISceneClassName</key>
 					<string>UIWindowScene</string>
 					<key>UISceneDelegateClassName</key>
-					<string>FlutterSceneDelegate</string>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
 					<key>UISceneStoryboardFile</key>
@@ -58,7 +58,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
@@ -69,11 +68,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Our app uses bluetooth to find, connect and transfer data between bikes</string>
-    <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>Our app only uses this information to connect to your bike</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Superduper uses Bluetooth to find and configure your bike.</string>
 </dict>
 </plist>

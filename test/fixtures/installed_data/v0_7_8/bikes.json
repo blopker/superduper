@@ -1,0 +1,28 @@
+[
+  {
+    "id": "sanitized-bike-01",
+    "mode": 3,
+    "modeLocked": true,
+    "light": true,
+    "lightLocked": true,
+    "assist": 4,
+    "assistLocked": true,
+    "name": "Fixture One",
+    "region": 200,
+    "modeLock": true,
+    "color": 31
+  },
+  {
+    "id": "sanitized-bike-02",
+    "mode": 0,
+    "modeLocked": false,
+    "light": false,
+    "lightLocked": false,
+    "assist": 0,
+    "assistLocked": false,
+    "name": "Fixture Two",
+    "region": 201,
+    "modeLock": false,
+    "color": 0
+  }
+]
