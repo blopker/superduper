@@ -176,6 +176,7 @@ final class AddBikeController {
       connection: transport.openConnection(candidate.deviceId),
       preferredRegion: null,
       preferences: const RidePreferences.defaults(),
+      protocolHint: BikeProtocolVersion.fromAdvertisedName(candidate.name),
       pollInterval: null,
       reconnectDelays: const [],
     );

@@ -393,7 +393,7 @@ final class _ActiveStatus extends StatelessWidget {
         needsSettings: false,
         bike: bike,
       ),
-      SessionDiscovering() || SessionConnected() => (
+      SessionDiscovering() || SessionAuthenticating() || SessionConnected() => (
         icon: Icons.bluetooth_connected_rounded,
         label: 'Checking',
         color: AppColors.yellow,

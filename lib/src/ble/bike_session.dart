@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
@@ -41,6 +42,16 @@ final class BikeSettingsPersistenceFailure extends BikeSessionFailure {
     : super('The bike changed, but its saved setting could not be updated.');
 }
 
+final class BikeAuthenticationFailed extends BikeSessionFailure {
+  const BikeAuthenticationFailed(String detail)
+    : super('Bike authentication failed. $detail');
+}
+
+final class BikeProtocolNotSupported extends BikeSessionFailure {
+  const BikeProtocolNotSupported(String detail)
+    : super('The bike protocol is not supported. $detail');
+}
+
 sealed class BikeSessionState {
   const BikeSessionState();
 }
@@ -59,6 +70,10 @@ final class SessionDiscovering extends BikeSessionState {
 
 final class SessionConnected extends BikeSessionState {
   const SessionConnected();
+}
+
+final class SessionAuthenticating extends BikeSessionState {
+  const SessionAuthenticating();
 }
 
 final class SessionSynchronizing extends BikeSessionState {
@@ -106,9 +121,11 @@ final class BikeSession {
     required this.connection,
     required BikeRegion? preferredRegion,
     required RidePreferences preferences,
+    BikeProtocolVersion? protocolHint,
+    List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     ConfigurationConfirmed? onConfigurationConfirmed,
     Duration commandTimeout = const Duration(seconds: 15),
-    Duration? pollInterval = const Duration(seconds: 5),
+    Duration? pollInterval = const Duration(seconds: 30),
     List<Duration> reconnectDelays = const [
       Duration(seconds: 2),
       Duration(seconds: 5),
@@ -122,6 +139,9 @@ final class BikeSession {
     int correctiveAttempts = 2,
     // ignore: prefer_initializing_formals
   }) : _preferredRegion = preferredRegion,
+       // ignore: prefer_initializing_formals
+       _protocolHint = protocolHint,
+       _authenticationKey = List<int>.unmodifiable(authenticationKey),
        // ignore: prefer_initializing_formals
        _preferences = preferences,
        // ignore: prefer_initializing_formals
@@ -147,6 +167,10 @@ final class BikeSession {
         'Must not contain negative durations.',
       );
     }
+    BikeProtocol.authenticationResponse(
+      challenge: List<int>.filled(20, 0),
+      key: _authenticationKey,
+    );
     _connectionSubscription = connection.states.listen(_onConnectionState);
   }
 
@@ -157,7 +181,11 @@ final class BikeSession {
   final List<Duration> _reconnectDelays;
   final List<Duration> _confirmationRetryDelays;
   final int _correctiveAttempts;
+  final BikeProtocolVersion? _protocolHint;
+  final List<int> _authenticationKey;
   final _SerialCommandQueue _commands = _SerialCommandQueue();
+  final StreamController<BikeConfiguration> _configurationUpdates =
+      StreamController.broadcast();
   final Signal<BikeSessionState> _state = signal(
     const SessionIdle(),
     options: const SignalOptions(name: 'bikeSession.state'),
@@ -172,8 +200,10 @@ final class BikeSession {
   );
 
   late final StreamSubscription<BikeConnectionState> _connectionSubscription;
+  StreamSubscription<List<int>>? _telemetrySubscription;
   BikeRegion? _preferredRegion;
   RidePreferences _preferences;
+  BikeProtocolVersion? _protocolVersion;
   Timer? _pollTimer;
   Timer? _reconnectTimer;
   var _generation = 0;
@@ -189,6 +219,7 @@ final class BikeSession {
   ReadonlySignal<BikeConfiguration?> get observed => _observed.readonly();
   ReadonlySignal<BikeConfiguration?> get pending => _pending.readonly();
   bool get manualReconnectPaused => _manualReconnectPaused;
+  BikeProtocolVersion? get protocolVersion => _protocolVersion;
 
   Future<void> connect() {
     _ensureNotDisposed();
@@ -291,12 +322,14 @@ final class BikeSession {
     await _commands.done;
     _pollTimer?.cancel();
     _reconnectTimer?.cancel();
+    await _disableNotifications(updatePeripheral: true);
     await _connectionSubscription.cancel();
     await connection.dispose();
     _state.value = const SessionDisposed();
     _state.dispose();
     _observed.dispose();
     _pending.dispose();
+    await _configurationUpdates.close();
   }
 
   Future<void> _enqueueConnect() {
@@ -307,6 +340,8 @@ final class BikeSession {
       }
       _expectedDisconnect = false;
       _pollTimer?.cancel();
+      await _disableNotifications(updatePeripheral: false);
+      _protocolVersion = null;
       _state.value = const SessionConnecting();
       try {
         await _timed(connection.connect(), 'Connecting');
@@ -315,6 +350,23 @@ final class BikeSession {
         }
         _state.value = const SessionDiscovering();
         await _timed(connection.discoverRequiredGatt(), 'Service discovery');
+        if (!_isCurrent(generation)) {
+          return;
+        }
+        var protocol = await _identifyProtocolBeforeAuthentication();
+        _state.value = const SessionAuthenticating();
+        await _authenticate();
+        if (!_isCurrent(generation)) {
+          return;
+        }
+        protocol ??= await _identifyProtocolFromHistory();
+        if (protocol == null) {
+          throw const BikeProtocolNotSupported(
+            'No documented identity or history record was found.',
+          );
+        }
+        _protocolVersion = protocol;
+        await _enableNotifications();
         if (!_isCurrent(generation)) {
           return;
         }
@@ -327,7 +379,9 @@ final class BikeSession {
         }
         final failure = _asFailure(error);
         if (failure is BikeSettingsNotApplied ||
-            failure is _ProtocolSessionFailure) {
+            failure is _ProtocolSessionFailure ||
+            failure is BikeAuthenticationFailed ||
+            failure is BikeProtocolNotSupported) {
           _state.value = SessionFailed(failure: failure, canRetry: true);
         } else {
           _scheduleReconnect(failure);
@@ -336,10 +390,193 @@ final class BikeSession {
     });
   }
 
+  Future<BikeProtocolVersion?> _identifyProtocolBeforeAuthentication() async {
+    final hint = _protocolHint;
+    if (!connection.hasCharacteristic(
+      serviceUuid: BikeGatt.deviceInformationService,
+      characteristicUuid: BikeGatt.firmwareRevision,
+    )) {
+      return hint;
+    }
+
+    final value = await _timed(
+      connection.readCharacteristic(
+        serviceUuid: BikeGatt.deviceInformationService,
+        characteristicUuid: BikeGatt.firmwareRevision,
+      ),
+      'Reading firmware revision',
+    );
+    late final String revision;
+    try {
+      revision = utf8.decode(value).replaceAll('\u0000', '').trim();
+    } on FormatException {
+      throw const BikeProtocolNotSupported(
+        'The firmware revision was not valid text.',
+      );
+    }
+    final discovered = BikeProtocolVersion.fromFirmwareRevision(revision);
+    if (discovered == null) {
+      throw BikeProtocolNotSupported(
+        'Firmware revision "$revision" is unknown.',
+      );
+    }
+    if (hint != null && hint != discovered) {
+      throw BikeProtocolNotSupported(
+        'The advertised name and firmware revision disagree.',
+      );
+    }
+    return discovered;
+  }
+
+  Future<void> _authenticate() async {
+    try {
+      final challenge = await _timed(
+        connection.readCharacteristic(
+          serviceUuid: BikeGatt.authenticationService,
+          characteristicUuid: BikeGatt.authenticationChallenge,
+        ),
+        'Reading authentication challenge',
+      );
+      final response = BikeProtocol.authenticationResponse(
+        challenge: challenge,
+        key: _authenticationKey,
+      );
+      await _timed(
+        connection.writeCharacteristic(
+          serviceUuid: BikeGatt.authenticationService,
+          characteristicUuid: BikeGatt.authenticationResponse,
+          value: response,
+        ),
+        'Writing authentication response',
+      );
+      final state = await _timed(
+        connection.readCharacteristic(
+          serviceUuid: BikeGatt.authenticationService,
+          characteristicUuid: BikeGatt.authenticationState,
+        ),
+        'Verifying authentication',
+      );
+      if (state.length != 1 || state.single != 1) {
+        throw const BikeAuthenticationFailed(
+          'The bike rejected the challenge response.',
+        );
+      }
+    } on BikeAuthenticationFailed {
+      rethrow;
+    } on Object catch (error) {
+      throw BikeAuthenticationFailed(error.toString());
+    }
+  }
+
+  Future<BikeProtocolVersion?> _identifyProtocolFromHistory() async {
+    final v2 = await _tryReadHistoryRecord(BikeGatt.v2ModeSelector);
+    if (v2 != null) {
+      return BikeProtocolVersion.v2;
+    }
+    final v1 = await _tryReadHistoryRecord(BikeGatt.v1StateSelector);
+    if (v1 != null) {
+      return BikeProtocolVersion.v1;
+    }
+    return null;
+  }
+
+  Future<void> _enableNotifications() async {
+    await _telemetrySubscription?.cancel();
+    _telemetrySubscription = connection
+        .characteristicNotifications(
+          serviceUuid: BikeGatt.metricsService,
+          characteristicUuid: BikeGatt.telemetry,
+        )
+        .listen(_onTelemetry, onError: _onTelemetryError);
+    try {
+      await _timed(
+        connection.setCharacteristicNotifications(
+          serviceUuid: BikeGatt.metricsService,
+          characteristicUuid: BikeGatt.telemetry,
+          enabled: true,
+        ),
+        'Enabling bike updates',
+      );
+    } on Object {
+      await _telemetrySubscription?.cancel();
+      _telemetrySubscription = null;
+      rethrow;
+    }
+  }
+
+  Future<void> _disableNotifications({required bool updatePeripheral}) async {
+    final subscription = _telemetrySubscription;
+    _telemetrySubscription = null;
+    if (subscription == null) {
+      return;
+    }
+    if (updatePeripheral) {
+      try {
+        await _timed(
+          connection.setCharacteristicNotifications(
+            serviceUuid: BikeGatt.metricsService,
+            characteristicUuid: BikeGatt.telemetry,
+            enabled: false,
+          ),
+          'Disabling bike updates',
+        );
+      } on Object {
+        // A disconnected peripheral no longer has an active notification
+        // subscription to disable.
+      }
+    }
+    await subscription.cancel();
+  }
+
+  void _onTelemetry(List<int> packet) {
+    final protocol = _protocolVersion;
+    if (_disposed || protocol == null) {
+      return;
+    }
+    try {
+      var updated = BikeProtocol.applyTelemetry(
+        version: protocol,
+        packet: packet,
+        current: _observed.peek(),
+      );
+      if (updated == null) {
+        return;
+      }
+      if (_preferredRegion case final region?) {
+        updated = updated.copyWith(region: region);
+      }
+      _publishObserved(updated);
+      if (_state.peek() is SessionReady &&
+          !_lockedValuesMatch(updated, _effectiveConfiguration(updated)) &&
+          !_commands.isBusy) {
+        unawaited(synchronize().catchError((Object _) {}));
+      }
+    } on BikeProtocolFailure catch (failure) {
+      _pollTimer?.cancel();
+      _state.value = SessionFailed(
+        failure: _ProtocolSessionFailure(failure),
+        canRetry: true,
+      );
+    }
+  }
+
+  void _onTelemetryError(Object error, StackTrace stackTrace) {
+    if (!_disposed) {
+      _scheduleReconnect(BikeSessionTransportFailure(error));
+    }
+  }
+
+  void _publishObserved(BikeConfiguration configuration) {
+    _observed.value = configuration;
+    if (!_configurationUpdates.isClosed) {
+      _configurationUpdates.add(configuration);
+    }
+  }
+
   Future<void> _synchronizeNow() async {
     _pollTimer?.cancel();
     var confirmed = await _readConfiguration();
-    _observed.value = confirmed;
+    _publishObserved(confirmed);
 
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
       final target = _effectiveConfiguration(confirmed);
@@ -353,7 +590,7 @@ final class BikeSession {
       confirmed = await _readConfigurationUntil(
         (candidate) => _lockedValuesMatch(candidate, target),
       );
-      _observed.value = confirmed;
+      _publishObserved(confirmed);
       if (_lockedValuesMatch(confirmed, target)) {
         _pending.value = null;
         _markReady(confirmed);
@@ -392,7 +629,7 @@ final class BikeSession {
         confirmed = await _readConfigurationUntil(
           (candidate) => candidate == target,
         );
-        _observed.value = confirmed;
+        _publishObserved(confirmed);
         if (confirmed != target) {
           throw const BikeSettingsNotApplied();
         }
@@ -427,23 +664,65 @@ final class BikeSession {
   Future<BikeConfiguration> _readConfigurationUntil(
     bool Function(BikeConfiguration configuration) matches,
   ) async {
-    var confirmed = await _readConfiguration();
-    for (final delay in _confirmationRetryDelays) {
-      if (matches(confirmed)) {
-        return confirmed;
-      }
-      await Future<void>.delayed(delay);
-      confirmed = await _readConfiguration();
+    var confirmed = _observed.peek();
+    if (confirmed != null && matches(confirmed)) {
+      return confirmed;
     }
-    return confirmed;
+
+    if (_confirmationRetryDelays.isEmpty) {
+      confirmed = await _readConfiguration();
+      _publishObserved(confirmed);
+      return confirmed;
+    }
+
+    for (final delay in _confirmationRetryDelays) {
+      try {
+        confirmed = await _configurationUpdates.stream
+            .firstWhere(matches)
+            .timeout(delay);
+        return confirmed;
+      } on TimeoutException {
+        confirmed = await _readConfiguration();
+        _publishObserved(confirmed);
+        if (matches(confirmed)) {
+          return confirmed;
+        }
+      }
+    }
+    return confirmed ?? await _readConfiguration();
   }
 
   Future<BikeConfiguration> _readConfiguration() async {
+    final version = _protocolVersion;
+    if (version == null) {
+      throw const BikeProtocolNotSupported(
+        'The protocol version was not identified.',
+      );
+    }
+    switch (version) {
+      case BikeProtocolVersion.v1:
+        final decoded = BikeProtocol.decodeV1State(
+          await _readHistoryRecord(BikeGatt.v1StateSelector),
+        );
+        final preferredRegion = _preferredRegion;
+        return preferredRegion == null
+            ? decoded
+            : decoded.copyWith(region: preferredRegion);
+      case BikeProtocolVersion.v2:
+        return BikeProtocol.decodeV2State(
+          d0: await _readHistoryRecord(BikeGatt.v2ControlSelector),
+          d9: await _readHistoryRecord(BikeGatt.v2ModeSelector),
+          region: _preferredRegion ?? _observed.peek()?.region ?? BikeRegion.us,
+        );
+    }
+  }
+
+  Future<List<int>?> _tryReadHistoryRecord(List<int> selector) async {
     await _timed(
       connection.writeCharacteristic(
         serviceUuid: BikeGatt.metricsService,
         characteristicUuid: BikeGatt.registerSelector,
-        value: BikeGatt.selectCurrentState,
+        value: selector,
       ),
       'Selecting state register',
     );
@@ -454,18 +733,35 @@ final class BikeSession {
       ),
       'Reading bike state',
     );
-    final decoded = BikeProtocol.decodeState(frame);
-    return _preferredRegion == null
-        ? decoded
-        : decoded.copyWith(region: _preferredRegion);
+    return BikeProtocol.hasPacketId(frame, selector) ? frame : null;
+  }
+
+  Future<List<int>> _readHistoryRecord(List<int> selector) async {
+    final frame = await _tryReadHistoryRecord(selector);
+    if (frame != null) {
+      return frame;
+    }
+    throw UnexpectedBikePacket(
+      expected: _packetId(selector),
+      actual: 'a different or malformed record',
+    );
   }
 
   Future<void> _writeConfiguration(BikeConfiguration configuration) {
+    final version = _protocolVersion;
+    if (version == null) {
+      throw const BikeProtocolNotSupported(
+        'The protocol version was not identified.',
+      );
+    }
     return _timed(
       connection.writeCharacteristic(
         serviceUuid: BikeGatt.metricsService,
         characteristicUuid: BikeGatt.stateRegister,
-        value: BikeProtocol.encodeConfiguration(configuration),
+        value: BikeProtocol.encodeConfiguration(
+          configuration,
+          version: version,
+        ),
       ),
       'Writing bike settings',
     );
@@ -524,6 +820,7 @@ final class BikeSession {
 
   Future<void> _disconnectNow({required bool manuallyPaused}) async {
     _hasObservedConnection = false;
+    await _disableNotifications(updatePeripheral: true);
     try {
       await _timed(connection.disconnect(), 'Disconnecting');
     } on Object {
@@ -551,8 +848,12 @@ final class BikeSession {
         _state.peek() is SessionIdle) {
       return;
     }
+    if (_state.peek() is SessionAuthenticating) {
+      return;
+    }
     _generation++;
     _pollTimer?.cancel();
+    unawaited(_disableNotifications(updatePeripheral: false));
     _scheduleReconnect(
       const BikeSessionTransportFailure('The bike disconnected.'),
     );
@@ -604,6 +905,13 @@ final class BikeSession {
     if (_disposed) {
       throw const BikeSessionDisposedFailure();
     }
+  }
+
+  static String _packetId(List<int> bytes) {
+    return bytes
+        .take(2)
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
   }
 }
 

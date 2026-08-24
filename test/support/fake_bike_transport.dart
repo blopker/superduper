@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 
@@ -118,6 +119,16 @@ final class CharacteristicWrite {
   final List<int> value;
 }
 
+final class CharacteristicRead {
+  const CharacteristicRead({
+    required this.serviceUuid,
+    required this.characteristicUuid,
+  });
+
+  final String serviceUuid;
+  final String characteristicUuid;
+}
+
 final class FakeBikeConnection implements BikeConnection {
   FakeBikeConnection({required this.deviceId});
 
@@ -125,8 +136,17 @@ final class FakeBikeConnection implements BikeConnection {
   final String deviceId;
   final StreamController<BikeConnectionState> _states =
       StreamController.broadcast();
+  final StreamController<List<int>> _notifications =
+      StreamController.broadcast();
   final List<List<int>> readFrames = [];
   final List<CharacteristicWrite> writes = [];
+  final List<CharacteristicRead> reads = [];
+  final Set<String> missingCharacteristics = {};
+  List<int> authenticationChallenge = List<int>.generate(20, (index) => index);
+  List<int> authenticationKey = List<int>.from(
+    BikeProtocol.defaultAuthenticationKey,
+  );
+  String? firmwareRevision = '221122';
   Object? connectError;
   Object? discoveryError;
   Object? readError;
@@ -140,6 +160,10 @@ final class FakeBikeConnection implements BikeConnection {
   var isDisposed = false;
   var concurrentOperations = 0;
   var maxConcurrentOperations = 0;
+  var notificationChanges = 0;
+  var notificationsEnabled = false;
+  var authenticated = false;
+  List<int>? selectedHistoryId;
 
   @override
   Stream<BikeConnectionState> get states => _states.stream;
@@ -150,6 +174,8 @@ final class FakeBikeConnection implements BikeConnection {
   Future<void> connect() async {
     connectCalls++;
     await _operate(() async {
+      authenticated = false;
+      notificationsEnabled = false;
       if (emitInitialDisconnectedState) {
         _states.add(BikeConnectionState.disconnected);
       }
@@ -171,18 +197,71 @@ final class FakeBikeConnection implements BikeConnection {
   }
 
   @override
+  bool hasCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    if (missingCharacteristics.contains(characteristicUuid)) {
+      return false;
+    }
+    if (characteristicUuid == BikeGatt.firmwareRevision) {
+      return firmwareRevision != null;
+    }
+    return true;
+  }
+
+  @override
   Future<List<int>> readCharacteristic({
     required String serviceUuid,
     required String characteristicUuid,
   }) {
     return _operate(() async {
+      reads.add(
+        CharacteristicRead(
+          serviceUuid: serviceUuid,
+          characteristicUuid: characteristicUuid,
+        ),
+      );
       if (readError case final error?) {
         throw error;
+      }
+      if (!hasCharacteristic(
+        serviceUuid: serviceUuid,
+        characteristicUuid: characteristicUuid,
+      )) {
+        throw const BikeGattNotSupported('Fake characteristic is missing.');
+      }
+      switch (characteristicUuid) {
+        case BikeGatt.firmwareRevision:
+          return List<int>.unmodifiable(firmwareRevision!.codeUnits);
+        case BikeGatt.authenticationChallenge:
+          return List<int>.unmodifiable(authenticationChallenge);
+        case BikeGatt.authenticationState:
+          return [authenticated ? 1 : 0];
+      }
+      if (!authenticated) {
+        throw StateError('The fake bike is not authenticated.');
       }
       if (readFrames.isEmpty) {
         throw StateError('No fake read frame is queued.');
       }
-      return List.unmodifiable(readFrames.removeAt(0));
+      final frame = readFrames.removeAt(0);
+      if (frame.length == 6 &&
+          _sameBytes(selectedHistoryId, BikeGatt.v1StateSelector)) {
+        return List<int>.unmodifiable([
+          3,
+          0,
+          frame[2],
+          frame[3],
+          frame[4],
+          frame[5],
+          0,
+          0,
+          0,
+          0,
+        ]);
+      }
+      return List<int>.unmodifiable(frame);
     });
   }
 
@@ -203,12 +282,57 @@ final class FakeBikeConnection implements BikeConnection {
           value: List.unmodifiable(value),
         ),
       );
+      if (characteristicUuid == BikeGatt.authenticationResponse) {
+        final expected = BikeProtocol.authenticationResponse(
+          challenge: authenticationChallenge,
+          key: authenticationKey,
+        );
+        authenticated = _sameBytes(value, expected);
+        return;
+      }
+      if (!authenticated) {
+        throw StateError('The fake bike is not authenticated.');
+      }
+      if (characteristicUuid == BikeGatt.registerSelector) {
+        selectedHistoryId = List<int>.from(value);
+      }
     });
+  }
+
+  @override
+  Stream<List<int>> characteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    return _notifications.stream;
+  }
+
+  @override
+  Future<void> setCharacteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+    required bool enabled,
+  }) async {
+    await _operate(() async {
+      if (!authenticated) {
+        throw StateError('The fake bike is not authenticated.');
+      }
+      notificationsEnabled = enabled;
+      notificationChanges++;
+    });
+  }
+
+  void emitNotification(List<int> value) {
+    if (notificationsEnabled) {
+      _notifications.add(List<int>.unmodifiable(value));
+    }
   }
 
   @override
   Future<void> disconnect() async {
     disconnectCalls++;
+    authenticated = false;
+    notificationsEnabled = false;
     _states.add(BikeConnectionState.disconnected);
   }
 
@@ -218,6 +342,9 @@ final class FakeBikeConnection implements BikeConnection {
     isDisposed = true;
     if (!_states.isClosed) {
       await _states.close();
+    }
+    if (!_notifications.isClosed) {
+      await _notifications.close();
     }
   }
 
@@ -234,5 +361,17 @@ final class FakeBikeConnection implements BikeConnection {
     } finally {
       concurrentOperations--;
     }
+  }
+
+  bool _sameBytes(List<int>? left, List<int> right) {
+    if (left == null || left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 }

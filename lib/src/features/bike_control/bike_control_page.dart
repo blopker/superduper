@@ -388,7 +388,7 @@ final class _ConnectionSummary extends StatelessWidget {
         title: 'Finding your bike…',
         detail: 'Keep the bike powered on and nearby.',
       ),
-      SessionDiscovering() || SessionConnected() => (
+      SessionDiscovering() || SessionAuthenticating() || SessionConnected() => (
         icon: Icons.bluetooth_connected_rounded,
         label: 'Checking',
         color: AppColors.yellow,

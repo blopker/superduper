@@ -1,4 +1,4 @@
-# BLE protocol
+# SUPER73 display BLE protocol
 
 This document describes the BLE behavior recovered from the `221122` and
 `250426` display application firmwares. It calls the `221122` interface
@@ -85,7 +85,18 @@ v2 returns authentication state to zero on disconnect. Protocol v1 contains a
 bug that instead sets it to one in its disconnect handler. Clients must not rely
 on that bug: perform the challenge and verify the state on every connection.
 
-The key is 20 bytes. On a device with no key record in FDS, the firmware creates a record containing 20 bytes of `0xff`. An authenticated client can replace the key through the key-update characteristic; the new key is written to FDS and the old record is deleted.
+The key is 20 bytes. On a device with no key record in FDS, the firmware creates
+a record containing 20 bytes of `0xff`. If multiple key records exist, startup
+loads the first and attempts to delete the extras.
+
+An authenticated client can replace the key by writing exactly 20 bytes to
+`0x2555`. The write handler ignores unauthenticated writes and lengths other than
+20. A valid write immediately replaces the RAM key and schedules an FDS operation
+in the main loop: a new file-ID `1`, record-key `0x51` record is written, then the
+old descriptor is deleted. Storage-full status triggers one garbage collection
+and retry. There is no application-level acknowledgement of persistence, and the
+connection remains authenticated with its existing state. The client should
+retain the old key until a reconnect proves that the new key was stored.
 
 Equivalent response calculation:
 
@@ -137,7 +148,24 @@ The key-update write is ignored unless the current connection has already passed
 
 ### Auxiliary service
 
-The firmware also creates a 16-bit service `0x1580` with characteristic `0x1581`. The characteristic is used for a periodic counter-like notification. Its higher-level purpose and complete three-byte payload format are not established, so they are intentionally not assigned names here.
+Both protocols create 16-bit service `0x1580` with notify-only characteristic
+`0x1581`. Its CCCD is open, so it can be subscribed without application
+authentication. The value itself has no read or write access.
+
+Once per second, the application sends a three-byte notification and increments
+an internal counter even if the notification fails or no connection exists:
+
+```text
+offset  size  encoding       meaning
+0       2     little-endian  low 16 bits of incrementing counter
+2       1                   undefined stack byte; do not interpret
+```
+
+The characteristic is initialized with two zero bytes and permits a maximum
+attribute length of 20, but notifications request length 3 while only the first
+two bytes are initialized. No code consumes writes to this service. Its
+product-level purpose is not established. The implementation is identical in v1
+and v2.
 
 ### Nordic buttonless DFU service
 
@@ -148,7 +176,24 @@ The application initializes Nordic's buttonless DFU service independently of the
 | Service | `0xFE59` | — |
 | Control point | `8EC90003-F315-4F60-9FB8-838830DAEA50` | Write, Indicate |
 
-After the enter-bootloader response indication is confirmed, the service calls the application prepare event, clears retained `GPREGRET` register 0, sets it to the bootloader-enter magic `0xB1`, requests SoftDevice shutdown, and system-resets. The application prepare callback selects firmware-update UI state `0x10` before shutdown. `GPREGRET2` is separate and retains the target class selected by `F0CC`.
+This SDK service is present with the same wire behavior in v1 and v2 and does
+not consult COMODULE application-authenticated state. The control point and CCCD
+use open permissions. A client must enable indications before requesting entry.
+
+The observed control opcodes are:
+
+- `0x01`: request entry into the bootloader;
+- `0x02`: supply a 1- through 20-byte alternate DFU advertising name to the SDK
+  callback;
+- other opcodes: produce the SDK error response path.
+
+The service responds with a three-byte indication beginning with response opcode
+`0x20`. Bootloader entry is deferred until the indication is confirmed. The SDK
+then calls the application prepare event, selects the firmware-update UI, clears
+retained `GPREGRET`, writes bootloader-enter value `0xb1`, requests SoftDevice
+shutdown, and resets. `GPREGRET2` is separate and retains the target class
+selected by `F0CC`. The only application-level v1/v2 difference is the UI state
+machinery used before reset.
 
 ### Standard Device Information Service
 
@@ -191,6 +236,24 @@ offset  size  meaning
 The RX handler rejects normal commands unless the write length is exactly 10 bytes and application authentication has succeeded. The one observed exception is packet `F0CC`, which bypasses both checks in the handler. The characteristic has a 10-byte maximum and requires an encrypted BLE link, but the `F0CC` branch itself does not verify the actual write length before reading its fields.
 
 Unless a packet section says otherwise, unused bytes should be zero.
+
+### Protocol feature summary
+
+| Interface | Protocol v1 (`221122`) | Protocol v2 (`250426`) |
+| --- | --- | --- |
+| Advertised name | `SUPER73` | `S73 FTEX` |
+| Bike-control write | `00D1` | `00C1` |
+| Control-state telemetry | `0300` operating state | `00D0` assist/lights and `00D9` ride state |
+| Device Information | `v3.2.0`, `221122` | `v3.3.0`, `250426` |
+| Clock/timezone `F000` | Same layout | Same layout |
+| Navigation `F0AA` | Same fields; firmware-specific UI gating | Same fields; firmware-specific UI gating |
+| History selector | Same `0x1564` → `0x155f` mechanism | Same `0x1564` → `0x155f` mechanism |
+| Version records | `FCFC`, `FAFA`, `FAFB` | Same layouts; also versions in `00D9` |
+| Bulk transfer | `F0CD`/`F0DC`, same state machine | `F0CD`/`F0DC`, same state machine |
+| Update preflight | `F0CC`, same layout/classes | `F0CC`, same layout/classes |
+| Buttonless DFU | Same standard service/control flow | Same; different application UI state |
+| Authentication/key update | Same wire protocol; disconnect-state bug | Same wire protocol; state cleared on disconnect |
+| Auxiliary counter | Same one-second notify-only service | Same one-second notify-only service |
 
 ## RX commands
 
@@ -254,6 +317,9 @@ packet = bytes.fromhex("00 c1 01 03 02 00 00 00 00 00")
 
 ### `F000`: clock and timezone
 
+This command has the same layout and processing in protocol v1 and v2. It
+requires application authentication and an exact 10-byte write.
+
 ```text
 offset  size  encoding       meaning
 0       2     big-endian     F0 00
@@ -262,7 +328,12 @@ offset  size  encoding       meaning
 8       2                  unused by this handler
 ```
 
-The timestamp is applied with BLE as its source. The firmware rejects timestamps at or below `0x5a497a00`.
+The timestamp is applied with BLE as its source. The firmware rejects timestamps
+at or below `0x5a497a00`. Accepted BLE time is retained as the current Unix time
+and as the most recent BLE-sourced time. The timezone field is interpreted as a
+signed minute count, multiplied by 60, and stored as seconds without range
+validation. There is no dedicated response packet; the submitted `F000` record
+is added to packet history.
 
 Packet construction:
 
@@ -274,6 +345,10 @@ assert len(packet) == 10
 ```
 
 ### `F0AA`: navigation update
+
+This command has the same packet layout in protocol v1 and v2. Both versions
+store the same angle, distance, state, and maneuver fields; their internal UI
+state numbers and the set of screens from which navigation may be entered differ.
 
 ```text
 offset  size  encoding       meaning
@@ -293,6 +368,11 @@ Confirmed behavior for byte 8:
 
 The precise product-level names for the byte-8 states are not established. Byte 9 is retained as an unsigned byte and is displayed numerically for values 1 through 9 in one navigation rendering path.
 
+Every authenticated, correctly sized `F0AA` packet is inserted into history even
+when its state value does not change the UI. Reading it back therefore confirms
+the last received command, not necessarily the currently visible navigation
+screen. No command-response packet is generated.
+
 Packet construction:
 
 ```python
@@ -304,7 +384,11 @@ assert len(packet) == 10
 
 ### `F0CC`: firmware-update preflight
 
-This packet is handled before the application-authentication and length checks. It is written to encrypted RX characteristic `0x155F`; it is not a firmware-data packet.
+This packet has the same layout and request classes in v1 and v2. It is handled
+before the application-authentication and exact-length checks. It is written to
+encrypted RX characteristic `0x155F`; it is not a firmware-data packet. Because
+the handler reads through packet offset 7 without validating length itself,
+clients must still write all 10 bytes.
 
 ```text
 offset  size  encoding       meaning
@@ -332,7 +416,14 @@ For class `0x80`, the application performs these directly observed steps:
 
 The `F0CC` handler itself neither carries image bytes nor resets the device; buttonless DFU is the distinct control path that performs the reset.
 
+No material v1/v2 wire difference was found. The request is stored in each
+firmware's own retained state and external-flash bookkeeping, but the selector,
+CRC32, file-selector, and `GPREGRET2` class encodings are the same.
+
 ### `F0DC`: bulk-transfer control and acknowledgement
+
+This transfer protocol is structurally identical in v1 and v2 and requires
+application authentication.
 
 Incoming format:
 
@@ -349,6 +440,10 @@ offset  size  meaning
 - Byte 3 is copied into the acknowledgement flag used by transfer completion.
 
 This command shares its packet ID with an outgoing status/completion packet.
+Starting a request snapshots the external-log read position, obtains a transfer
+buffer of at most `0x400` bytes, and marks the transfer active. A zero request
+flag cancels the active transfer. Ordinary telemetry publication interleaves and
+schedules transfer steps rather than changing the `F0CD`/`F0DC` formats.
 
 ## TX packets
 
@@ -363,7 +458,7 @@ Protocol v2 exports IDs `D0`, `D1`, `D2`, and `D9`:
 ```text
 offset  size  encoding       confirmed meaning
 0       2     big-endian     00 D0
-2       1                  displayed PAS/assist value
+2       1                  selected assist level, 0 through 4
 3       1                  unknown
 4       1                  light state
 5       1                  state of charge, percent
@@ -406,9 +501,17 @@ offset  size  encoding       confirmed meaning
 
 The `MCU` value shown on the LCD `bike info` screen comes from the same CANopen `0x2008:00` source as bytes 6–7. Consequently, `00D9` provides the useful part of that otherwise version-dependent screen over BLE.
 
-The `00D0` assist field is the display/controller value associated with the
-selected level, not necessarily the raw assist index 0 through 4. The raw level
-is written to motor-controller object `0x2003:0`.
+The assist value in a control command is a level index from 0 through 4. The
+firmware retrieves it through a five-entry display table, but the stored values
+are also `0`, `1`, `2`, `3`, and `4`; the corresponding LCD labels are `0`, `+1`,
+`+2`, `+3`, and `+4`. The display writes the selected value to motor-controller
+object `0x2003:0` and publishes it in `00D0` byte 2.
+
+The BLE value is updated as soon as the display accepts the command, before the
+motor controller acknowledges the CANopen write. Periodic reads of `0x2003:0`
+can subsequently update it if the controller reports a different level. Thus it
+reports the display's current selected level, but an immediate notification is
+not by itself confirmation that the motor controller has applied the request.
 
 ### `F0CD`: bulk data chunk
 
@@ -418,7 +521,13 @@ offset  size  meaning
 2       8     data bytes
 ```
 
-The transfer buffer is sent in chunks of at most eight bytes. The last chunk is zero-padded because the packet buffer is cleared before it is filled. These notifications use a send path that does not suppress identical consecutive packets.
+The transfer buffer is sent in chunks of at most eight bytes, in forward buffer
+order. The remaining byte count is decremented as bytes are copied. The last
+chunk is zero-padded because the packet buffer is cleared before it is filled.
+These notifications use an unfiltered send path so identical consecutive chunks
+are not suppressed. Successful transmission marks a chunk pending; later
+application scheduling advances the transfer. The format and behavior are the
+same in v1 and v2.
 
 ### `F0DC`: bulk-transfer status/completion
 
@@ -434,6 +543,13 @@ offset  size  encoding       meaning
 ```
 
 At completion, the firmware waits for a nonzero acknowledgement flag supplied in byte 3 of an incoming `F0DC` packet. If acknowledgement times out, it restores the external-flash read position.
+
+The completion notification is also sent through the unfiltered path. Before
+sending it, the firmware clears the acknowledgement flag. It then polls up to
+`0x2710` iterations, with an inner busy-wait of `0x3e8` iterations each. A send
+failure or timeout restores the snapshotted log position; a nonzero client
+acknowledgement commits completion and sets an internal success flag. Transfer
+state is made inactive in all completion cases.
 
 The higher-level meaning of every status value is not fully established, so no symbolic status enumeration is assigned here.
 
@@ -461,7 +577,8 @@ The history-selector write must be exactly two bytes. It does not itself request
 
 ### Version and identity history records
 
-The layouts in this subsection are confirmed for protocol v2.
+Both protocols construct `FCFC`, `FAFA`, and `FAFB` with the same byte layouts.
+The contained version and controller-variant values naturally differ.
 
 `controller_history_snapshot_push` also creates three non-telemetry records. They
 are inserted into the same history and can be retrieved by writing their two-byte
@@ -473,19 +590,26 @@ ID to `0x1564`, then reading the 10-byte value from `0x155f`.
 offset  size  encoding       confirmed meaning
 0       2     big-endian     FC FC
 2       3     big-endian     low 24 bits of STM firmware version
-5       2     little-endian  controller variant code (normally 406 or 407)
+5       2     little-endian  controller/display variant code
 7       1                  bootloader handoff value: GPREGRET2 & 0x1f, normally 8
 8       1                  unknown
 9       1                  constant 1
 ```
 
-This record exposes the dynamic values behind most of the LCD `versions` screen:
+The controller/display variant is normally in the 230–233 range in protocol v1
+and 406–407 in protocol v2. The record exposes dynamic values behind most of the
+LCD `versions` screen:
 
-- the LCD top row is hard-coded `330-<controller variant>`;
-- the middle row is `<bootloader handoff>-250426-0` in this binary;
+- the LCD top row contains a firmware-specific product prefix and the controller
+  variant;
+- the middle row contains the bootloader handoff, the display build (`221122` or
+  `250426`), and another fixed component;
 - the bottom row is the STM firmware version from a checksum-valid `$STM,FW,...` UART report.
 
-The record is refreshed when the STM firmware report or related controller state changes. Before the STM report arrives, its version field can still be zero.
+The record is refreshed when the STM firmware report or related controller state
+changes. Before the STM report arrives, its version field can still be zero.
+`FCFC` does not itself carry the six-digit nRF build string; obtain that from
+Device Information.
 
 #### `FAFA`: motor-controller and BMS versions
 
@@ -496,7 +620,10 @@ offset  size  encoding       confirmed meaning
 6       4     big-endian     full BMS version/value
 ```
 
-Unlike `00D9`, which exports 16-bit fields, `FAFA` retains both values as full 32-bit integers. Record `FAFB` is also inserted with an all-zero payload; its higher-level purpose is not established.
+`FAFA` retains both values as full 32-bit integers. Protocol v2 additionally
+exports truncated 16-bit forms in `00D9`; protocol v1 does not have that record.
+Record `FAFB` is inserted with an all-zero payload in both versions; its
+higher-level purpose is not established.
 
 Equivalent decoding:
 
@@ -577,7 +704,9 @@ without pairing or application authentication. History selection requires both.
 
 ## Firmware analysis anchors
 
-The following application functions are the primary evidence for this document:
+The following protocol v2 application functions are primary evidence for this
+document. Protocol v1 contains the corresponding implementations at nearby but
+different addresses.
 
 | Address | Function |
 | ---: | --- |

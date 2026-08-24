@@ -54,6 +54,10 @@ abstract interface class BikeConnection {
 
   Future<void> connect();
   Future<void> discoverRequiredGatt();
+  bool hasCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+  });
   Future<List<int>> readCharacteristic({
     required String serviceUuid,
     required String characteristicUuid,
@@ -62,6 +66,15 @@ abstract interface class BikeConnection {
     required String serviceUuid,
     required String characteristicUuid,
     required List<int> value,
+  });
+  Stream<List<int>> characteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+  });
+  Future<void> setCharacteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+    required bool enabled,
   });
   Future<void> disconnect();
   Future<void> dispose();

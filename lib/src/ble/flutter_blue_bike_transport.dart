@@ -175,39 +175,72 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
       final services = await _device.discoverServices(
         timeout: _operationTimeoutSeconds,
       );
-      final metricsUuid = fbp.Guid.fromString(BikeGatt.metricsService);
-      final metrics = services.where((service) => service.uuid == metricsUuid);
-      if (metrics.isEmpty) {
-        throw const BikeGattNotSupported(
-          'The required metrics service was not found.',
-        );
-      }
-
-      final required = {
-        BikeGatt.registerSelector: fbp.Guid.fromString(
-          BikeGatt.registerSelector,
-        ),
-        BikeGatt.stateRegister: fbp.Guid.fromString(BikeGatt.stateRegister),
-      };
       _characteristics.clear();
-      for (final characteristic in metrics.single.characteristics) {
-        for (final entry in required.entries) {
-          if (characteristic.uuid == entry.value) {
-            _characteristics[entry.key] = characteristic;
+      final supportedServices = {
+        BikeGatt.metricsService,
+        BikeGatt.authenticationService,
+        BikeGatt.deviceInformationService,
+      };
+      for (final service in services) {
+        final serviceUuid = service.uuid.str128.toLowerCase();
+        if (!supportedServices.contains(serviceUuid)) {
+          continue;
+        }
+        for (final characteristic in service.characteristics) {
+          final characteristicUuid = characteristic.uuid.str128.toLowerCase();
+          if (_knownCharacteristics.contains(characteristicUuid)) {
+            _characteristics[_characteristicKey(
+                  serviceUuid,
+                  characteristicUuid,
+                )] =
+                characteristic;
           }
         }
       }
 
-      final selector = _characteristics[BikeGatt.registerSelector];
-      final state = _characteristics[BikeGatt.stateRegister];
-      if (selector == null || state == null) {
+      final selector = _findCharacteristic(
+        BikeGatt.metricsService,
+        BikeGatt.registerSelector,
+      );
+      final state = _findCharacteristic(
+        BikeGatt.metricsService,
+        BikeGatt.stateRegister,
+      );
+      final telemetry = _findCharacteristic(
+        BikeGatt.metricsService,
+        BikeGatt.telemetry,
+      );
+      final challenge = _findCharacteristic(
+        BikeGatt.authenticationService,
+        BikeGatt.authenticationChallenge,
+      );
+      final response = _findCharacteristic(
+        BikeGatt.authenticationService,
+        BikeGatt.authenticationResponse,
+      );
+      final authenticationState = _findCharacteristic(
+        BikeGatt.authenticationService,
+        BikeGatt.authenticationState,
+      );
+      if (selector == null ||
+          state == null ||
+          telemetry == null ||
+          challenge == null ||
+          response == null ||
+          authenticationState == null) {
         throw const BikeGattNotSupported(
-          'The required bike registers were not found.',
+          'The required bike or authentication characteristics were not found.',
         );
       }
-      if (!_canWrite(selector) || !state.properties.read || !_canWrite(state)) {
+      if (!_canWrite(selector) ||
+          !state.properties.read ||
+          !_canWrite(state) ||
+          (!telemetry.properties.notify && !telemetry.properties.indicate) ||
+          !challenge.properties.read ||
+          !_canWrite(response) ||
+          !authenticationState.properties.read) {
         throw const BikeGattNotSupported(
-          'The bike registers do not support the required operations.',
+          'The bike characteristics do not support the required operations.',
         );
       }
     } on BikeGattNotSupported {
@@ -221,12 +254,24 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
   }
 
   @override
+  bool hasCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    _ensureNotDisposed();
+    return _findCharacteristic(serviceUuid, characteristicUuid) != null;
+  }
+
+  @override
   Future<List<int>> readCharacteristic({
     required String serviceUuid,
     required String characteristicUuid,
   }) async {
     _ensureService(serviceUuid);
-    final characteristic = _requireCharacteristic(characteristicUuid);
+    final characteristic = _requireCharacteristic(
+      serviceUuid,
+      characteristicUuid,
+    );
     try {
       return List.unmodifiable(
         await characteristic.read(timeout: _operationTimeoutSeconds),
@@ -234,7 +279,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
     } on Object {
       throw const BikeConnectionFailure(
         'Read',
-        'The bike did not return its settings.',
+        'The bike did not return the requested value.',
       );
     }
   }
@@ -246,7 +291,10 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
     required List<int> value,
   }) async {
     _ensureService(serviceUuid);
-    final characteristic = _requireCharacteristic(characteristicUuid);
+    final characteristic = _requireCharacteristic(
+      serviceUuid,
+      characteristicUuid,
+    );
     try {
       await characteristic.write(
         value,
@@ -258,7 +306,52 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
     } on Object {
       throw const BikeConnectionFailure(
         'Write',
-        'The bike did not accept its settings.',
+        'The bike did not accept the requested value.',
+      );
+    }
+  }
+
+  @override
+  Stream<List<int>> characteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    _ensureService(serviceUuid);
+    final characteristic = _requireCharacteristic(
+      serviceUuid,
+      characteristicUuid,
+    );
+    return characteristic.onValueReceived.map(
+      (value) => List<int>.unmodifiable(value),
+    );
+  }
+
+  @override
+  Future<void> setCharacteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+    required bool enabled,
+  }) async {
+    _ensureService(serviceUuid);
+    final characteristic = _requireCharacteristic(
+      serviceUuid,
+      characteristicUuid,
+    );
+    if (!characteristic.properties.notify &&
+        !characteristic.properties.indicate) {
+      throw const BikeGattNotSupported(
+        'The requested characteristic does not support notifications.',
+      );
+    }
+    try {
+      await characteristic.setNotifyValue(
+        enabled,
+        timeout: _operationTimeoutSeconds,
+      );
+    } on Object {
+      throw const BikeConnectionFailure(
+        'Notifications',
+        'The bike notification stream could not be configured.',
       );
     }
   }
@@ -304,9 +397,22 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
         characteristic.properties.writeWithoutResponse;
   }
 
-  fbp.BluetoothCharacteristic _requireCharacteristic(String uuid) {
+  fbp.BluetoothCharacteristic? _findCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) {
+    return _characteristics[_characteristicKey(
+      serviceUuid,
+      characteristicUuid,
+    )];
+  }
+
+  fbp.BluetoothCharacteristic _requireCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) {
     _ensureNotDisposed();
-    final characteristic = _characteristics[uuid];
+    final characteristic = _findCharacteristic(serviceUuid, characteristicUuid);
     if (characteristic == null) {
       throw const BikeGattNotSupported(
         'The bike services must be discovered before use.',
@@ -316,7 +422,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
   }
 
   void _ensureService(String uuid) {
-    if (uuid.toLowerCase() != BikeGatt.metricsService) {
+    if (!_supportedServiceUuids.contains(uuid.toLowerCase())) {
       throw const BikeGattNotSupported('An unsupported service was requested.');
     }
   }
@@ -326,4 +432,25 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
       throw StateError('The bike connection is disposed.');
     }
   }
+
+  String _characteristicKey(String serviceUuid, String characteristicUuid) {
+    return '${serviceUuid.toLowerCase()}/${characteristicUuid.toLowerCase()}';
+  }
 }
+
+const _supportedServiceUuids = {
+  BikeGatt.metricsService,
+  BikeGatt.authenticationService,
+  BikeGatt.deviceInformationService,
+};
+
+const _knownCharacteristics = {
+  BikeGatt.telemetry,
+  BikeGatt.stateRegister,
+  BikeGatt.registerSelector,
+  BikeGatt.authenticationKeyUpdate,
+  BikeGatt.authenticationChallenge,
+  BikeGatt.authenticationResponse,
+  BikeGatt.authenticationState,
+  BikeGatt.firmwareRevision,
+};
