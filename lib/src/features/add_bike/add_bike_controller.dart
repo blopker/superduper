@@ -50,12 +50,14 @@ final class AddBikeConnecting extends AddBikeState {
 final class AddBikeConfirming extends AddBikeState {
   const AddBikeConfirming({
     required this.candidate,
+    required this.protocol,
     required this.configuration,
     required this.suggestedName,
     required this.versions,
   });
 
   final DiscoveredBike candidate;
+  final BikeProtocolVersion protocol;
   final BikeConfiguration configuration;
   final String suggestedName;
   final BikeVersionInfo? versions;
@@ -200,6 +202,7 @@ final class AddBikeController {
     final advertisedName = candidate.name.trim();
     _state.value = AddBikeConfirming(
       candidate: candidate,
+      protocol: session.protocolVersion!,
       configuration: configuration,
       suggestedName: advertisedName.isEmpty
           ? defaultBikeName(candidate.deviceId)
@@ -210,7 +213,7 @@ final class AddBikeController {
 
   Future<SavedBike> confirm({
     required String displayName,
-    required BikeRegion region,
+    required BikeRegion? region,
     required BikeColor color,
   }) async {
     _ensureNotDisposed();
@@ -227,6 +230,17 @@ final class AddBikeController {
       );
     }
 
+    final persistedRegion = switch (current.protocol) {
+      BikeProtocolVersion.v1 =>
+        region ??
+            (throw ArgumentError.value(
+              region,
+              'region',
+              'A V1 bike requires a region.',
+            )),
+      BikeProtocolVersion.v2 => null,
+    };
+
     _state.value = const AddBikeSaving();
     await _candidateSession?.dispose();
     _candidateSession = null;
@@ -234,7 +248,7 @@ final class AddBikeController {
     final saved = await bikeRepository.addBike(
       deviceId: current.candidate.deviceId,
       displayName: normalizedName,
-      region: region,
+      region: persistedRegion,
       color: color,
       moduleSerial: current.candidate.moduleSerial,
       preferences: RidePreferences(

@@ -5,9 +5,9 @@ import 'package:superduper/src/persistence/app_database.dart';
 import '../generated/schema.dart';
 
 void main() {
-  test('schema version 3 snapshot matches the current database', () async {
+  test('schema version 4 snapshot matches the current database', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
-    final schema = await verifier.schemaAt(3);
+    final schema = await verifier.schemaAt(4);
     addTearDown(schema.close);
     final database = AppDatabase(schema.newConnection());
     addTearDown(database.close);
@@ -42,7 +42,7 @@ void main() {
 
     final database = AppDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 3);
+    await verifier.migrateAndValidate(database, 4);
 
     final bike = await database.select(database.bikes).getSingle();
     final preferences = await database
@@ -103,11 +103,12 @@ void main() {
 
     final database = AppDatabase(schema.newConnection());
     addTearDown(database.close);
-    await verifier.migrateAndValidate(database, 3);
+    await verifier.migrateAndValidate(database, 4);
 
     final bike = await database.select(database.bikes).getSingle();
     final versions = await database.select(database.bikeVersions).getSingle();
     expect(bike.moduleSerial, isNull);
+    expect(bike.region, isNull);
     expect(versions.firmwareRevision, '250426');
     expect(versions.stmFirmwareVersion, 0x010203);
     expect(versions.bmsVersion, 0xabcdef01);

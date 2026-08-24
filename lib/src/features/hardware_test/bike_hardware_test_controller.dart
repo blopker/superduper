@@ -1,0 +1,1010 @@
+import 'dart:async';
+
+import 'package:signals/signals.dart';
+import 'package:superduper/src/ble/active_bike_coordinator.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
+import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/platform/bluetooth_permissions.dart';
+
+enum BikeHardwareTestPhase {
+  idle,
+  preparing,
+  scanning,
+  connecting,
+  exercising,
+  waitingForPowerOff,
+  waitingForPowerOn,
+  restoring,
+  passed,
+  failed,
+  cancelled,
+}
+
+enum BikeHardwareTestLogStatus { passed, warning, failed }
+
+final class BikeHardwareTestLogEntry {
+  const BikeHardwareTestLogEntry({
+    required this.recordedAt,
+    required this.status,
+    required this.label,
+    required this.detail,
+  });
+
+  final DateTime recordedAt;
+  final BikeHardwareTestLogStatus status;
+  final String label;
+  final String detail;
+}
+
+final class BikeHardwareTestTraceEntry {
+  const BikeHardwareTestTraceEntry({
+    required this.recordedAt,
+    required this.event,
+    required this.detail,
+  });
+
+  final DateTime recordedAt;
+  final String event;
+  final String detail;
+}
+
+final class BikeHardwareTestState {
+  const BikeHardwareTestState({
+    required this.phase,
+    required this.title,
+    required this.detail,
+    this.log = const [],
+  });
+
+  const BikeHardwareTestState.idle()
+    : phase = BikeHardwareTestPhase.idle,
+      title = 'Ready for a real-bike test',
+      detail = 'Keep the bike stationary with the rear wheel clear. Close any other app that may connect to it.',
+      log = const [];
+
+  final BikeHardwareTestPhase phase;
+  final String title;
+  final String detail;
+  final List<BikeHardwareTestLogEntry> log;
+
+  bool get isRunning => switch (phase) {
+    BikeHardwareTestPhase.preparing ||
+    BikeHardwareTestPhase.scanning ||
+    BikeHardwareTestPhase.connecting ||
+    BikeHardwareTestPhase.exercising ||
+    BikeHardwareTestPhase.waitingForPowerOff ||
+    BikeHardwareTestPhase.waitingForPowerOn ||
+    BikeHardwareTestPhase.restoring => true,
+    _ => false,
+  };
+}
+
+final class BikeHardwareTestController {
+  BikeHardwareTestController({
+    required this.transport,
+    required this.permissions,
+    required this.activeBikeCoordinator,
+    this.scanDuration = const Duration(seconds: 8),
+    this.notificationWait = const Duration(seconds: 8),
+    this.reconnectDelays = const [
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+      Duration(seconds: 10),
+    ],
+    this.confirmationRetryDelays = const [
+      Duration(milliseconds: 250),
+      Duration(milliseconds: 750),
+      Duration(seconds: 1),
+    ],
+  });
+
+  final BikeTransport transport;
+  final BluetoothPermissionGateway permissions;
+  final ActiveBikeCoordinator activeBikeCoordinator;
+  final Duration scanDuration;
+  final Duration notificationWait;
+  final List<Duration> reconnectDelays;
+  final List<Duration> confirmationRetryDelays;
+  final Signal<BikeHardwareTestState> _state = signal(
+    const BikeHardwareTestState.idle(),
+    options: const SignalOptions(name: 'bikeHardwareTest.state'),
+  );
+  final List<BikeHardwareTestTraceEntry> _trace = [];
+
+  BikeSession? _session;
+  EffectCleanup? _sessionStateCleanup;
+  BikeConfiguration? _originalConfiguration;
+  var _generation = 0;
+  var _ownsCoordinatorPause = false;
+  DateTime? _startedAt;
+  var _traceTruncated = false;
+  var _disposed = false;
+
+  ReadonlySignal<BikeHardwareTestState> get state => _state.readonly();
+
+  String createReport({
+    required String appVersion,
+    required String buildNumber,
+    required String platform,
+    required String operatingSystemVersion,
+    DateTime? generatedAt,
+  }) {
+    final current = _state.peek();
+    final generated = (generatedAt ?? DateTime.now()).toUtc();
+    final report = StringBuffer()
+      ..writeln('SUPERDUPER BIKE TEST REPORT')
+      ..writeln('Report format: 1')
+      ..writeln('Generated: ${generated.toIso8601String()}')
+      ..writeln(
+        'Started: ${_startedAt?.toUtc().toIso8601String() ?? 'unknown'}',
+      )
+      ..writeln('Result: ${current.phase.name.toUpperCase()}')
+      ..writeln('App: $appVersion ($buildNumber)')
+      ..writeln('Platform: $platform')
+      ..writeln('OS: ${operatingSystemVersion.replaceAll('\n', ' ')}')
+      ..writeln()
+      ..writeln(
+        'PRIVACY: This report can contain the bike BLE identifier and module serial. Review it before sharing.',
+      )
+      ..writeln()
+      ..writeln('SUMMARY');
+    for (final entry in current.log) {
+      report
+        ..writeln(
+          '${entry.recordedAt.toUtc().toIso8601String()} '
+          '[${_logStatusLabel(entry.status)}] ${entry.label}',
+        )
+        ..writeln('  ${entry.detail.replaceAll('\n', '\n  ')}');
+    }
+    report
+      ..writeln()
+      ..writeln('BLE TRACE');
+    for (final entry in _trace) {
+      report.writeln(
+        '${entry.recordedAt.toUtc().toIso8601String()} '
+        '${entry.event} ${entry.detail}',
+      );
+    }
+    if (_traceTruncated) {
+      report.writeln('TRACE TRUNCATED after $_maximumTraceEntries entries.');
+    }
+    return report.toString();
+  }
+
+  Future<void> start() async {
+    if (_disposed || _state.peek().isRunning) {
+      return;
+    }
+    final generation = ++_generation;
+    _startedAt = DateTime.now();
+    _trace.clear();
+    _traceTruncated = false;
+    _addTrace('test.start', 'Beginning hardware verification.');
+    _state.value = const BikeHardwareTestState(
+      phase: BikeHardwareTestPhase.preparing,
+      title: 'Preparing the test',
+      detail: 'Pausing normal auto-connect so the test has one BLE owner.',
+    );
+    try {
+      await _run(generation);
+    } on _BikeHardwareTestCancelled {
+      return;
+    } on Object catch (error) {
+      if (!_isCurrent(generation)) {
+        return;
+      }
+      _addLog(
+        BikeHardwareTestLogStatus.failed,
+        'Test stopped',
+        error.toString(),
+      );
+      await _releaseBike(restore: true);
+      if (_isCurrent(generation)) {
+        _publish(
+          BikeHardwareTestPhase.failed,
+          'Test failed',
+          'The bike was released back to normal app control. Review the last failed step below.',
+        );
+      }
+    }
+  }
+
+  Future<void> cancel() async {
+    if (_disposed || !_state.peek().isRunning) {
+      return;
+    }
+    _generation++;
+    _publish(
+      BikeHardwareTestPhase.restoring,
+      'Stopping the test',
+      'Restoring the starting settings when the bike is reachable.',
+    );
+    await _releaseBike(restore: true);
+    if (!_disposed) {
+      _publish(
+        BikeHardwareTestPhase.cancelled,
+        'Test stopped',
+        'Normal app auto-connect has resumed.',
+      );
+    }
+  }
+
+  Future<void> dispose() async {
+    if (_disposed) {
+      return;
+    }
+    _generation++;
+    await _releaseBike(restore: true);
+    _disposed = true;
+    _state.dispose();
+  }
+
+  Future<void> _run(int generation) async {
+    _ownsCoordinatorPause = true;
+    await activeBikeCoordinator.pauseForDiscovery();
+    _checkCurrent(generation);
+
+    final permission = await permissions.ensureAccess(request: true);
+    _checkCurrent(generation);
+    if (permission != BluetoothPermissionState.granted) {
+      throw StateError('Bluetooth permission is $permission.');
+    }
+    final adapter = await transport.adapterStates
+        .where((value) => value != BikeAdapterState.unknown)
+        .first
+        .timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => BikeAdapterState.unknown,
+        );
+    _checkCurrent(generation);
+    if (adapter != BikeAdapterState.on) {
+      throw StateError('Bluetooth adapter is $adapter.');
+    }
+    _addTrace(
+      'bluetooth.ready',
+      'Permission granted; adapter ${adapter.name}.',
+    );
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Bluetooth access',
+      'Permission granted and adapter powered on.',
+    );
+
+    final candidate = await _scanUntilFound(generation);
+    _checkCurrent(generation);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Discovery',
+      '${candidate.name} at ${candidate.rssi} dBm (${candidate.deviceId}).',
+    );
+    _addTrace(
+      'scan.selected',
+      '${candidate.name} ${candidate.deviceId} RSSI ${candidate.rssi} serial ${candidate.moduleSerial ?? 'unavailable'}',
+    );
+    if (candidate.moduleSerial case final serial?) {
+      _addLog(BikeHardwareTestLogStatus.passed, 'Module serial', serial);
+    } else {
+      _addLog(
+        BikeHardwareTestLogStatus.warning,
+        'Module serial',
+        'macOS did not include the manufacturer serial in this advertisement.',
+      );
+    }
+
+    _publish(
+      BikeHardwareTestPhase.connecting,
+      'Connecting to ${candidate.name}',
+      'Discovering GATT, authenticating, identifying the protocol, and reading versions.',
+    );
+    final connection = _DiagnosticBikeConnection(
+      transport.openConnection(candidate.deviceId),
+      onTrace: _addTrace,
+    );
+    var versionReads = 0;
+    var sawAuthenticationState = false;
+    final session = BikeSession(
+      connection: connection,
+      preferredRegion: _preferredRegion(candidate.deviceId),
+      preferences: const RidePreferences.defaults(),
+      protocolHint: BikeProtocolVersion.fromAdvertisedName(candidate.name),
+      onVersionsRead: (_) async {
+        versionReads++;
+      },
+      pollInterval: null,
+      reconnectDelays: reconnectDelays,
+      confirmationRetryDelays: confirmationRetryDelays,
+    );
+    _session = session;
+    _sessionStateCleanup = session.state.subscribe((sessionState) {
+      _addTrace('session.state', sessionState.runtimeType.toString());
+      if (sessionState is SessionAuthenticating) {
+        sawAuthenticationState = true;
+      }
+    });
+    await session.connect();
+    await _waitForReady(session, generation);
+    _checkCurrent(generation);
+
+    _expect(connection.gattDiscoveries >= 1, 'GATT discovery did not run.');
+    _expect(
+      sawAuthenticationState && connection.authenticationWrites >= 1,
+      'The authentication challenge-response path was not completed.',
+    );
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'First connection and authentication',
+      'Required GATT services found and challenge response accepted.',
+    );
+
+    final protocol = session.protocolVersion;
+    _expect(protocol != null, 'The bike protocol was not identified.');
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Protocol',
+      protocol!.name.toUpperCase(),
+    );
+
+    final versions = session.versions.peek();
+    _expect(
+      versions != null && versionReads >= 1,
+      'The complete bike version set could not be read.',
+    );
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Version information',
+      _formatVersions(versions!),
+    );
+    _addTrace('bike.versions', _formatVersions(versions));
+
+    final initial = session.observed.peek();
+    _expect(initial != null, 'The initial configuration was not read.');
+    _originalConfiguration = initial;
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Initial configuration',
+      _formatConfiguration(initial!, protocol: protocol),
+    );
+    _addTrace(
+      'bike.configuration.initial',
+      _formatConfiguration(initial, protocol: protocol),
+    );
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Notification subscription',
+      'The telemetry characteristic accepted notifications.',
+    );
+
+    _publish(
+      BikeHardwareTestPhase.exercising,
+      'Testing every setting',
+      'Each value is changed, confirmed from the bike, and restored before the next setting.',
+    );
+    await _testSettingToggles(session, initial, generation);
+
+    if (connection.telemetryPackets == 0) {
+      await _waitFor(
+        generation,
+        () => connection.telemetryPackets > 0,
+        timeout: notificationWait,
+      );
+    }
+    if (connection.telemetryPackets > 0) {
+      _addLog(
+        BikeHardwareTestLogStatus.passed,
+        'Live notification',
+        'Received ${connection.telemetryPackets} live telemetry packet${connection.telemetryPackets == 1 ? '' : 's'} after subscribing.',
+      );
+    } else {
+      _addLog(
+        BikeHardwareTestLogStatus.warning,
+        'Live notification',
+        'The subscription succeeded, but no unsolicited packet arrived within ${notificationWait.inSeconds} seconds.',
+      );
+    }
+
+    final lockedTarget = initial.copyWith(
+      light: !initial.light,
+      assist: (initial.assist + 1) % 5,
+    );
+    _addTrace(
+      'bike.configuration.lock_target',
+      _formatConfiguration(lockedTarget, protocol: protocol),
+    );
+    await session.setLight(lockedTarget.light);
+    await session.setAssist(lockedTarget.assist);
+    await session.updatePreferences(
+      RidePreferences(
+        desiredLight: lockedTarget.light,
+        desiredMode: lockedTarget.mode,
+        desiredAssist: lockedTarget.assist,
+        keepLight: true,
+        keepMode: false,
+        keepAssist: true,
+        backgroundRequested: false,
+        backgroundConsentVersion: 0,
+      ),
+    );
+    await _waitForReady(session, generation);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Locked-setting setup',
+      'Light and assist are locked; mode is deliberately left unlocked.',
+    );
+
+    final disconnectsBefore = connection.disconnectEvents;
+    final connectsBefore = connection.connectCalls;
+    final authWritesBefore = connection.authenticationWrites;
+    final discoveriesBefore = connection.gattDiscoveries;
+    final configWritesBefore = connection.configurationWrites.length;
+    final versionReadsBefore = versionReads;
+
+    _publish(
+      BikeHardwareTestPhase.waitingForPowerOff,
+      'Turn the bike OFF',
+      'The test is waiting for the BLE disconnect. It will tell you when to turn the bike back on.',
+    );
+    _addTrace('test.prompt', 'Waiting for the bike to power off.');
+    await _waitFor(
+      generation,
+      () => connection.disconnectEvents > disconnectsBefore,
+    );
+    _checkCurrent(generation);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Power-off detection',
+      'The production session observed the bike disconnect.',
+    );
+
+    _publish(
+      BikeHardwareTestPhase.waitingForPowerOn,
+      'Now turn the bike ON',
+      'Waiting for automatic reconnect, authentication, version refresh, and locked-setting enforcement.',
+    );
+    _addTrace('test.prompt', 'Waiting for the bike to power on.');
+    await _waitForReady(session, generation);
+    _checkCurrent(generation);
+
+    _expect(
+      connection.connectCalls > connectsBefore,
+      'The session did not make a reconnect attempt.',
+    );
+    _expect(
+      connection.gattDiscoveries > discoveriesBefore,
+      'GATT was not rediscovered after reconnect.',
+    );
+    _expect(
+      connection.authenticationWrites > authWritesBefore,
+      'Authentication did not run again after reconnect.',
+    );
+    _expect(
+      versionReads > versionReadsBefore && session.versions.peek() != null,
+      'Version information was not refreshed after reconnect.',
+    );
+    _expect(
+      connection.configurationWrites.length > configWritesBefore,
+      'No configuration was written after reconnect.',
+    );
+    final reconnected = session.observed.peek();
+    _expect(
+      reconnected != null,
+      'No configuration was observed after reconnect.',
+    );
+    _expect(
+      reconnected!.light == lockedTarget.light &&
+          reconnected.assist == lockedTarget.assist,
+      'The locked light and assist values were not restored.',
+    );
+    final expectedPacket = BikeProtocol.encodeConfiguration(
+      reconnected,
+      version: session.protocolVersion!,
+    );
+    final writtenPacket = connection.configurationWrites.last;
+    _expect(
+      _listsEqual(writtenPacket, expectedPacket),
+      'The reconnect configuration packet did not match the confirmed state.',
+    );
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Reconnect and locked settings',
+      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and confirmed locked values while preserving unlocked mode ${reconnected.mode}.',
+    );
+
+    _publish(
+      BikeHardwareTestPhase.restoring,
+      'Restoring the bike',
+      'Returning the physical bike to the configuration it had before the test.',
+    );
+    await _releaseBike(restore: true);
+    _checkCurrent(generation);
+    _publish(
+      BikeHardwareTestPhase.passed,
+      'All hardware checks passed',
+      'The starting bike settings were restored and normal app auto-connect has resumed.',
+    );
+    _addTrace('test.complete', 'All hardware checks passed.');
+  }
+
+  Future<DiscoveredBike> _scanUntilFound(int generation) async {
+    var firstAttempt = true;
+    while (true) {
+      _checkCurrent(generation);
+      _publish(
+        BikeHardwareTestPhase.scanning,
+        firstAttempt ? 'Looking for a bike' : 'Turn a bike ON',
+        firstAttempt
+            ? 'Scanning for SUPER73 or S73 FTEX advertisements.'
+            : 'No bike was found. Scanning continues automatically.',
+      );
+      _addTrace('scan.start', 'Timeout ${scanDuration.inSeconds}s.');
+      DiscoveredBike? found;
+      final subscription = transport.scanResults.listen((results) {
+        if (results.isNotEmpty) {
+          found ??= results.first;
+        }
+      });
+      try {
+        await transport.startScan(timeout: scanDuration);
+        final deadline = DateTime.now().add(scanDuration);
+        while (found == null && DateTime.now().isBefore(deadline)) {
+          _checkCurrent(generation);
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+        }
+      } finally {
+        await transport.stopScan();
+        await subscription.cancel();
+      }
+      _checkCurrent(generation);
+      if (found case final candidate?) {
+        return candidate;
+      }
+      _addTrace('scan.empty', 'No supported bike found.');
+      firstAttempt = false;
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
+  }
+
+  Future<void> _testSettingToggles(
+    BikeSession session,
+    BikeConfiguration initial,
+    int generation,
+  ) async {
+    final light = await session.setLight(!initial.light);
+    _checkCurrent(generation);
+    _expect(light.light != initial.light, 'Light did not toggle.');
+    await session.setLight(initial.light);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Light toggle',
+      'Changed to ${light.light ? 'on' : 'off'}, confirmed, and restored.',
+    );
+
+    final nextMode = (initial.mode + 1) % 4;
+    final mode = await session.setMode(nextMode);
+    _checkCurrent(generation);
+    _expect(mode.mode == nextMode, 'Mode did not change to $nextMode.');
+    await session.setMode(initial.mode);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Mode toggle',
+      'Changed to $nextMode, confirmed, and restored to ${initial.mode}.',
+    );
+
+    final nextAssist = (initial.assist + 1) % 5;
+    final assist = await session.setAssist(nextAssist);
+    _checkCurrent(generation);
+    _expect(
+      assist.assist == nextAssist,
+      'Assist did not change to $nextAssist.',
+    );
+    await session.setAssist(initial.assist);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Assist toggle',
+      'Changed to $nextAssist, confirmed, and restored to ${initial.assist}.',
+    );
+  }
+
+  Future<void> _waitForReady(BikeSession session, int generation) async {
+    while (true) {
+      _checkCurrent(generation);
+      final current = session.state.peek();
+      if (current is SessionReady) {
+        return;
+      }
+      if (current is SessionFailed) {
+        throw StateError(current.failure.message);
+      }
+      if (current is SessionDisposed ||
+          current is SessionDisconnected && current.manuallyPaused) {
+        throw StateError('The bike session stopped before becoming ready.');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+  }
+
+  Future<void> _waitFor(
+    int generation,
+    bool Function() condition, {
+    Duration? timeout,
+  }) async {
+    final deadline = timeout == null ? null : DateTime.now().add(timeout);
+    while (!condition()) {
+      _checkCurrent(generation);
+      if (deadline != null && !DateTime.now().isBefore(deadline)) {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+  }
+
+  Future<void> _releaseBike({required bool restore}) async {
+    try {
+      await transport.stopScan();
+    } on Object {
+      // The scan may already have ended.
+    }
+
+    final session = _session;
+    final original = _originalConfiguration;
+    if (restore && session != null && original != null) {
+      try {
+        if (session.state.peek() is SessionReady) {
+          await session.updatePreferences(const RidePreferences.defaults());
+          var current = session.observed.peek();
+          if (current?.light != original.light) {
+            current = await session.setLight(original.light);
+          }
+          if (current?.mode != original.mode) {
+            current = await session.setMode(original.mode);
+          }
+          if (current?.assist != original.assist) {
+            await session.setAssist(original.assist);
+          }
+          _addLog(
+            BikeHardwareTestLogStatus.passed,
+            'Cleanup',
+            'Restored ${_formatConfiguration(original, protocol: session.protocolVersion)}.',
+          );
+        } else {
+          _addLog(
+            BikeHardwareTestLogStatus.warning,
+            'Cleanup',
+            'The bike was unreachable, so the test could not restore its starting settings.',
+          );
+        }
+      } on Object catch (error) {
+        _addLog(
+          BikeHardwareTestLogStatus.warning,
+          'Cleanup',
+          'Could not restore every starting value: $error',
+        );
+      }
+    }
+
+    _sessionStateCleanup?.call();
+    _sessionStateCleanup = null;
+    _session = null;
+    _originalConfiguration = null;
+    if (session != null) {
+      try {
+        await session.dispose();
+      } on Object {
+        // Normal app control must still resume after a failed test disconnect.
+      }
+    }
+    if (_ownsCoordinatorPause) {
+      _ownsCoordinatorPause = false;
+      await activeBikeCoordinator.resumeAfterDiscovery();
+    }
+    _addTrace('test.release', 'Normal auto-connect resumed.');
+  }
+
+  BikeRegion? _preferredRegion(String deviceId) {
+    for (final saved in activeBikeCoordinator.bikes.peek()) {
+      if (saved.bike.deviceId == deviceId) {
+        return saved.bike.region;
+      }
+    }
+    return null;
+  }
+
+  void _publish(BikeHardwareTestPhase phase, String title, String detail) {
+    if (_disposed) {
+      return;
+    }
+    _state.value = BikeHardwareTestState(
+      phase: phase,
+      title: title,
+      detail: detail,
+      log: _state.peek().log,
+    );
+  }
+
+  void _addLog(BikeHardwareTestLogStatus status, String label, String detail) {
+    if (_disposed) {
+      return;
+    }
+    final current = _state.peek();
+    _state.value = BikeHardwareTestState(
+      phase: current.phase,
+      title: current.title,
+      detail: current.detail,
+      log: List.unmodifiable([
+        ...current.log,
+        BikeHardwareTestLogEntry(
+          recordedAt: DateTime.now(),
+          status: status,
+          label: label,
+          detail: detail,
+        ),
+      ]),
+    );
+  }
+
+  void _addTrace(String event, String detail) {
+    if (_disposed) {
+      return;
+    }
+    if (_trace.length >= _maximumTraceEntries) {
+      _traceTruncated = true;
+      return;
+    }
+    _trace.add(
+      BikeHardwareTestTraceEntry(
+        recordedAt: DateTime.now(),
+        event: event,
+        detail: detail.replaceAll('\n', ' '),
+      ),
+    );
+  }
+
+  bool _isCurrent(int generation) => !_disposed && generation == _generation;
+
+  void _checkCurrent(int generation) {
+    if (!_isCurrent(generation)) {
+      throw const _BikeHardwareTestCancelled();
+    }
+  }
+
+  void _expect(bool condition, String message) {
+    if (!condition) {
+      throw StateError(message);
+    }
+  }
+
+  static String _formatConfiguration(
+    BikeConfiguration value, {
+    required BikeProtocolVersion? protocol,
+  }) {
+    final settings =
+        'light ${value.light ? 'on' : 'off'}, mode ${value.mode}, assist ${value.assist}';
+    return protocol == BikeProtocolVersion.v1
+        ? '$settings, ${value.region.label}'
+        : settings;
+  }
+
+  static String _formatVersions(BikeVersionInfo value) {
+    return 'display ${value.firmwareRevision}, hardware ${value.hardwareRevision}, software ${value.softwareRevision}, STM ${_hexInt(value.stmFirmwareVersion, 6)}, motor ${_hexInt(value.motorControllerVersion, 8)}, BMS ${_hexInt(value.bmsVersion, 8)}';
+  }
+
+  static String _hexInt(int value, int digits) =>
+      '0x${value.toRadixString(16).padLeft(digits, '0')}';
+
+  static String _hex(List<int> value) =>
+      value.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(' ');
+
+  static bool _listsEqual(List<int> left, List<int> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static String _logStatusLabel(BikeHardwareTestLogStatus status) {
+    return switch (status) {
+      BikeHardwareTestLogStatus.passed => 'PASS',
+      BikeHardwareTestLogStatus.warning => 'NOTE',
+      BikeHardwareTestLogStatus.failed => 'FAIL',
+    };
+  }
+
+  static const _maximumTraceEntries = 2000;
+}
+
+final class _DiagnosticBikeConnection implements BikeConnection {
+  _DiagnosticBikeConnection(this._delegate, {required this.onTrace});
+
+  final BikeConnection _delegate;
+  final void Function(String event, String detail) onTrace;
+  final List<List<int>> configurationWrites = [];
+  var connectCalls = 0;
+  var disconnectEvents = 0;
+  var gattDiscoveries = 0;
+  var authenticationWrites = 0;
+  var telemetryPackets = 0;
+
+  @override
+  String get deviceId => _delegate.deviceId;
+
+  @override
+  Stream<BikeConnectionState> get states => _delegate.states.map((state) {
+    if (state == BikeConnectionState.disconnected) {
+      disconnectEvents++;
+    }
+    onTrace('connection.state', state.name);
+    return state;
+  });
+
+  @override
+  Future<void> connect() async {
+    connectCalls++;
+    final attempt = connectCalls;
+    onTrace('connection.connect', 'Attempt $attempt started.');
+    try {
+      await _delegate.connect();
+      onTrace('connection.connect', 'Attempt $attempt succeeded.');
+    } on Object catch (error) {
+      onTrace('connection.connect', 'Attempt $attempt failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> discoverRequiredGatt() async {
+    gattDiscoveries++;
+    final attempt = gattDiscoveries;
+    onTrace('gatt.discover', 'Attempt $attempt started.');
+    try {
+      await _delegate.discoverRequiredGatt();
+      onTrace('gatt.discover', 'Attempt $attempt succeeded.');
+    } on Object catch (error) {
+      onTrace('gatt.discover', 'Attempt $attempt failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  bool hasCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    return _delegate.hasCharacteristic(
+      serviceUuid: serviceUuid,
+      characteristicUuid: characteristicUuid,
+    );
+  }
+
+  @override
+  Future<List<int>> readCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) async {
+    onTrace('gatt.read', '$serviceUuid/$characteristicUuid started.');
+    try {
+      final value = await _delegate.readCharacteristic(
+        serviceUuid: serviceUuid,
+        characteristicUuid: characteristicUuid,
+      );
+      onTrace(
+        'gatt.read',
+        '$serviceUuid/$characteristicUuid ${_traceValue(characteristicUuid, value)}',
+      );
+      return value;
+    } on Object catch (error) {
+      onTrace('gatt.read', '$serviceUuid/$characteristicUuid failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> writeCharacteristic({
+    required String serviceUuid,
+    required String characteristicUuid,
+    required List<int> value,
+  }) async {
+    if (serviceUuid == BikeGatt.authenticationService &&
+        characteristicUuid == BikeGatt.authenticationResponse) {
+      authenticationWrites++;
+    }
+    if (serviceUuid == BikeGatt.metricsService &&
+        characteristicUuid == BikeGatt.stateRegister) {
+      configurationWrites.add(List<int>.unmodifiable(value));
+    }
+    onTrace(
+      'gatt.write',
+      '$serviceUuid/$characteristicUuid ${_traceValue(characteristicUuid, value)}',
+    );
+    try {
+      await _delegate.writeCharacteristic(
+        serviceUuid: serviceUuid,
+        characteristicUuid: characteristicUuid,
+        value: value,
+      );
+      onTrace('gatt.write', '$serviceUuid/$characteristicUuid succeeded.');
+    } on Object catch (error) {
+      onTrace('gatt.write', '$serviceUuid/$characteristicUuid failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  Stream<List<int>> characteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+  }) {
+    return _delegate
+        .characteristicNotifications(
+          serviceUuid: serviceUuid,
+          characteristicUuid: characteristicUuid,
+        )
+        .map((packet) {
+          if (serviceUuid == BikeGatt.metricsService &&
+              characteristicUuid == BikeGatt.telemetry) {
+            telemetryPackets++;
+          }
+          onTrace(
+            'gatt.notification',
+            '$serviceUuid/$characteristicUuid ${BikeHardwareTestController._hex(packet)}',
+          );
+          return packet;
+        });
+  }
+
+  @override
+  Future<void> setCharacteristicNotifications({
+    required String serviceUuid,
+    required String characteristicUuid,
+    required bool enabled,
+  }) async {
+    onTrace(
+      'gatt.notify',
+      '$serviceUuid/$characteristicUuid ${enabled ? 'enable' : 'disable'} started.',
+    );
+    try {
+      await _delegate.setCharacteristicNotifications(
+        serviceUuid: serviceUuid,
+        characteristicUuid: characteristicUuid,
+        enabled: enabled,
+      );
+      onTrace(
+        'gatt.notify',
+        '$serviceUuid/$characteristicUuid ${enabled ? 'enabled' : 'disabled'}.',
+      );
+    } on Object catch (error) {
+      onTrace('gatt.notify', '$serviceUuid/$characteristicUuid failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> disconnect() async {
+    onTrace('connection.disconnect', 'Requested.');
+    await _delegate.disconnect();
+  }
+
+  @override
+  Future<void> dispose() async {
+    onTrace('connection.dispose', 'Started.');
+    await _delegate.dispose();
+    onTrace('connection.dispose', 'Completed.');
+  }
+
+  static String _traceValue(String characteristicUuid, List<int> value) {
+    if (characteristicUuid == BikeGatt.authenticationChallenge ||
+        characteristicUuid == BikeGatt.authenticationResponse) {
+      return '<redacted ${value.length}-byte authentication value>';
+    }
+    return BikeHardwareTestController._hex(value);
+  }
+}
+
+final class _BikeHardwareTestCancelled implements Exception {
+  const _BikeHardwareTestCancelled();
+}

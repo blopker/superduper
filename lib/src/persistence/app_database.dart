@@ -157,6 +157,13 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await migrator.addColumn(bikes, bikes.moduleSerial);
       }
+      if (from < 4) {
+        await customStatement(
+          'UPDATE bikes SET region = NULL WHERE device_id IN '
+          '(SELECT device_id FROM bike_versions '
+          "WHERE firmware_revision = '250426')",
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -164,5 +171,5 @@ final class AppDatabase extends _$AppDatabase {
   );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 }

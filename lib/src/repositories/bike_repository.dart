@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/domain/bike_names.dart';
 import 'package:superduper/src/persistence/app_database.dart';
@@ -127,6 +128,7 @@ final class BikeRepository {
     final normalizedVersions = versions == null
         ? null
         : _normalizeVersionInfo(versions);
+    final persistedRegion = _regionForVersions(region, normalizedVersions);
     final normalizedName = _normalizeName(displayName, normalizedId);
     final normalizedSerial = moduleSerial == null
         ? null
@@ -143,7 +145,7 @@ final class BikeRepository {
             BikesCompanion.insert(
               deviceId: normalizedId,
               displayName: normalizedName,
-              region: Value(region?.name),
+              region: Value(persistedRegion?.name),
               colorKey: color.key,
               sortOrder: nextSortOrder,
               createdAtMs: now,
@@ -216,7 +218,7 @@ final class BikeRepository {
   Future<void> updateBikeDetails(
     String deviceId, {
     required String displayName,
-    required BikeRegion region,
+    required BikeRegion? region,
     required BikeColor color,
   }) {
     final normalizedName = displayName.trim();
@@ -231,7 +233,7 @@ final class BikeRepository {
       deviceId,
       BikesCompanion(
         displayName: Value(normalizedName),
-        region: Value(region.name),
+        region: Value(region?.name),
         colorKey: Value(color.key),
       ),
     );
@@ -335,7 +337,12 @@ final class BikeRepository {
   Future<bool> saveVersions(String deviceId, BikeVersionInfo versions) {
     final normalized = _normalizeVersionInfo(versions);
     return database.transaction(() async {
-      await _requireBike(deviceId);
+      final bike = await _requireBike(deviceId);
+      if (!_versionsUseRegion(normalized) && bike.region != null) {
+        await (database.update(database.bikes)
+              ..where((table) => table.deviceId.equals(deviceId)))
+            .write(const BikesCompanion(region: Value(null)));
+      }
       final current = await (database.select(
         database.bikeVersions,
       )..where((table) => table.deviceId.equals(deviceId))).getSingleOrNull();
@@ -353,6 +360,19 @@ final class BikeRepository {
           );
       return true;
     });
+  }
+
+  BikeRegion? _regionForVersions(
+    BikeRegion? region,
+    BikeVersionInfo? versions,
+  ) {
+    return _versionsUseRegion(versions) ? region : null;
+  }
+
+  bool _versionsUseRegion(BikeVersionInfo? versions) {
+    return versions == null ||
+        BikeProtocolVersion.fromFirmwareRevision(versions.firmwareRevision) !=
+            BikeProtocolVersion.v2;
   }
 
   Future<bool> saveModuleSerial(String deviceId, String moduleSerial) {

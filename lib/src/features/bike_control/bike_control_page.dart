@@ -71,6 +71,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final configuration = isCurrentSession ? session?.observed.value : null;
     final ready = sessionState is SessionReady && configuration != null;
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
+    final region = bike.bike.region;
 
     return Scaffold(
       backgroundColor: bike.bike.color.pageBaseColor,
@@ -134,8 +135,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
                         bike.bike.displayName,
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
-                      const SizedBox(height: 3),
-                      Text(bike.bike.color.displayName),
+                      if (region != null) ...[
+                        const SizedBox(height: 3),
+                        Text('${region.label} region'),
+                      ],
                     ],
                   ),
                 ),
@@ -168,12 +171,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
                   : configuration.light
                   ? 'On'
                   : 'Off',
-              control: _LightControl(
-                value: configuration?.light ?? false,
-                enabled: ready,
-                onChanged: (value) =>
-                    _runCommand(() => session!.setLight(value)),
-              ),
+              toggleValue: configuration?.light ?? false,
+              onToggleChanged: ready
+                  ? (value) => _runCommand(() => session!.setLight(value))
+                  : null,
               keep: bike.preferences.keepLight,
               onKeepChanged: ready
                   ? (enabled) => _services.bikeRepository.setLightLock(
@@ -434,15 +435,19 @@ final class _SettingSection extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
-    required this.control,
     required this.keep,
     required this.onKeepChanged,
+    this.control,
+    this.toggleValue,
+    this.onToggleChanged,
   });
 
   final IconData icon;
   final String title;
   final String value;
-  final Widget control;
+  final Widget? control;
+  final bool? toggleValue;
+  final ValueChanged<bool>? onToggleChanged;
   final bool keep;
   final Future<void> Function(bool enabled)? onKeepChanged;
 
@@ -452,34 +457,49 @@ final class _SettingSection extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, color: AppColors.magentaSoft, size: 30),
-                    const SizedBox(width: 13),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(value),
-                        ],
+          if (toggleValue case final toggled?)
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: Icon(icon, color: AppColors.magentaSoft, size: 30),
+              title: Text(title),
+              subtitle: Text(value),
+              value: toggled,
+              onChanged: onToggleChanged,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(icon, color: AppColors.magentaSoft, size: 30),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(value),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                  if (control case final body?) ...[
+                    const SizedBox(height: 18),
+                    body,
                   ],
-                ),
-                const SizedBox(height: 18),
-                control,
-              ],
+                ],
+              ),
             ),
-          ),
           const Divider(height: 1),
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(
@@ -498,55 +518,6 @@ final class _SettingSection extends StatelessWidget {
                 : (value) => unawaited(onKeepChanged!(value)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-final class _LightControl extends StatelessWidget {
-  const _LightControl({
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final bool value;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: value && enabled
-          ? AppColors.yellow.withValues(alpha: 0.12)
-          : AppColors.inkLight,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: enabled ? () => onChanged(!value) : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              Icon(
-                value
-                    ? Icons.lightbulb_rounded
-                    : Icons.lightbulb_outline_rounded,
-                color: value && enabled
-                    ? AppColors.yellow
-                    : AppColors.textMuted,
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  value ? 'Light on' : 'Light off',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              Switch(value: value, onChanged: enabled ? onChanged : null),
-            ],
-          ),
-        ),
       ),
     );
   }

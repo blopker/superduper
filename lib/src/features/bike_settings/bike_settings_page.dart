@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/features/bike_settings/bike_version_report.dart';
 import 'package:superduper/src/features/help/help_page.dart';
+import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/widgets/app_design.dart';
+import 'package:superduper/src/widgets/report_actions.dart';
 
 enum BikeSettingsOutcome { forgotten }
 
@@ -23,7 +26,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   final TextEditingController _name = TextEditingController();
   late AppServices _services;
   String? _loadedDeviceId;
-  BikeRegion _region = BikeRegion.us;
+  BikeRegion? _region;
   BikeColor _color = BikeColor.royalHorizon;
   String? _nameError;
   var _saving = false;
@@ -52,7 +55,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     if (_loadedDeviceId != saved.bike.deviceId) {
       _loadedDeviceId = saved.bike.deviceId;
       _name.text = saved.bike.displayName;
-      _region = saved.bike.region ?? BikeRegion.us;
+      _region = saved.bike.region;
       _color = saved.bike.color;
     }
     final coordinator = _services.activeBikeCoordinator;
@@ -107,25 +110,27 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                       errorText: _nameError,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<BikeRegion>(
-                    initialValue: _region,
-                    decoration: const InputDecoration(labelText: 'Region'),
-                    items: [
-                      for (final region in BikeRegion.values)
-                        DropdownMenuItem(
-                          value: region,
-                          child: Text(region.label),
-                        ),
-                    ],
-                    onChanged: _saving
-                        ? null
-                        : (region) {
-                            if (region != null) {
-                              setState(() => _region = region);
-                            }
-                          },
-                  ),
+                  if (_region != null) ...[
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<BikeRegion>(
+                      initialValue: _region,
+                      decoration: const InputDecoration(labelText: 'Region'),
+                      items: [
+                        for (final region in BikeRegion.values)
+                          DropdownMenuItem(
+                            value: region,
+                            child: Text(region.label),
+                          ),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (region) {
+                              if (region != null) {
+                                setState(() => _region = region);
+                              }
+                            },
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   DropdownButtonFormField<BikeColor>(
                     initialValue: _color,
@@ -219,10 +224,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
             const SizedBox(height: 34),
             const SectionHeader(eyebrow: 'Technical', title: 'Bike versions'),
             const SizedBox(height: 16),
-            _BikeVersionsPanel(
-              moduleSerial: saved.bike.moduleSerial,
-              versions: saved.versions,
-            ),
+            _BikeVersionsPanel(bike: saved.bike, versions: saved.versions),
             const SizedBox(height: 34),
             const SectionHeader(
               eyebrow: 'Technical',
@@ -370,18 +372,15 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
 }
 
 final class _BikeVersionsPanel extends StatelessWidget {
-  const _BikeVersionsPanel({
-    required this.moduleSerial,
-    required this.versions,
-  });
+  const _BikeVersionsPanel({required this.bike, required this.versions});
 
-  final String? moduleSerial;
+  final Bike bike;
   final CachedBikeVersions? versions;
 
   @override
   Widget build(BuildContext context) {
     final cached = versions;
-    if (cached == null && moduleSerial == null) {
+    if (cached == null && bike.moduleSerial == null) {
       return const SurfacePanel(
         child: Text(
           'Connect to read version numbers. The module serial is captured when the bike is seen during discovery.',
@@ -392,7 +391,7 @@ final class _BikeVersionsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (moduleSerial case final serial?)
+          if (bike.moduleSerial case final serial?)
             _VersionRow(label: 'Module serial', value: serial),
           if (cached case CachedBikeVersions(:final info, :final readAt)) ...[
             _VersionRow(
@@ -409,7 +408,7 @@ final class _BikeVersionsPanel extends StatelessWidget {
             ),
             _VersionRow(
               label: 'STM firmware',
-              value: _hex(info.stmFirmwareVersion, 6),
+              value: info.stmFirmwareVersion.toString(),
             ),
             _VersionRow(
               label: 'Controller variant',
@@ -421,14 +420,20 @@ final class _BikeVersionsPanel extends StatelessWidget {
             ),
             _VersionRow(
               label: 'Motor controller',
-              value: _hex(info.motorControllerVersion, 8),
+              value: info.motorControllerVersion.toString(),
             ),
-            _VersionRow(label: 'BMS', value: _hex(info.bmsVersion, 8)),
+            _VersionRow(label: 'BMS', value: info.bmsVersion.toString()),
             const SizedBox(height: 12),
             Text(
               'Cache updated ${_formatTimestamp(readAt)}',
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 18),
+            ReportActions(
+              createReport: () => _createReport(cached),
+              shareLabel: 'Save or send versions',
+              copyLabel: 'Copy versions',
             ),
           ] else ...[
             const SizedBox(height: 12),
@@ -443,8 +448,18 @@ final class _BikeVersionsPanel extends StatelessWidget {
     );
   }
 
-  static String _hex(int value, int width) {
-    return '0x${value.toRadixString(16).padLeft(width, '0').toUpperCase()}';
+  Future<ShareableReport> _createReport(CachedBikeVersions versions) async {
+    final metadata = await ReportMetadata.fromPlatform();
+    return ShareableReport(
+      content: createBikeVersionReport(
+        bike: bike,
+        versions: versions,
+        metadata: metadata,
+      ),
+      filenamePrefix: 'superduper-bike-versions',
+      subject: 'Superduper bike version report',
+      message: 'Bike version information exported from Superduper. The attached text file contains the bike BLE identifier and may contain its module serial.',
+    );
   }
 
   static String _formatTimestamp(DateTime value) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:superduper/src/app_services.dart';
+import 'package:superduper/src/features/hardware_test/bike_hardware_test_page.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
@@ -72,6 +73,25 @@ final class HelpPage extends StatelessWidget {
               onPressed: () => _open(context, links.open, faqUri),
               icon: const Icon(Icons.question_answer_outlined),
               label: const Text('Open FAQ'),
+            ),
+            const SizedBox(height: 34),
+            const SectionHeader(
+              eyebrow: 'Diagnostics',
+              title: 'Check your bike',
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Run the complete connection and settings check, then save a report if you need help.',
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const BikeHardwareTestPage(),
+                ),
+              ),
+              icon: const Icon(Icons.monitor_heart_outlined),
+              label: const Text('Check bike'),
             ),
           ],
         ),

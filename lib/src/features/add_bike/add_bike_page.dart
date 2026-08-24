@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/add_bike/add_bike_controller.dart';
@@ -21,7 +22,7 @@ final class AddBikePage extends SignalStatefulWidget {
 final class _AddBikePageState extends State<AddBikePage> {
   final TextEditingController _name = TextEditingController();
   String? _confirmationId;
-  BikeRegion _region = BikeRegion.us;
+  BikeRegion? _region;
   BikeColor _color = BikeColor.royalHorizon;
   String? _validationMessage;
 
@@ -43,13 +44,16 @@ final class _AddBikePageState extends State<AddBikePage> {
     final state = widget.controller.state.value;
     if (state case AddBikeConfirming(
       :final candidate,
+      :final protocol,
       :final configuration,
       :final suggestedName,
     )) {
       if (_confirmationId != candidate.deviceId) {
         _confirmationId = candidate.deviceId;
         _name.text = suggestedName;
-        _region = configuration.region;
+        _region = protocol == BikeProtocolVersion.v1
+            ? configuration.region
+            : null;
       }
     }
 
@@ -124,9 +128,11 @@ final class _AddBikePageState extends State<AddBikePage> {
                   'Checking ${candidate.name.isEmpty ? 'your bike' : candidate.name}',
               detail: 'Connecting, verifying compatibility, and reading its settings…',
             ),
-            AddBikeConfirming() => KeyedSubtree(
+            AddBikeConfirming(:final protocol) => KeyedSubtree(
               key: const ValueKey('confirming'),
-              child: _confirmationForm(),
+              child: _confirmationForm(
+                showRegion: protocol == BikeProtocolVersion.v1,
+              ),
             ),
             AddBikeSaving() => const _ProgressMessage(
               key: ValueKey('saving'),
@@ -156,7 +162,7 @@ final class _AddBikePageState extends State<AddBikePage> {
     );
   }
 
-  Widget _confirmationForm() {
+  Widget _confirmationForm({required bool showRegion}) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
       children: [
@@ -191,20 +197,25 @@ final class _AddBikePageState extends State<AddBikePage> {
                   errorText: _validationMessage,
                 ),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<BikeRegion>(
-                initialValue: _region,
-                decoration: const InputDecoration(labelText: 'Region'),
-                items: [
-                  for (final region in BikeRegion.values)
-                    DropdownMenuItem(value: region, child: Text(region.label)),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _region = value);
-                  }
-                },
-              ),
+              if (showRegion) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<BikeRegion>(
+                  initialValue: _region,
+                  decoration: const InputDecoration(labelText: 'Region'),
+                  items: [
+                    for (final region in BikeRegion.values)
+                      DropdownMenuItem(
+                        value: region,
+                        child: Text(region.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _region = value);
+                    }
+                  },
+                ),
+              ],
               const SizedBox(height: 16),
               DropdownButtonFormField<BikeColor>(
                 initialValue: _color,

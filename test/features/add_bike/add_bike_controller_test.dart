@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
@@ -166,6 +167,37 @@ void main() {
       ),
     );
     expect((await settings.get()).activeBikeId, 'new-bike');
+  });
+
+  test('V2 bikes are persisted without a region', () async {
+    const candidate = DiscoveredBike(
+      deviceId: 'v2-bike',
+      name: 'S73 FTEX',
+      rssi: -42,
+    );
+    final connection =
+        transport.openConnection(candidate.deviceId) as FakeBikeConnection;
+    connection
+      ..firmwareRevision = '250426'
+      ..softwareRevision = '250426'
+      ..readFrames.addAll(const [
+        [0, 0xd0, 3, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
+      ]);
+
+    await controller.start();
+    await controller.selectCandidate(candidate);
+
+    final confirmation = controller.state.value as AddBikeConfirming;
+    expect(confirmation.protocol, BikeProtocolVersion.v2);
+
+    final saved = await controller.confirm(
+      displayName: 'V2 Bike',
+      region: BikeRegion.eu,
+      color: BikeColor.oceanMirage,
+    );
+
+    expect(saved.bike.region, isNull);
   });
 
   test('already saved bikes are filtered from scan results', () async {

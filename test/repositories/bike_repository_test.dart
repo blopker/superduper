@@ -206,6 +206,18 @@ void main() {
     expect(saved.versions?.info, changed);
     expect(saved.versions?.readAt.isAtSameMomentAs(now), isTrue);
   });
+
+  test('V2 version snapshots clear obsolete stored regions', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(deviceId: 'bike', region: BikeRegion.eu);
+
+    expect(await repository.saveVersions('bike', _versionInfo), isTrue);
+    expect((await repository.getBikes()).single.bike.region, equals(null));
+
+    await repository.setRegion('bike', BikeRegion.us);
+    expect(await repository.saveVersions('bike', _versionInfo), isFalse);
+    expect((await repository.getBikes()).single.bike.region, equals(null));
+  });
 }
 
 const _versionInfo = BikeVersionInfo(

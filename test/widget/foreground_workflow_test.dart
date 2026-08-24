@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/app.dart';
 import 'package:superduper/src/app_services.dart';
@@ -16,7 +16,7 @@ import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import '../support/fake_bike_transport.dart';
 
 void main() {
-  testWidgets('Home reports ready only after startup enforcement confirms', (
+  testWidgets('ready active bike opens controls automatically once', (
     tester,
   ) async {
     final database = AppDatabase(NativeDatabase.memory());
@@ -51,6 +51,17 @@ void main() {
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 
+    expect(find.text('Ride controls'), findsOneWidget);
+    expect(find.text('SET UP YOUR RIDE'), findsOneWidget);
+    expect(find.text('Keep on connect'), findsWidgets);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Light on'), findsNothing);
+    expect(find.text('Light off'), findsNothing);
+    expect(find.widgetWithText(SwitchListTile, 'Light'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('Ride controls'))).pop();
+    await tester.pumpAndSettle();
+
     expect(find.byType(Image), findsNothing);
     expect(find.text('SUPERDUPER'), findsOneWidget);
     final masthead = tester.widget<Text>(find.text('SUPERDUPER'));
@@ -63,9 +74,6 @@ void main() {
 
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
-    expect(find.text('Ride controls'), findsOneWidget);
-    expect(find.text('SET UP YOUR RIDE'), findsOneWidget);
-    expect(find.text('Keep on connect'), findsWidgets);
 
     await tester.tap(find.byTooltip('Bike actions'));
     await tester.pumpAndSettle();
@@ -77,9 +85,9 @@ void main() {
     expect(find.text('v3.2.0'), findsOneWidget);
     expect(find.text('00112233aabbccdd'), findsOneWidget);
     expect(find.text('221122'), findsNWidgets(2));
-    expect(find.text('0x010203'), findsOneWidget);
-    expect(find.text('0x12345678'), findsOneWidget);
-    expect(find.text('0xABCDEF01'), findsOneWidget);
+    expect(find.text('66051'), findsOneWidget);
+    expect(find.text('305419896'), findsOneWidget);
+    expect(find.text('2882400001'), findsOneWidget);
   });
 
   testWidgets('Add Bike explains a blocked Bluetooth permission', (

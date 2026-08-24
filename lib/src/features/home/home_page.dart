@@ -15,8 +15,16 @@ import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
-final class HomePage extends SignalWidget {
+final class HomePage extends SignalStatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+final class _HomePageState extends State<HomePage> {
+  var _automaticNavigationHandled = false;
+  var _automaticNavigationScheduled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +35,11 @@ final class HomePage extends SignalWidget {
     final activeState = coordinator.state.value;
     final migrationNoticePending = coordinator.migrationNoticePending.value;
     final startupState = services.startup.state.value;
+    _scheduleAutomaticControls(
+      coordinator: coordinator,
+      activeId: activeId,
+      activeState: activeState,
+    );
 
     return Scaffold(
       body: AppPageBody(
@@ -91,7 +104,7 @@ final class HomePage extends SignalWidget {
                         title: bikes.isEmpty ? 'No saved bikes' : 'Your bikes',
                         action: bikes.isEmpty
                             ? null
-                            : FilledButton.icon(
+                            : TextButton.icon(
                                 onPressed: () =>
                                     _openAddBike(context, services),
                                 icon: const Icon(Icons.add_rounded),
@@ -139,6 +152,42 @@ final class HomePage extends SignalWidget {
         ),
       ),
     );
+  }
+
+  void _scheduleAutomaticControls({
+    required ActiveBikeCoordinator coordinator,
+    required String? activeId,
+    required ActiveBikeState activeState,
+  }) {
+    if (_automaticNavigationHandled || _automaticNavigationScheduled) {
+      return;
+    }
+    if (activeState
+        case ActiveBikeSessionStatus(
+          :final bike,
+          sessionState: SessionReady(),
+          isTemporary: false,
+        )
+        when bike.bike.deviceId == activeId) {
+      _automaticNavigationScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _automaticNavigationScheduled = false;
+        if (!mounted ||
+            _automaticNavigationHandled ||
+            ModalRoute.of(context)?.isCurrent != true) {
+          return;
+        }
+        final latest = coordinator.state.peek();
+        if (latest is! ActiveBikeSessionStatus ||
+            latest.isTemporary ||
+            latest.bike.bike.deviceId != activeId ||
+            latest.sessionState is! SessionReady) {
+          return;
+        }
+        _automaticNavigationHandled = true;
+        unawaited(_openBike(context, latest.bike.bike.deviceId));
+      });
+    }
   }
 
   Future<void> _openAddBike(BuildContext context, AppServices services) async {
@@ -509,6 +558,11 @@ final class _BikeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final region = saved.bike.region;
+    final detail = [
+      if (region != null) '${region.label} region',
+      if (isActive) 'Auto-connects on launch',
+    ].join(' · ');
     return Material(
       color: isActive ? saved.bike.color.panelTint : AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
@@ -542,12 +596,10 @@ final class _BikeTile extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      isActive
-                          ? '${saved.bike.color.displayName} · Auto-connects on launch'
-                          : saved.bike.color.displayName,
-                    ),
+                    if (detail.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(detail),
+                    ],
                   ],
                 ),
               ),
