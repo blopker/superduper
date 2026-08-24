@@ -7,6 +7,7 @@ import 'package:superduper/src/features/home/home_page.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
 import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/widgets/app_design.dart';
 
 final class SuperduperApp extends StatefulWidget {
   const SuperduperApp({required this.services, super.key});
@@ -104,38 +105,55 @@ final class _MigrationRecoveryPage extends StatelessWidget {
     };
 
     return Scaffold(
-      body: SafeArea(
+      body: AppPageBody(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.restore_rounded, size: 48),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Your saved bikes need attention',
-                    style: Theme.of(context).textTheme.titleLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '$detail Your original files have not been changed.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: onRetry,
-                    child: const Text('Try again'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: onContinue,
-                    child: const Text('Continue without saved bikes'),
-                  ),
-                ],
+              child: SurfacePanel(
+                padding: const EdgeInsets.all(28),
+                borderColor: AppColors.orange,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: AppColors.orange.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: const Icon(
+                        Icons.restore_rounded,
+                        size: 34,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Your saved bikes need attention',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$detail Your original files have not been changed.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: onContinue,
+                      child: const Text('Continue without saved bikes'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -151,10 +169,24 @@ final class _LoadingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Semantics(
-          label: 'Preparing Superduper',
-          child: const CircularProgressIndicator(),
+      body: AppPageBody(
+        child: Center(
+          child: Semantics(
+            label: 'Preparing Superduper',
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BrandMark(size: 96),
+                SizedBox(height: 28),
+                SizedBox(
+                  width: 120,
+                  child: LinearProgressIndicator(
+                    borderRadius: BorderRadius.all(Radius.circular(99)),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -170,28 +202,49 @@ final class _StartupFailurePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: AppPageBody(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline_rounded, size: 48),
-                const SizedBox(height: 20),
-                Text(
-                  'Superduper could not open your saved bikes.',
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SurfacePanel(
+                padding: const EdgeInsets.all(28),
+                borderColor: Theme.of(context).colorScheme.error,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error
+                            .withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Icon(
+                        Icons.error_outline_rounded,
+                        size: 34,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Superduper could not open your saved bikes.',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(message, textAlign: TextAlign.center),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(message, textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: onRetry,
-                  child: const Text('Try again'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -6,6 +6,8 @@ import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/add_bike/add_bike_controller.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
+import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/widgets/app_design.dart';
 
 final class AddBikePage extends SignalStatefulWidget {
   const AddBikePage({required this.controller, super.key});
@@ -53,127 +55,180 @@ final class _AddBikePageState extends State<AddBikePage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Add bike')),
-      body: SafeArea(
-        child: switch (state) {
-          AddBikeIdle() || AddBikeCheckingAccess() => const Center(
-            child: CircularProgressIndicator(),
-          ),
-          AddBikePermissionRequired(:final permission) => _AccessMessage(
-            icon: Icons.bluetooth_disabled,
-            title: permission == BluetoothPermissionState.restricted
-                ? 'Bluetooth access restricted'
-                : 'Bluetooth permission needed',
-            detail: switch (permission) {
-              BluetoothPermissionState.permanentlyDenied =>
-                'Allow Bluetooth access in system settings, then try again.',
-              BluetoothPermissionState.restricted => 'A device or account restriction is preventing Bluetooth access.',
-              _ => 'Bluetooth access is only used to find and configure your bike.',
-            },
-            primaryLabel: permission == BluetoothPermissionState.restricted
-                ? null
-                : permission == BluetoothPermissionState.permanentlyDenied
-                ? 'Open settings'
-                : 'Try again',
-            onPrimary: permission == BluetoothPermissionState.restricted
-                ? null
-                : permission == BluetoothPermissionState.permanentlyDenied
-                ? () async {
-                    await widget.controller.openPermissionSettings();
-                  }
-                : widget.controller.retry,
-          ),
-          AddBikeAdapterUnavailable(:final adapterState) => _AccessMessage(
-            icon: Icons.bluetooth_disabled,
-            title: switch (adapterState) {
-              BikeAdapterState.unauthorized => 'Bluetooth access unavailable',
-              BikeAdapterState.unavailable => 'Bluetooth unavailable',
-              _ => 'Turn on Bluetooth',
-            },
-            detail: switch (adapterState) {
-              BikeAdapterState.unauthorized =>
-                'Review Bluetooth permission in system settings.',
-              BikeAdapterState.unavailable =>
-                'This device is not currently providing Bluetooth access.',
-              _ => 'Bluetooth must be on before Superduper can find a bike.',
-            },
-            primaryLabel: 'Try again',
-            onPrimary: widget.controller.retry,
-          ),
-          AddBikeScanning(:final results, :final isScanning) => _ScanResults(
-            results: results,
-            isScanning: isScanning,
-            onSelect: widget.controller.selectCandidate,
-            onScanAgain: widget.controller.retry,
-          ),
-          AddBikeConnecting(:final candidate) => _AccessMessage(
-            icon: Icons.bluetooth_connected,
-            title:
-                'Checking ${candidate.name.isEmpty ? 'bike' : candidate.name}',
-            detail: 'Connecting, discovering services, and reading settings…',
-          ),
-          AddBikeConfirming() => _confirmationForm(),
-          AddBikeSaving() => const Center(child: CircularProgressIndicator()),
-          AddBikeCompleted() => const Center(child: Text('Bike saved')),
-          AddBikeFailure(:final message) => _AccessMessage(
-            icon: Icons.error_outline,
-            title: 'Could not add this bike',
-            detail: message,
-            primaryLabel: 'Scan again',
-            onPrimary: widget.controller.retry,
-          ),
-        },
+      body: AppPageBody(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: switch (state) {
+            AddBikeIdle() || AddBikeCheckingAccess() => const _ProgressMessage(
+              key: ValueKey('checking'),
+              title: 'Getting Bluetooth ready',
+              detail: 'Superduper uses Bluetooth only to configure your bike.',
+            ),
+            AddBikePermissionRequired(:final permission) => _AccessMessage(
+              key: const ValueKey('permission'),
+              icon: Icons.bluetooth_disabled_rounded,
+              title: permission == BluetoothPermissionState.restricted
+                  ? 'Bluetooth access restricted'
+                  : 'Bluetooth permission needed',
+              detail: switch (permission) {
+                BluetoothPermissionState.permanentlyDenied =>
+                  'Allow Bluetooth access in system settings, then try again.',
+                BluetoothPermissionState.restricted => 'A device or account restriction is preventing Bluetooth access.',
+                _ => 'Bluetooth access is only used to find and configure your bike.',
+              },
+              primaryLabel: permission == BluetoothPermissionState.restricted
+                  ? null
+                  : permission == BluetoothPermissionState.permanentlyDenied
+                  ? 'Open settings'
+                  : 'Try again',
+              onPrimary: permission == BluetoothPermissionState.restricted
+                  ? null
+                  : permission == BluetoothPermissionState.permanentlyDenied
+                  ? () async {
+                      await widget.controller.openPermissionSettings();
+                    }
+                  : widget.controller.retry,
+            ),
+            AddBikeAdapterUnavailable(:final adapterState) => _AccessMessage(
+              key: const ValueKey('adapter'),
+              icon: Icons.bluetooth_disabled_rounded,
+              title: switch (adapterState) {
+                BikeAdapterState.unauthorized => 'Bluetooth access unavailable',
+                BikeAdapterState.unavailable => 'Bluetooth unavailable',
+                _ => 'Turn on Bluetooth',
+              },
+              detail: switch (adapterState) {
+                BikeAdapterState.unauthorized =>
+                  'Review Bluetooth permission in system settings.',
+                BikeAdapterState.unavailable =>
+                  'This device is not currently providing Bluetooth access.',
+                _ => 'Bluetooth must be on before Superduper can find a bike.',
+              },
+              primaryLabel: 'Try again',
+              onPrimary: widget.controller.retry,
+            ),
+            AddBikeScanning(:final results, :final isScanning) => _ScanResults(
+              key: const ValueKey('scanning'),
+              results: results,
+              isScanning: isScanning,
+              onSelect: widget.controller.selectCandidate,
+              onScanAgain: widget.controller.retry,
+            ),
+            AddBikeConnecting(:final candidate) => _ProgressMessage(
+              key: const ValueKey('connecting'),
+              icon: Icons.bluetooth_connected_rounded,
+              title:
+                  'Checking ${candidate.name.isEmpty ? 'your bike' : candidate.name}',
+              detail: 'Connecting, verifying compatibility, and reading its settings…',
+            ),
+            AddBikeConfirming() => KeyedSubtree(
+              key: const ValueKey('confirming'),
+              child: _confirmationForm(),
+            ),
+            AddBikeSaving() => const _ProgressMessage(
+              key: ValueKey('saving'),
+              icon: Icons.save_outlined,
+              title: 'Saving your bike',
+              detail: 'Finishing setup and making it ready to connect…',
+            ),
+            AddBikeCompleted() => const _AccessMessage(
+              key: ValueKey('completed'),
+              icon: Icons.check_circle_rounded,
+              title: 'Bike saved',
+              detail: 'Your bike is ready to use.',
+              accent: AppColors.mint,
+            ),
+            AddBikeFailure(:final message) => _AccessMessage(
+              key: const ValueKey('failure'),
+              icon: Icons.error_outline_rounded,
+              title: 'Could not add this bike',
+              detail: message,
+              primaryLabel: 'Scan again',
+              onPrimary: widget.controller.retry,
+              accent: const Color(0xFFFF7982),
+            ),
+          },
+        ),
       ),
     );
   }
 
   Widget _confirmationForm() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
       children: [
-        Text('Confirm bike', style: Theme.of(context).textTheme.headlineSmall),
+        const StatusPill(
+          label: 'Bike verified',
+          color: AppColors.mint,
+          icon: Icons.check_rounded,
+        ),
+        const SizedBox(height: 18),
+        const SectionHeader(eyebrow: 'Step 2 of 2', title: 'Make it yours'),
         const SizedBox(height: 8),
-        const Text('The connection and required bike services were verified.'),
+        const Text(
+          'Choose how this bike appears in your garage. You can change these details later.',
+        ),
         const SizedBox(height: 24),
-        TextField(
-          controller: _name,
-          decoration: InputDecoration(
-            labelText: 'Bike name',
-            errorText: _validationMessage,
+        SurfacePanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: BikeAvatar(color: _color, size: 72),
+              ),
+              const SizedBox(height: 22),
+              TextField(
+                controller: _name,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'Bike name',
+                  hintText: 'My bike',
+                  errorText: _validationMessage,
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<BikeRegion>(
+                initialValue: _region,
+                decoration: const InputDecoration(labelText: 'Region'),
+                items: [
+                  for (final region in BikeRegion.values)
+                    DropdownMenuItem(value: region, child: Text(region.label)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _region = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<BikeColor>(
+                initialValue: _color,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Color'),
+                items: [
+                  for (final color in BikeColor.values)
+                    DropdownMenuItem(
+                      value: color,
+                      child: BikeColorLabel(color: color),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _color = value);
+                  }
+                },
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<BikeRegion>(
-          initialValue: _region,
-          decoration: const InputDecoration(labelText: 'Region'),
-          items: [
-            for (final region in BikeRegion.values)
-              DropdownMenuItem(value: region, child: Text(region.label)),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _region = value);
-            }
-          },
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: _save,
+          icon: const Icon(Icons.arrow_forward_rounded),
+          label: const Text('Save bike'),
         ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<BikeColor>(
-          initialValue: _color,
-          decoration: const InputDecoration(labelText: 'Color'),
-          items: [
-            for (final color in BikeColor.values)
-              DropdownMenuItem(
-                value: color,
-                child: Text(color.key.replaceAll('_', ' ')),
-              ),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _color = value);
-            }
-          },
-        ),
-        const SizedBox(height: 24),
-        FilledButton(onPressed: _save, child: const Text('Save bike')),
       ],
     );
   }
@@ -208,6 +263,7 @@ final class _ScanResults extends StatelessWidget {
     required this.isScanning,
     required this.onSelect,
     required this.onScanAgain,
+    super.key,
   });
 
   final List<DiscoveredBike> results;
@@ -218,34 +274,187 @@ final class _ScanResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
       children: [
-        Text(
-          isScanning ? 'Looking for bikes…' : 'Scan complete',
-          style: Theme.of(context).textTheme.headlineSmall,
+        StatusPill(
+          label: isScanning ? 'Scanning' : 'Scan complete',
+          color: isScanning ? AppColors.yellow : AppColors.textMuted,
+          icon: Icons.bluetooth_searching_rounded,
+        ),
+        const SizedBox(height: 18),
+        SectionHeader(
+          eyebrow: 'Step 1 of 2',
+          title: isScanning ? 'Looking for bikes…' : 'Choose your bike',
         ),
         const SizedBox(height: 8),
-        const Text('Keep the bike powered on and nearby.'),
-        const SizedBox(height: 16),
-        if (isScanning) const LinearProgressIndicator(),
-        if (results.isEmpty && !isScanning) ...[
-          const SizedBox(height: 32),
-          const Text('No compatible bikes were found.'),
-          const SizedBox(height: 12),
-          FilledButton(onPressed: onScanAgain, child: const Text('Scan again')),
+        const Text('Keep your bike powered on, unlocked, and nearby.'),
+        if (isScanning) ...[
+          const SizedBox(height: 24),
+          const LinearProgressIndicator(
+            borderRadius: BorderRadius.all(Radius.circular(99)),
+          ),
         ],
-        for (final candidate in results)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.bluetooth),
-              title: Text(
-                candidate.name.isEmpty ? 'SUPER73 bike' : candidate.name,
-              ),
-              subtitle: Text('Signal ${candidate.rssi} dBm'),
-              onTap: () => unawaited(onSelect(candidate)),
+        const SizedBox(height: 24),
+        if (results.isEmpty && !isScanning)
+          SurfacePanel(
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.search_off_rounded,
+                  size: 42,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'No compatible bikes found',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Check bike power and make sure another app is not connected.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: onScanAgain,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Scan again'),
+                ),
+              ],
             ),
           ),
+        for (final candidate in results) ...[
+          _CandidateTile(
+            candidate: candidate,
+            onTap: () => unawaited(onSelect(candidate)),
+          ),
+          const SizedBox(height: 12),
+        ],
       ],
+    );
+  }
+}
+
+final class _CandidateTile extends StatelessWidget {
+  const _CandidateTile({required this.candidate, required this.onTap});
+
+  final DiscoveredBike candidate;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (quality, icon, color) = switch (candidate.rssi) {
+      >= -60 => (
+        'Strong signal',
+        Icons.signal_cellular_alt_rounded,
+        AppColors.mint,
+      ),
+      >= -75 => (
+        'Good signal',
+        Icons.signal_cellular_alt_2_bar_rounded,
+        AppColors.yellow,
+      ),
+      _ => (
+        'Weak signal',
+        Icons.signal_cellular_alt_1_bar_rounded,
+        AppColors.orange,
+      ),
+    };
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.violet.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: const Icon(
+                  Icons.electric_bike_rounded,
+                  color: AppColors.magentaSoft,
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      candidate.name.isEmpty ? 'SUPER73 bike' : candidate.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(icon, size: 17, color: color),
+                        const SizedBox(width: 6),
+                        Text('$quality · ${candidate.rssi} dBm'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _ProgressMessage extends StatelessWidget {
+  const _ProgressMessage({
+    required this.title,
+    required this.detail,
+    this.icon = Icons.bluetooth_searching_rounded,
+    super.key,
+  });
+
+  final String title;
+  final String detail;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CenteredMessage(
+      child: SurfacePanel(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                const SizedBox.square(
+                  dimension: 76,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                Icon(icon, color: AppColors.magentaSoft, size: 30),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(detail, textAlign: TextAlign.center),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -257,6 +466,8 @@ final class _AccessMessage extends StatelessWidget {
     required this.detail,
     this.primaryLabel,
     this.onPrimary,
+    this.accent = AppColors.orange,
+    super.key,
   });
 
   final IconData icon;
@@ -264,28 +475,61 @@ final class _AccessMessage extends StatelessWidget {
   final String detail;
   final String? primaryLabel;
   final Future<void> Function()? onPrimary;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return _CenteredMessage(
+      child: SurfacePanel(
+        padding: const EdgeInsets.all(28),
+        borderColor: accent.withValues(alpha: 0.58),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Icon(icon, size: 34, color: accent),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(detail, textAlign: TextAlign.center),
             if (primaryLabel != null && onPrimary != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               FilledButton(
                 onPressed: () => unawaited(onPrimary!()),
                 child: Text(primaryLabel!),
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _CenteredMessage extends StatelessWidget {
+  const _CenteredMessage({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: child,
         ),
       ),
     );

@@ -9,8 +9,11 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/add_bike/add_bike_controller.dart';
 import 'package:superduper/src/features/add_bike/add_bike_page.dart';
 import 'package:superduper/src/features/bike_control/bike_control_page.dart';
+import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
+import 'package:superduper/src/theme/app_theme.dart';
+import 'package:superduper/src/widgets/app_design.dart';
 
 final class HomePage extends SignalWidget {
   const HomePage({super.key});
@@ -26,50 +29,70 @@ final class HomePage extends SignalWidget {
     final startupState = services.startup.state.value;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Superduper')),
-      body: SafeArea(
+      body: AppPageBody(
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
           children: [
+            Row(
+              children: [
+                const Expanded(child: BrandLockup()),
+                IconButton(
+                  tooltip: 'Help & tips',
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(builder: (_) => const HelpPage()),
+                  ),
+                  icon: const Icon(Icons.help_outline_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
             if (migrationNoticePending) ...[
               _MigrationNotice(
                 startupState: startupState,
                 onDismiss: coordinator.dismissMigrationNotice,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
             ],
-            _ActiveStatus(
-              state: activeState,
-              onRetry: coordinator.retry,
-              onOpenSettings: coordinator.openPermissionSettings,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _ActiveStatus(
+                key: ValueKey(activeState.runtimeType),
+                state: activeState,
+                onRetry: coordinator.retry,
+                onOpenSettings: coordinator.openPermissionSettings,
+                onOpenBike: (deviceId) => _openBike(context, deviceId),
+                onAddBike: () => _openAddBike(context, services),
+              ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    bikes.isEmpty ? 'No saved bikes' : 'Your bikes',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: () => _openAddBike(context, services),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add bike'),
-                ),
-              ],
+            const SizedBox(height: 34),
+            SectionHeader(
+              eyebrow: 'Garage',
+              title: bikes.isEmpty ? 'No saved bikes' : 'Your bikes',
+              action: bikes.isEmpty
+                  ? null
+                  : FilledButton.icon(
+                      onPressed: () => _openAddBike(context, services),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add bike'),
+                    ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             if (bikes.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: Text(
-                  'Add a powered-on bike to read its current settings and save it.',
-                  textAlign: TextAlign.center,
+              const SurfacePanel(
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: AppColors.yellow),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'Power on your bike and keep it nearby. Superduper will verify it and read its current settings.',
+                      ),
+                    ),
+                  ],
                 ),
               )
             else
-              for (final saved in bikes)
+              for (final saved in bikes) ...[
                 _BikeTile(
                   saved: saved,
                   isActive: saved.bike.deviceId == activeId,
@@ -78,6 +101,8 @@ final class HomePage extends SignalWidget {
                       coordinator.makeBikeActive(saved.bike.deviceId),
                   onForget: () => _forget(context, coordinator, saved),
                 ),
+                const SizedBox(height: 12),
+              ],
           ],
         ),
       ),
@@ -152,69 +177,207 @@ final class _MigrationNotice extends StatelessWidget {
         '${importResult.bikesImported} saved bike(s) imported with ${importResult.warnings.length} adjustment(s). The original files were left unchanged.',
       _ => 'Superduper repaired the saved active-bike selection. Review your bikes before riding.',
     };
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.info_outline),
-        title: const Text('Saved bike data needs review'),
-        subtitle: Text(detail),
-        trailing: TextButton(
-          onPressed: () => unawaited(onDismiss()),
-          child: const Text('Dismiss'),
-        ),
+    return SurfacePanel(
+      color: const Color(0xFF292039),
+      borderColor: AppColors.violet,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.violet),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saved bike data needs review',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 5),
+                Text(detail),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Dismiss',
+            onPressed: () => unawaited(onDismiss()),
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
       ),
     );
   }
 }
+
+typedef _StatusPresentation = ({
+  IconData icon,
+  String label,
+  Color color,
+  String title,
+  String detail,
+  bool canRetry,
+  bool needsSettings,
+  SavedBike? bike,
+});
 
 final class _ActiveStatus extends StatelessWidget {
   const _ActiveStatus({
     required this.state,
     required this.onRetry,
     required this.onOpenSettings,
+    required this.onOpenBike,
+    required this.onAddBike,
+    super.key,
   });
 
   final ActiveBikeState state;
   final Future<void> Function() onRetry;
   final Future<bool> Function() onOpenSettings;
+  final Future<void> Function(String deviceId) onOpenBike;
+  final Future<void> Function() onAddBike;
 
   @override
   Widget build(BuildContext context) {
-    final (icon, title, detail, canRetry, needsSettings) = switch (state) {
+    final presentation = _presentation(state);
+    final bike = presentation.bike;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF331440), Color(0xFF21102B)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF653373)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33220A2C),
+            blurRadius: 30,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              StatusPill(
+                label: presentation.label,
+                color: presentation.color,
+                icon: presentation.icon,
+              ),
+              const Spacer(),
+              const BrandMark(size: 48),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Text(
+            presentation.title,
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            presentation.detail,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          if (bike != null ||
+              presentation.canRetry ||
+              presentation.needsSettings ||
+              state is NoActiveBike) ...[
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (bike != null)
+                  FilledButton.icon(
+                    onPressed: () => onOpenBike(bike.bike.deviceId),
+                    icon: const Icon(Icons.tune_rounded),
+                    label: const Text('Open controls'),
+                  )
+                else if (state is NoActiveBike)
+                  FilledButton.icon(
+                    onPressed: onAddBike,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add bike'),
+                  ),
+                if (presentation.canRetry || presentation.needsSettings)
+                  OutlinedButton.icon(
+                    onPressed: presentation.needsSettings
+                        ? () => unawaited(onOpenSettings())
+                        : onRetry,
+                    icon: Icon(
+                      presentation.needsSettings
+                          ? Icons.settings_outlined
+                          : Icons.refresh_rounded,
+                    ),
+                    label: Text(
+                      presentation.needsSettings
+                          ? 'Open settings'
+                          : 'Try again',
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static _StatusPresentation _presentation(ActiveBikeState state) {
+    return switch (state) {
       ActiveBikeLoading() => (
-        Icons.bluetooth_searching,
-        'Preparing active bike',
-        'Loading saved bike settings…',
-        false,
-        false,
+        icon: Icons.bluetooth_searching_rounded,
+        label: 'Preparing',
+        color: AppColors.yellow,
+        title: 'Preparing active bike',
+        detail: 'Loading your saved bike and ride settings…',
+        canRetry: false,
+        needsSettings: false,
+        bike: null,
       ),
       NoActiveBike() => (
-        Icons.electric_bike_outlined,
-        'Add your first bike',
-        'It will become active and connect automatically when the app opens.',
-        false,
-        false,
+        icon: Icons.electric_bike_outlined,
+        label: 'Start here',
+        color: AppColors.yellow,
+        title: 'Add your first bike',
+        detail: 'Once it is saved, Superduper will connect and prepare it whenever the app opens.',
+        canRetry: false,
+        needsSettings: false,
+        bike: null,
       ),
       ActiveBikePermissionRequired(:final permission) => (
-        Icons.bluetooth_disabled,
-        permission == BluetoothPermissionState.restricted
+        icon: Icons.bluetooth_disabled_rounded,
+        label: 'Action needed',
+        color: AppColors.orange,
+        title: permission == BluetoothPermissionState.restricted
             ? 'Bluetooth access restricted'
             : 'Bluetooth permission needed',
-        switch (permission) {
+        detail: switch (permission) {
           BluetoothPermissionState.permanentlyDenied =>
-            'Allow Bluetooth access in system settings.',
+            'Allow Bluetooth access in system settings to prepare your bike.',
           BluetoothPermissionState.restricted =>
             'A device or account restriction is preventing Bluetooth access.',
-          _ => 'Allow Bluetooth access to prepare the active bike.',
+          _ =>
+            'Allow Bluetooth access to connect and apply your ride settings.',
         },
-        permission == BluetoothPermissionState.denied,
-        permission == BluetoothPermissionState.permanentlyDenied,
+        canRetry: permission == BluetoothPermissionState.denied,
+        needsSettings: permission == BluetoothPermissionState.permanentlyDenied,
+        bike: null,
       ),
       ActiveBikeCoordinatorFailure(:final message) => (
-        Icons.error_outline,
-        'Saved bikes unavailable',
-        message,
-        true,
-        false,
+        icon: Icons.error_outline_rounded,
+        label: 'Needs attention',
+        color: const Color(0xFFFF7982),
+        title: 'Saved bikes unavailable',
+        detail: message,
+        canRetry: true,
+        needsSettings: false,
+        bike: null,
       ),
       ActiveBikeSessionStatus(
         :final bike,
@@ -223,106 +386,97 @@ final class _ActiveStatus extends StatelessWidget {
       ) =>
         _sessionPresentation(bike, sessionState, isTemporary),
     };
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 32),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(detail),
-                  if (canRetry || needsSettings) ...[
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: needsSettings
-                          ? () => unawaited(onOpenSettings())
-                          : onRetry,
-                      child: Text(
-                        needsSettings ? 'Open settings' : 'Try again',
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
-  static (IconData, String, String, bool, bool) _sessionPresentation(
+  static _StatusPresentation _sessionPresentation(
     SavedBike bike,
     BikeSessionState state,
     bool isTemporary,
   ) {
-    final prefix = isTemporary ? 'Temporary bike' : bike.bike.displayName;
+    final name = isTemporary ? 'Temporary bike' : bike.bike.displayName;
     return switch (state) {
       SessionIdle() || SessionConnecting() => (
-        Icons.bluetooth_searching,
-        'Connecting to $prefix',
-        'Keep the bike powered on and nearby.',
-        false,
-        false,
+        icon: Icons.bluetooth_searching_rounded,
+        label: 'Connecting',
+        color: AppColors.yellow,
+        title: 'Finding $name',
+        detail: 'Keep the bike powered on and nearby.',
+        canRetry: false,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionDiscovering() || SessionConnected() => (
-        Icons.bluetooth_connected,
-        'Connected to $prefix',
-        'Checking bike compatibility…',
-        false,
-        false,
+        icon: Icons.bluetooth_connected_rounded,
+        label: 'Checking',
+        color: AppColors.yellow,
+        title: 'Connected to $name',
+        detail: 'Checking compatibility and reading the current setup…',
+        canRetry: false,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionSynchronizing() => (
-        Icons.sync,
-        'Applying saved settings',
-        'Preparing $prefix for your ride.',
-        false,
-        false,
+        icon: Icons.sync_rounded,
+        label: 'Synchronizing',
+        color: AppColors.yellow,
+        title: 'Applying saved settings',
+        detail: 'Preparing $name for your ride.',
+        canRetry: false,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionReady() => (
-        Icons.check_circle_outline,
-        'Ready to ride',
-        '$prefix is connected and its kept settings are confirmed.',
-        false,
-        false,
+        icon: Icons.check_circle_rounded,
+        label: 'Connected',
+        color: AppColors.mint,
+        title: 'Ready to ride',
+        detail: '$name is connected and its kept settings are confirmed.',
+        canRetry: false,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionReconnecting(:final retryAfter) => (
-        Icons.refresh,
-        'Bike unavailable',
-        'Retrying in ${retryAfter.inSeconds} seconds.',
-        false,
-        false,
+        icon: Icons.refresh_rounded,
+        label: 'Reconnecting',
+        color: AppColors.orange,
+        title: 'Bike unavailable',
+        detail: 'Trying again in ${retryAfter.inSeconds} seconds.',
+        canRetry: false,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionDisconnected(:final manuallyPaused) => (
-        Icons.bluetooth_disabled,
-        manuallyPaused ? 'Disconnected' : 'Connection paused',
-        manuallyPaused
-            ? 'Automatic reconnect is paused until you reconnect or reopen the app.'
-            : 'Reconnect to prepare the bike.',
-        true,
-        false,
+        icon: Icons.bluetooth_disabled_rounded,
+        label: 'Disconnected',
+        color: AppColors.orange,
+        title: manuallyPaused ? 'Connection paused' : 'Bike disconnected',
+        detail: manuallyPaused
+            ? 'Reconnect when you are ready to use this bike.'
+            : 'Check bike power and Bluetooth, then reconnect.',
+        canRetry: true,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionFailed(:final failure, :final canRetry) => (
-        Icons.error_outline,
-        'Bike setup failed',
-        '${failure.message} Check that Bluetooth is on, the bike is powered nearby, and no other app is connected.',
-        canRetry,
-        false,
+        icon: Icons.error_outline_rounded,
+        label: 'Needs attention',
+        color: const Color(0xFFFF7982),
+        title: 'Bike setup failed',
+        detail:
+            '${failure.message} Check that the bike is on, nearby, and free from other app connections.',
+        canRetry: canRetry,
+        needsSettings: false,
+        bike: bike,
       ),
       SessionDisposed() => (
-        Icons.bluetooth_disabled,
-        'Connection closed',
-        'Select the bike to connect again.',
-        true,
-        false,
+        icon: Icons.bluetooth_disabled_rounded,
+        label: 'Closed',
+        color: AppColors.orange,
+        title: 'Connection closed',
+        detail: 'Open the bike to connect again.',
+        canRetry: true,
+        needsSettings: false,
+        bike: bike,
       ),
     };
   }
@@ -345,32 +499,78 @@ final class _BikeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        onTap: onOpen,
-        leading: const Icon(Icons.electric_bike),
-        title: Text(saved.bike.displayName),
-        subtitle: Text(
-          isActive
-              ? '${saved.bike.color.displayName} • Active • Auto-connects on launch'
-              : saved.bike.color.displayName,
+    return Material(
+      color: isActive ? const Color(0xFF2A1734) : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: isActive ? AppColors.magenta : AppColors.border,
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'active':
-                unawaited(onMakeActive());
-                return;
-              case 'forget':
-                unawaited(onForget());
-                return;
-            }
-          },
-          itemBuilder: (_) => [
-            if (!isActive)
-              const PopupMenuItem(value: 'active', child: Text('Make active')),
-            const PopupMenuItem(value: 'forget', child: Text('Forget bike')),
-          ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              BikeAvatar(color: saved.bike.color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            saved.bike.displayName,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 9),
+                          const StatusPill(
+                            label: 'Active',
+                            color: AppColors.magentaSoft,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      isActive
+                          ? '${saved.bike.color.displayName} · Auto-connects on launch'
+                          : saved.bike.color.displayName,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'Bike actions',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'active':
+                      unawaited(onMakeActive());
+                    case 'forget':
+                      unawaited(onForget());
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (!isActive)
+                    const PopupMenuItem(
+                      value: 'active',
+                      child: Text('Make active'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'forget',
+                    child: Text('Forget bike'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

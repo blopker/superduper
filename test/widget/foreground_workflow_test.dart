@@ -54,6 +54,12 @@ void main() {
     final configurationWrites = transport.connections['active-bike']!.writes
         .where((write) => write.characteristicUuid == BikeGatt.stateRegister);
     expect(configurationWrites.single.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
+
+    await tester.tap(find.text('Open controls'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ride controls'), findsOneWidget);
+    expect(find.text('Set up your ride'), findsOneWidget);
+    expect(find.text('Keep on connect'), findsWidgets);
   });
 
   testWidgets('Add Bike explains a blocked Bluetooth permission', (
@@ -81,6 +87,43 @@ void main() {
     expect(find.text('Bluetooth permission needed'), findsOneWidget);
     expect(find.text('Open settings'), findsOneWidget);
     expect(transport.scanStarts, 0);
+  });
+
+  testWidgets('Ride controls render before bike settings are available', (
+    tester,
+  ) async {
+    final database = AppDatabase(NativeDatabase.memory());
+    final transport = FakeBikeTransport();
+    final services = AppServices(
+      database: database,
+      transport: transport,
+      permissions: FakeBluetoothPermissionGateway(),
+      importer: _emptyImporter(database, 'pending_controls'),
+    );
+    addTearDown(services.dispose);
+    await services.bikeRepository.addBike(
+      deviceId: 'pending-bike',
+      displayName: 'Pending Bike',
+    );
+    transport.readFramesOnOpen['pending-bike'] = [
+      [1],
+    ];
+
+    await tester.runAsync(() async {
+      await services.startup.initialize();
+      await _waitUntil(() {
+        final state = services.activeBikeCoordinator.state.peek();
+        return state is ActiveBikeSessionStatus &&
+            state.sessionState is SessionFailed;
+      });
+    });
+    await tester.pumpWidget(SuperduperApp(services: services));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open controls'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ride controls'), findsOneWidget);
+    expect(find.text('Waiting for bike'), findsWidgets);
   });
 }
 
