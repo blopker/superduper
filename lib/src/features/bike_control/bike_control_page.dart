@@ -338,7 +338,6 @@ final class _ConnectionSummary extends StatelessWidget {
             height: 52,
             decoration: BoxDecoration(
               color: presentation.color.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(presentation.icon, color: presentation.color),
           ),
@@ -471,7 +470,6 @@ final class _SettingSection extends StatelessWidget {
                       height: 42,
                       decoration: BoxDecoration(
                         color: AppColors.magenta.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(icon, color: AppColors.magentaSoft),
                     ),
@@ -536,10 +534,9 @@ final class _LightControl extends StatelessWidget {
       color: value && enabled
           ? AppColors.yellow.withValues(alpha: 0.12)
           : AppColors.inkLight,
-      borderRadius: BorderRadius.circular(17),
+      shape: const RoundedRectangleBorder(),
       child: InkWell(
         onTap: enabled ? () => onChanged(!value) : null,
-        borderRadius: BorderRadius.circular(17),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
@@ -622,6 +619,7 @@ final class _ValueSelector extends StatelessWidget {
           side: const WidgetStatePropertyAll(
             BorderSide(color: AppColors.border),
           ),
+          shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
           textStyle: const WidgetStatePropertyAll(
             TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),

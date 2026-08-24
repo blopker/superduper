@@ -290,9 +290,7 @@ final class _ScanResults extends StatelessWidget {
         const Text('Keep your bike powered on, unlocked, and nearby.'),
         if (isScanning) ...[
           const SizedBox(height: 24),
-          const LinearProgressIndicator(
-            borderRadius: BorderRadius.all(Radius.circular(99)),
-          ),
+          const LinearProgressIndicator(borderRadius: BorderRadius.zero),
         ],
         const SizedBox(height: 24),
         if (results.isEmpty && !isScanning)
@@ -363,7 +361,6 @@ final class _CandidateTile extends StatelessWidget {
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
         side: const BorderSide(color: AppColors.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -378,7 +375,6 @@ final class _CandidateTile extends StatelessWidget {
                 height: 54,
                 decoration: BoxDecoration(
                   color: AppColors.violet.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(17),
                 ),
                 child: const Icon(
                   Icons.electric_bike_rounded,
@@ -489,10 +485,7 @@ final class _AccessMessage extends StatelessWidget {
             Container(
               width: 68,
               height: 68,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(22),
-              ),
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.14)),
               child: Icon(icon, size: 34, color: accent),
             ),
             const SizedBox(height: 20),

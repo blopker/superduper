@@ -244,20 +244,8 @@ final class _ActiveStatus extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF331440), Color(0xFF21102B)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF653373)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33220A2C),
-            blurRadius: 30,
-            offset: Offset(0, 14),
-          ),
-        ],
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.magenta),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,7 +263,7 @@ final class _ActiveStatus extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           Text(
-            presentation.title,
+            presentation.title.toUpperCase(),
             style: Theme.of(context).textTheme.displaySmall,
           ),
           const SizedBox(height: 10),
@@ -500,9 +488,8 @@ final class _BikeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isActive ? const Color(0xFF2A1734) : AppColors.surface,
+      color: isActive ? const Color(0xFF16000F) : AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
         side: BorderSide(
           color: isActive ? AppColors.magenta : AppColors.border,
         ),

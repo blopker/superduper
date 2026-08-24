@@ -28,8 +28,8 @@ void main() {
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add your first bike'), findsOneWidget);
-    expect(find.text('No saved bikes'), findsOneWidget);
+    expect(find.text('ADD YOUR FIRST BIKE'), findsOneWidget);
+    expect(find.text('NO SAVED BIKES'), findsOneWidget);
     expect(find.text('Add bike'), findsOneWidget);
   });
 }

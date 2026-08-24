@@ -122,7 +122,6 @@ final class _MigrationRecoveryPage extends StatelessWidget {
                       height: 68,
                       decoration: BoxDecoration(
                         color: AppColors.orange.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(22),
                       ),
                       child: const Icon(
                         Icons.restore_rounded,
@@ -181,7 +180,7 @@ final class _LoadingPage extends StatelessWidget {
                 SizedBox(
                   width: 120,
                   child: LinearProgressIndicator(
-                    borderRadius: BorderRadius.all(Radius.circular(99)),
+                    borderRadius: BorderRadius.zero,
                   ),
                 ),
               ],
@@ -220,7 +219,6 @@ final class _StartupFailurePage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.error
                             .withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(22),
                       ),
                       child: Icon(
                         Icons.error_outline_rounded,

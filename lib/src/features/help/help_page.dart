@@ -119,10 +119,7 @@ final class _HelpTip extends StatelessWidget {
           Container(
             width: 52,
             height: 52,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(17),
-            ),
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.13)),
             child: Icon(icon, color: accent),
           ),
           const SizedBox(width: 15),

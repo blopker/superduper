@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(SuperduperApp(services: services));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ready to ride'), findsOneWidget);
+    expect(find.text('READY TO RIDE'), findsOneWidget);
     expect(find.textContaining('Commuter'), findsWidgets);
     final configurationWrites = transport.connections['active-bike']!.writes
         .where((write) => write.characteristicUuid == BikeGatt.stateRegister);
@@ -58,7 +58,7 @@ void main() {
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
     expect(find.text('Ride controls'), findsOneWidget);
-    expect(find.text('Set up your ride'), findsOneWidget);
+    expect(find.text('SET UP YOUR RIDE'), findsOneWidget);
     expect(find.text('Keep on connect'), findsWidgets);
   });
 

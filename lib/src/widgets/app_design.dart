@@ -10,19 +10,16 @@ final class AppPageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const _BackgroundGlow(),
-        SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: child,
-            ),
+    return ColoredBox(
+      color: AppColors.ink,
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: child,
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -101,7 +98,10 @@ final class SectionHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
               ],
-              Text(title, style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                title.toUpperCase(),
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
             ],
           ),
         ),
@@ -130,8 +130,9 @@ final class SurfacePanel extends StatelessWidget {
     return Material(
       color: color ?? AppColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: borderColor ?? AppColors.border),
+        side: borderColor == null
+            ? BorderSide.none
+            : BorderSide(color: borderColor!),
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),
@@ -154,11 +155,7 @@ final class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.42)),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.18)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
         child: Row(
@@ -195,21 +192,7 @@ final class BikeAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
-        ),
-        borderRadius: BorderRadius.circular(size * 0.32),
-        boxShadow: [
-          BoxShadow(
-            color: colors.last.withValues(alpha: 0.22),
-            blurRadius: 18,
-            offset: const Offset(0, 7),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: colors.last),
       child: Icon(
         Icons.electric_bike_rounded,
         color: color.iconColor,
@@ -229,13 +212,14 @@ final class BikeColorLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: color.gradientColors),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24),
+        SizedBox(
+          width: 24,
+          height: 18,
+          child: Row(
+            children: [
+              Expanded(child: ColoredBox(color: color.gradientColors.first)),
+              Expanded(child: ColoredBox(color: color.gradientColors.last)),
+            ],
           ),
         ),
         const SizedBox(width: 10),
@@ -295,23 +279,3 @@ const _bikeGradients = <List<Color>>[
   [Color(0xFF1751D0), Color(0xFF24BCFF)],
   [Color(0xFF07152F), Color(0xFF203F78)],
 ];
-
-final class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return const IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0.85, -1.05),
-            radius: 0.9,
-            colors: [Color(0x241F0929), AppColors.ink],
-            stops: [0, 0.62],
-          ),
-        ),
-      ),
-    );
-  }
-}
