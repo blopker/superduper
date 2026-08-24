@@ -30,6 +30,10 @@ Features:
 - (Android only) Background Lock, which will keep your bike on whatever settings you set it at, even the phone is locked
 - Open source
 
+See [the feature-set baseline](docs/FEATURE_SET.md) for the complete behavioral
+inventory used to guide modernization work. The proposed rewrite is documented
+in the [V2 plan](V2.md).
+
 ## Getting Started
 
 - Open the app and select the "Select Bike" button. This will find any bikes around you that are on and save the details into the app.
