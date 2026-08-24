@@ -892,6 +892,12 @@ final class BikeSession {
           }
           confirmed = await _readConfigurationUntil(
             (candidate) => candidate == target,
+            retryWrite: () {
+              if (_pending.peek() != target) {
+                return Future.value();
+              }
+              return _writeConfiguration(target);
+            },
           );
           if (!_isCurrent(generation) || !_hasObservedConnection) {
             throw const BikeSessionDisposedFailure();
@@ -952,8 +958,9 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> _readConfigurationUntil(
-    bool Function(BikeConfiguration configuration) matches,
-  ) async {
+    bool Function(BikeConfiguration configuration) matches, {
+    Future<void> Function()? retryWrite,
+  }) async {
     if (_confirmationRetryDelays.isEmpty) {
       final confirmed = await _readConfiguration();
       _publishObserved(confirmed);
@@ -961,8 +968,12 @@ final class BikeSession {
     }
 
     BikeConfiguration? confirmed;
-    for (final delay in _confirmationRetryDelays) {
+    for (var index = 0; index < _confirmationRetryDelays.length; index++) {
+      final delay = _confirmationRetryDelays[index];
       await Future<void>.delayed(delay);
+      if (index > 0) {
+        await retryWrite?.call();
+      }
       confirmed = await _readConfiguration();
       _publishObserved(confirmed);
       if (matches(confirmed)) {

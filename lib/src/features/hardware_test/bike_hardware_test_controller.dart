@@ -833,7 +833,7 @@ final class BikeHardwareTestController {
     final (title, detail) = switch (sessionState) {
       SessionConnecting() => (
         phase == BikeHardwareTestPhase.waitingForPowerOn
-            ? 'Bike found — connecting'
+            ? 'Bike found, connecting'
             : 'Connecting to the bike',
         'Opening the Bluetooth connection.',
       ),

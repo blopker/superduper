@@ -416,11 +416,15 @@ void main() {
 
     expect(session.state.value, isA<SessionDegraded>());
     expect(session.canChangeConfiguration, isTrue);
+    final configurationWrites = connection.writes
+        .where(
+          (write) => write.characteristicUuid == BikeGatt.stateRegister,
+        )
+        .toList();
+    expect(configurationWrites, hasLength(2));
     expect(
-      connection.writes.where(
-        (write) => write.characteristicUuid == BikeGatt.stateRegister,
-      ),
-      hasLength(2),
+      configurationWrites.map((write) => write.value),
+      everyElement([0, 0xd1, 1, 0, 0, 0, 0, 0, 0, 0]),
     );
   });
 
@@ -521,7 +525,7 @@ void main() {
     },
   );
 
-  test('waits for the state register to reflect a command', () async {
+  test('retries a command when its first confirmation is unchanged', () async {
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0],
@@ -540,7 +544,7 @@ void main() {
       connection.writes.where(
         (write) => write.characteristicUuid == BikeGatt.stateRegister,
       ),
-      hasLength(1),
+      hasLength(2),
     );
   });
 

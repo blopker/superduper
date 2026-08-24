@@ -106,17 +106,34 @@ void main() {
   });
 
   testWidgets(
-    'bike settings show cached versions and confirm protocol changes',
+    'bike settings save automatically and confirm protocol changes',
     (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(800, 1400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-      await _pumpReadyBikeApp(tester, 'settings');
+      final fixture = await _pumpReadyBikeApp(tester, 'settings');
 
       await tester.tap(find.byTooltip('Bike settings'));
       await tester.pumpAndSettle();
       expect(find.text('BIKE SETTINGS'), findsOneWidget);
+      expect(find.text('Save changes'), findsNothing);
+
+      await tester.enterText(find.byType(TextField).first, 'Daily Rider');
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.runAsync(
+        () => _waitUntilAsync(
+          () async =>
+              (await fixture.services.bikeRepository.getBikes())
+                  .single
+                  .bike
+                  .displayName ==
+              'Daily Rider',
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Saved'), findsOneWidget);
       expect(find.text('V1 — SUPER73'), findsOneWidget);
       await tester.ensureVisible(find.text('V1 — SUPER73'));
       await tester.pumpAndSettle();
@@ -124,14 +141,19 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('V2 — S73 FTEX').last);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Save changes'));
-      await tester.tap(find.text('Save changes'));
-      await tester.pumpAndSettle();
 
       expect(find.text('CHANGE BIKE PROTOCOL?'), findsOneWidget);
       expect(find.text('Change protocol'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
+
+      expect(
+        (await fixture.services.bikeRepository.getBikes())
+            .single
+            .bike
+            .protocol,
+        BikeProtocolVersion.v1,
+      );
 
       expect(find.text('BIKE VERSIONS'), findsOneWidget);
       expect(find.text('v3.2.0'), findsOneWidget);
@@ -327,6 +349,16 @@ Future<void> _waitForReady(ActiveBikeCoordinator coordinator) async {
 Future<void> _waitUntil(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 2));
   while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('The workflow did not reach its expected state.');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
+
+Future<void> _waitUntilAsync(Future<bool> Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  while (!await condition()) {
     if (DateTime.now().isAfter(deadline)) {
       throw TimeoutException('The workflow did not reach its expected state.');
     }
