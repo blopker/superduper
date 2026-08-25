@@ -73,10 +73,26 @@ void main() {
       ..configurationWriteGate = gate
       ..readFrames.add(v1StateFrame(light: true, mode: 3, assist: 4));
 
-    final lockFinder = find.widgetWithText(
-      SwitchListTile,
-      'Set Assist on connect',
+    // The three lock switches share the visible text "Set on connect" and are
+    // told apart only by their accessible label.
+    final lockFinder = find.ancestor(
+      of: find.byWidgetPredicate(
+        (widget) =>
+            widget is Text && widget.semanticsLabel == 'Set Assist on connect',
+      ),
+      matching: find.byType(SwitchListTile),
     );
+    expect(lockFinder, findsOneWidget);
+    for (final title in ['Light', 'Mode', 'Assist']) {
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Text &&
+              widget.semanticsLabel == 'Set $title on connect',
+        ),
+        findsOneWidget,
+      );
+    }
     expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNotNull);
     final initialWriteStarts = fixture.connection.configurationWriteStarts;
     final activeState =

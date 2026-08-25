@@ -527,7 +527,12 @@ final class _SettingSection extends StatelessWidget {
                   ? accent
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            title: const Text('Set on connect'),
+            // The three lock switches share one visible label; the section
+            // title is only visual context, so screen readers need it here.
+            title: Text(
+              'Set on connect',
+              semanticsLabel: 'Set $title on connect',
+            ),
             value: keep,
             onChanged: onKeepChanged == null
                 ? null
