@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
@@ -40,7 +41,7 @@ final class _HomePageState extends State<HomePage> {
     final migrationNoticePending = coordinator.migrationNoticePending.value;
     final startupState = services.startup.state.value;
     _scheduleAutoOpen(activeState);
-    return Scaffold(
+    final page = Scaffold(
       body: AppPageBody(
         maxWidth: double.infinity,
         safeTop: false,
@@ -150,6 +151,14 @@ final class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      child: page,
     );
   }
 

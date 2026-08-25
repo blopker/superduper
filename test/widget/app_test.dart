@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/app.dart';
 import 'package:superduper/src/app_services.dart';
@@ -30,6 +31,15 @@ void main() {
     expect(find.text('ADD YOUR FIRST BIKE'), findsOneWidget);
     expect(find.text('NO SAVED BIKES'), findsOneWidget);
     expect(find.text('Add bike'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AnnotatedRegion<SystemUiOverlayStyle> &&
+            widget.value.statusBarBrightness == Brightness.light &&
+            widget.value.statusBarIconBrightness == Brightness.dark,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('bootstrap can reset data when service creation throws', (
