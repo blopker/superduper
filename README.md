@@ -30,10 +30,6 @@ Features:
 - Keep settings, like Mode, so they are reapplied and confirmed while the app is open
 - Open source
 
-See [the feature-set baseline](docs/FEATURE_SET.md) for the complete behavioral
-inventory used to guide modernization work. The proposed rewrite is documented
-in the [V2 plan](V2.md).
-
 ## Getting Started
 
 1. Power on your bike and choose `Add bike`.
@@ -64,7 +60,9 @@ Changes the legal category your bike will operate at. PAS is Pedal Assist System
 which means the motor will only run when you are pedaling.
 Throttle means the motor will run when you press the throttle, regardless of if you are pedaling or not.
 
-#### US:
+Note: the mode setting means different things on different bike models. The table below may only match the early RX/R models.
+
+#### US (RX/R Bikes):
 
 | Mode | Class | PAS | Throttle | Speed Limit |
 | ---- | ----- | --- | -------- | ----------- |
@@ -74,7 +72,7 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 | 4    | Off-Road | Yes | Yes  | No Limit    |
 
 
-#### EU:
+#### EU (RX/R Bikes):
 
 | Mode | Class | PAS | Throttle | Speed Limit |
 | ---- | ----- | --- | -------- | ----------- |
@@ -88,12 +86,6 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 Changes the amount of assist your bike will provide while pedaling.
 0 is no assist, 4 is full assist. This does not affect throttle power.
 
-### Background enforcement
-
-Background enforcement is not currently shipped. It remains an Android
-experiment and will only return if it can perform real BLE synchronization
-reliably under the documented lifecycle, battery, and Play policy tests.
-
 
 ## FAQ
 
@@ -105,7 +97,7 @@ Make sure only one app is connected to the bike at a time. If you have the offic
 
 You can also try restarting the bike and your phone.
 
-Finally, older bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
+Finally, older (or newer) bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
 
 ### How does Keep this setting work?
 
@@ -114,13 +106,9 @@ the active-bike session reads the bike, restores any kept value that differs,
 and reads again before reporting `Ready to ride`. Closing or backgrounding the
 app pauses that guarantee; reopening the app resynchronizes the active bike.
 
-### What's up with the bike names?
-
-The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes. You can change the name in the bike's Edit page after you connect to the bike for the first time.
-
 ### What are the supported devices?
 
-The V2 baseline requires Android 10+, iOS 15+, or macOS 12+.
+Android 10+, iOS 15+.
 
 ### What bikes are supported?
 
@@ -128,29 +116,11 @@ So far, all bike models have worked. Open a ticket if your model is having issue
 
 ### Can this app make the bike go even faster?
 
-Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself.
+Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself. Check out the [CFW site](https://cfw.reverse.bike/) for that.
 
 ### I'm having another issue or have a feature request
 
 I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
-
-## Developers
-
-V2 uses Flutter 3.47.1 stable with Dart 3.13.1. Run `flutter pub get`, then
-`dart run build_runner build` after changing the Drift schema. SQLite schema
-versions are checked into `drift_schemas`; after incrementing `schemaVersion`,
-refresh them with:
-
-```sh
-dart run drift_dev schema dump lib/src/persistence/app_database.dart drift_schemas
-dart run drift_dev schema generate drift_schemas test/generated
-```
-
-The iOS and macOS projects use Swift Package Manager; do not run `pod install`.
-
-Run `flutter analyze` and `flutter test` before building. Debug builds use
-`flutter build apk --debug`, `flutter build ios --simulator --debug`, and
-`flutter build macos --debug`.
 
 ### Releases
 
