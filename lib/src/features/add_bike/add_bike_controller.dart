@@ -35,10 +35,19 @@ final class AddBikeAdapterUnavailable extends AddBikeState {
   final BikeAdapterState adapterState;
 }
 
+final class AddBikeLocationServicesDisabled extends AddBikeState {
+  const AddBikeLocationServicesDisabled();
+}
+
 final class AddBikeScanning extends AddBikeState {
-  const AddBikeScanning({required this.results, required this.isScanning});
+  const AddBikeScanning({
+    required this.results,
+    required this.savedDeviceIds,
+    required this.isScanning,
+  });
 
   final List<DiscoveredBike> results;
+  final Set<String> savedDeviceIds;
   final bool isScanning;
 }
 
@@ -138,6 +147,11 @@ final class AddBikeController {
         _state.value = AddBikePermissionRequired(access.permission);
         return;
       }
+      if (access.scanPrerequisite ==
+          BluetoothScanPrerequisite.locationServicesDisabled) {
+        _state.value = const AddBikeLocationServicesDisabled();
+        return;
+      }
       if (access.adapter != BikeAdapterState.on) {
         _state.value = AddBikeAdapterUnavailable(access.adapter);
         return;
@@ -152,7 +166,11 @@ final class AddBikeController {
       _results = const [];
       _isScanning = true;
       _acceptScanStop = false;
-      _state.value = const AddBikeScanning(results: [], isScanning: true);
+      _state.value = AddBikeScanning(
+        results: const [],
+        savedDeviceIds: Set.unmodifiable(_savedIds),
+        isScanning: true,
+      );
       _listenToScan();
       try {
         await transport.startScan(timeout: scanTimeout);
@@ -179,6 +197,10 @@ final class AddBikeController {
   Future<void> selectCandidate(DiscoveredBike candidate) async {
     _ensureNotDisposed();
     if (_state.peek() is! AddBikeScanning) {
+      return;
+    }
+    if (_savedIds.contains(candidate.deviceId)) {
+      _state.value = const AddBikeFailure('This bike is already saved.');
       return;
     }
     final protocol = BikeProtocolVersion.fromAdvertisedName(candidate.name);
@@ -220,14 +242,11 @@ final class AddBikeController {
         return;
       }
 
-      final advertisedName = candidate.name.trim();
       _state.value = AddBikeConfirming(
         candidate: candidate,
         protocol: session.protocolVersion,
         configuration: configuration,
-        suggestedName: advertisedName.isEmpty
-            ? defaultBikeName(candidate.deviceId)
-            : advertisedName,
+        suggestedName: defaultBikeName(candidate.deviceId),
         versions: session.versions.peek(),
       );
     } on Object catch (error) {
@@ -313,9 +332,14 @@ final class AddBikeController {
       return;
     }
     _operationGeneration++;
-    await _stopCandidateAndScan();
-    await _resumeCoordinator();
-    _state.value = const AddBikeIdle();
+    try {
+      await _stopCandidateAndScan();
+    } finally {
+      await _resumeCoordinator();
+      if (!_disposed) {
+        _state.value = const AddBikeIdle();
+      }
+    }
   }
 
   Future<void> dispose() async {
@@ -324,9 +348,18 @@ final class AddBikeController {
     }
     _disposed = true;
     _operationGeneration++;
-    await _stopCandidateAndScan();
-    await _resumeCoordinator();
-    _state.dispose();
+    try {
+      await _stopCandidateAndScan();
+    } on Object {
+      // Leaving setup must still restore normal bike ownership.
+    } finally {
+      try {
+        await _resumeCoordinator();
+      } on Object {
+        // The app may be shutting down with the coordinator already disposed.
+      }
+      _state.dispose();
+    }
   }
 
   void _listenToScan() {
@@ -343,8 +376,7 @@ final class AddBikeController {
       _results = List.unmodifiable(
         results.where(
           (result) =>
-              BikeProtocolVersion.fromAdvertisedName(result.name) != null &&
-              !_savedIds.contains(result.deviceId),
+              BikeProtocolVersion.fromAdvertisedName(result.name) != null,
         ),
       );
       _publishScan();
@@ -377,6 +409,7 @@ final class AddBikeController {
     if (!_disposed && _state.peek() is AddBikeScanning) {
       _state.value = AddBikeScanning(
         results: _results,
+        savedDeviceIds: Set.unmodifiable(_savedIds),
         isScanning: _isScanning,
       );
     }

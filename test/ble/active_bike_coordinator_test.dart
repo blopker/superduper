@@ -358,6 +358,7 @@ void main() {
     );
 
     await coordinator.pauseForDiscovery();
+    expect(coordinator.state.value, isA<ActiveBikeLoading>());
     await settings.makeBikeActive('second');
     await _waitUntil(() => coordinator.activeBikeId.peek() == 'second');
 
@@ -418,6 +419,7 @@ void main() {
       expect(promoted.isTemporary, isFalse);
       expect((await settings.get()).activeBikeId, 'second');
       expect(connections['first']?.single.disposeCalls, 1);
+      expect(connections['first'], hasLength(1));
       expect(connections['second']?.single.connectCalls, 1);
     },
   );

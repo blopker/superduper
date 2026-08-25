@@ -17,8 +17,15 @@ final class BikeHardwareTestPage extends SignalStatefulWidget {
   State<BikeHardwareTestPage> createState() => _BikeHardwareTestPageState();
 }
 
-final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
+final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage>
+    with WidgetsBindingObserver {
   BikeHardwareTestController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -36,8 +43,23 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_controller?.dispose());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _controller?.setForeground(true);
+      case AppLifecycleState.inactive:
+        return;
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _controller?.setForeground(false);
+    }
   }
 
   @override
@@ -135,15 +157,24 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage> {
                 const SizedBox(height: 20),
               ],
               if (state.phase == BikeHardwareTestPhase.restoring)
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Column(
                   children: [
-                    SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Restoring starting settings…'),
+                      ],
                     ),
-                    SizedBox(width: 12),
-                    Text('Restoring starting settings…'),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: controller.stopWithoutRestoring,
+                      child: const Text('Stop without restoring'),
+                    ),
                   ],
                 )
               else if (state.isRunning)

@@ -102,6 +102,19 @@ void main() {
   });
 
   test(
+    'disabled Android Location Services is explicit and scanning never starts',
+    () async {
+      permissions.scanPrerequisite =
+          BluetoothScanPrerequisite.locationServicesDisabled;
+
+      await controller.start();
+
+      expect(controller.state.value, isA<AddBikeLocationServicesDisabled>());
+      expect(transport.scanStarts, 0);
+    },
+  );
+
+  test(
     'a started scan remains in progress after the initial stream value',
     () async {
       await controller.start();
@@ -139,6 +152,7 @@ void main() {
     final confirmation = controller.state.value as AddBikeConfirming;
     expect(confirmation.configuration.mode, 2);
     expect(confirmation.configuration.region, BikeRegion.eu);
+    expect(confirmation.suggestedName, isNot('SUPER73'));
 
     final saved = await controller.confirm(
       displayName: 'My Bike',
@@ -224,7 +238,7 @@ void main() {
     expect(saved.bike.protocol, BikeProtocolVersion.v2);
   });
 
-  test('already saved bikes are filtered from scan results', () async {
+  test('already saved bikes remain visible but cannot be selected', () async {
     await bikes.addBike(deviceId: 'saved');
     await controller.start();
 
@@ -242,7 +256,8 @@ void main() {
       (state) => state is AddBikeScanning && state.results.isNotEmpty,
     ) as AddBikeScanning;
 
-    expect(state.results.map((result) => result.deviceId), ['new']);
+    expect(state.results.map((result) => result.deviceId), ['saved', 'new']);
+    expect(state.savedDeviceIds, contains('saved'));
     await _waitUntil(
       () async =>
           (await bikes.getBikes()).single.bike.moduleSerial ==
@@ -258,6 +273,72 @@ void main() {
     expect(controller.state.value, isA<AddBikeIdle>());
     expect(transport.scanStops, 1);
     expect(await bikes.getBikes(), isEmpty);
+  });
+
+  test(
+    'dispose resumes normal bike ownership when stopping scan fails',
+    () async {
+      await bikes.addBike(deviceId: 'saved', displayName: 'Saved');
+      transport.readFramesOnOpen['saved'] = [
+        [0, 0, 0, 0, 0, 0],
+      ];
+      await _waitFor(
+        coordinator.state,
+        (state) =>
+            state is ActiveBikeSessionStatus &&
+            state.bike.bike.deviceId == 'saved' &&
+            state.sessionState is SessionReady,
+      );
+      await controller.start();
+      transport.stopScanError = const BikeConnectionFailure(
+        'Bluetooth scan',
+        'could not stop',
+      );
+
+      await controller.dispose();
+
+      await _waitFor(
+        coordinator.state,
+        (state) =>
+            state is ActiveBikeSessionStatus &&
+            state.bike.bike.deviceId == 'saved' &&
+            state.sessionState is SessionReady,
+      );
+    },
+  );
+
+  test('saving still selects the new bike when the page disposes', () async {
+    transport.readFramesOnOpen['new-bike'] = [
+      [0, 0, 3, 0, 1, 2],
+    ];
+    await controller.start();
+    const candidate = DiscoveredBike(
+      deviceId: 'new-bike',
+      name: 'SUPER73',
+      rssi: -42,
+    );
+    transport.emitResults(const [candidate]);
+    await _waitFor(
+      controller.state,
+      (state) => state is AddBikeScanning && state.results.contains(candidate),
+    );
+    await controller.selectCandidate(candidate);
+
+    final save = controller.confirm(
+      displayName: 'New',
+      region: BikeRegion.us,
+      color: BikeColor.royalHorizon,
+    );
+    final dispose = controller.dispose();
+    await Future.wait([save, dispose]);
+
+    final selected = await _waitFor(
+      coordinator.state,
+      (state) =>
+          state is ActiveBikeSessionStatus &&
+          state.bike.bike.deviceId == 'new-bike',
+    ) as ActiveBikeSessionStatus;
+    expect(selected.isTemporary, isTrue);
   });
 
   test('an incompatible GATT shape fails before confirmation', () async {
@@ -290,15 +371,15 @@ Future<void> _waitUntil(Future<bool> Function() condition) async {
   }
 }
 
-Future<AddBikeState> _waitFor(
-  ReadonlySignal<AddBikeState> signal,
-  bool Function(AddBikeState state) matches,
+Future<T> _waitFor<T>(
+  ReadonlySignal<T> signal,
+  bool Function(T state) matches,
 ) {
   final current = signal.peek();
   if (matches(current)) {
     return Future.value(current);
   }
-  final completer = Completer<AddBikeState>();
+  final completer = Completer<T>();
   late final EffectCleanup cleanup;
   cleanup = signal.subscribe((state) {
     if (!completer.isCompleted && matches(state)) {

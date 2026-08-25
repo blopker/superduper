@@ -27,9 +27,6 @@ void main() {
     final fixture = await _pumpReadyBikeApp(tester, 'ready');
 
     expect(find.text('RIDE CONTROLS'), findsOneWidget);
-    expect(find.text('Set Light on connect'), findsOneWidget);
-    expect(find.text('Set Mode on connect'), findsOneWidget);
-    expect(find.text('Set Assist on connect'), findsOneWidget);
     expect(find.widgetWithText(SwitchListTile, 'Light'), findsOneWidget);
     expect(find.byTooltip('Disconnect'), findsOneWidget);
 

@@ -49,7 +49,7 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
     }
   }
 
-  Future<void> _resetDataAndRestart() async {
+  Future<void> _restart({required bool resetData}) async {
     if (_restarting) {
       return;
     }
@@ -69,7 +69,9 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
       return;
     }
     try {
-      await widget.resetData();
+      if (resetData) {
+        await widget.resetData();
+      }
       if (!mounted) {
         return;
       }
@@ -89,6 +91,10 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
       }
     }
   }
+
+  Future<void> _retryStartup() => _restart(resetData: false);
+
+  Future<void> _resetDataAndRestart() => _restart(resetData: true);
 
   @override
   void dispose() {
@@ -112,6 +118,7 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
     if (services != null) {
       return SuperduperApp(
         services: services,
+        onStartupRetry: _retryStartup,
         onStartupReset: _resetDataAndRestart,
       );
     }
@@ -123,6 +130,7 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
           _creationError ?? StateError('Service creation failed.'),
           context: UserErrorContext.startup,
         ),
+        onRetry: _retryStartup,
         onReset: _resetDataAndRestart,
       ),
     );
@@ -132,11 +140,13 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
 final class SuperduperApp extends StatefulWidget {
   const SuperduperApp({
     required this.services,
+    this.onStartupRetry,
     this.onStartupReset,
     super.key,
   });
 
   final AppServices services;
+  final Future<void> Function()? onStartupRetry;
   final Future<void> Function()? onStartupReset;
 
   @override
@@ -187,15 +197,19 @@ final class _SuperduperAppState extends State<SuperduperApp>
         debugShowCheckedModeBanner: false,
         title: 'Superduper',
         theme: AppTheme.dark,
-        home: StartupPage(onStartupReset: widget.onStartupReset),
+        home: StartupPage(
+          onStartupRetry: widget.onStartupRetry,
+          onStartupReset: widget.onStartupReset,
+        ),
       ),
     );
   }
 }
 
 final class StartupPage extends SignalWidget {
-  const StartupPage({this.onStartupReset, super.key});
+  const StartupPage({this.onStartupRetry, this.onStartupReset, super.key});
 
+  final Future<void> Function()? onStartupRetry;
   final Future<void> Function()? onStartupReset;
 
   @override
@@ -217,6 +231,7 @@ final class StartupPage extends SignalWidget {
           error,
           context: UserErrorContext.startup,
         ),
+        onRetry: onStartupRetry,
         onReset: onStartupReset,
       ),
     };
@@ -347,9 +362,14 @@ final class _LoadingPage extends StatelessWidget {
 }
 
 final class _StartupFailurePage extends StatelessWidget {
-  const _StartupFailurePage({required this.message, required this.onReset});
+  const _StartupFailurePage({
+    required this.message,
+    required this.onRetry,
+    required this.onReset,
+  });
 
   final String message;
+  final Future<void> Function()? onRetry;
   final Future<void> Function()? onReset;
 
   @override
@@ -385,6 +405,12 @@ final class _StartupFailurePage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                    const SizedBox(height: 8),
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.error,

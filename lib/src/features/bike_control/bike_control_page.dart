@@ -28,6 +28,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
   var _initialized = false;
   var _selectionStarted = false;
   var _temporarySelection = false;
+  var _changingLock = false;
 
   @override
   void didChangeDependencies() {
@@ -92,9 +93,17 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final pendingConfiguration = session?.pending.value;
     final observedConfiguration = session?.observed.value;
     final configuration = pendingConfiguration ?? observedConfiguration;
+    final valuesAreStale =
+        observedConfiguration != null &&
+        sessionState is! SessionReady &&
+        sessionState is! SessionSynchronizing &&
+        sessionState is! SessionDegraded;
+    String settingValue(String value) =>
+        valuesAreStale ? '$value · last known' : value;
     final canControl =
         session?.canChangeConfiguration == true && configuration != null;
     final canChangeLocks =
+        !_changingLock &&
         observedConfiguration != null &&
         pendingConfiguration == null &&
         (sessionState is SessionReady || sessionState is SessionDegraded);
@@ -171,9 +180,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Light',
           value: configuration == null
               ? 'Waiting for bike'
-              : configuration.light
-              ? 'On'
-              : 'Off',
+              : settingValue(configuration.light ? 'On' : 'Off'),
           toggleValue: configuration?.light ?? false,
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
@@ -195,7 +202,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Mode',
           value: configuration == null
               ? 'Waiting for bike'
-              : 'Mode ${configuration.mode + 1}',
+              : settingValue('Mode ${configuration.mode + 1}'),
           control: _ValueSelector(
             values: const [0, 1, 2, 3],
             selected: configuration?.mode,
@@ -221,7 +228,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Assist',
           value: configuration == null
               ? 'Waiting for bike'
-              : 'Level ${configuration.assist}',
+              : settingValue('Level ${configuration.assist}'),
           control: _ValueSelector(
             values: const [0, 1, 2, 3, 4],
             selected: configuration?.assist,
@@ -260,7 +267,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         if (canRetry) ...[
           const SizedBox(height: 18),
           FilledButton.icon(
-            onPressed: coordinator.retry,
+            onPressed: () => unawaited(
+              _runConnectionAction(coordinator.retry),
+            ),
             icon: const Icon(Icons.refresh_rounded),
             label: Text(
               sessionState is SessionDegraded
@@ -290,6 +299,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
   }
 
   Future<void> _runLockChange(Future<void> Function() change) async {
+    if (_changingLock) {
+      return;
+    }
+    setState(() => _changingLock = true);
     try {
       await change();
     } on Object catch (error) {
@@ -301,6 +314,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _changingLock = false);
       }
     }
   }
@@ -510,7 +527,7 @@ final class _SettingSection extends StatelessWidget {
                   ? accent
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            title: Text('Set $title on connect'),
+            title: const Text('Set on connect'),
             value: keep,
             onChanged: onKeepChanged == null
                 ? null

@@ -87,7 +87,10 @@ final class _HomePageState extends State<HomePage> {
                         child: _ActiveStatus(
                           key: ValueKey(activeState.runtimeType),
                           state: activeState,
-                          onRetry: coordinator.retry,
+                          onRetry: () => _runAction(
+                            context,
+                            coordinator.retry,
+                          ),
                           onOpenSettings: coordinator.openPermissionSettings,
                           onOpenBike: (deviceId) =>
                               _openBike(context, deviceId),
@@ -524,6 +527,13 @@ final class _ActiveStatus extends StatelessWidget {
   ) {
     final name = isTemporary ? 'Temporary bike' : bike.bike.displayName;
     final presentation = BikeSessionPresentation.from(state, bikeName: name);
+    final needsSettings = switch (state) {
+      SessionFailed(
+        failure: BikeBluetoothUnavailable(canRetry: false),
+      ) =>
+        true,
+      _ => false,
+    };
     return (
       icon: presentation.icon,
       label: presentation.label,
@@ -531,7 +541,7 @@ final class _ActiveStatus extends StatelessWidget {
       title: presentation.title,
       detail: presentation.detail,
       canRetry: presentation.canRetry,
-      needsSettings: false,
+      needsSettings: needsSettings,
       bike: bike,
     );
   }

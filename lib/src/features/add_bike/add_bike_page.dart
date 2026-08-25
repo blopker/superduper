@@ -129,16 +129,36 @@ final class _AddBikePageState extends State<AddBikePage>
                   'Superduper could not determine whether Bluetooth is ready.',
                 _ => 'Bluetooth must be on before Superduper can find a bike.',
               },
+              primaryLabel: adapterState == BikeAdapterState.unauthorized
+                  ? 'Open settings'
+                  : 'Try again',
+              onPrimary: adapterState == BikeAdapterState.unauthorized
+                  ? () async {
+                      await widget.controller.openPermissionSettings();
+                    }
+                  : widget.controller.retry,
+            ),
+            AddBikeLocationServicesDisabled() => _AccessMessage(
+              key: const ValueKey('location-services'),
+              icon: Icons.location_off_rounded,
+              title: 'Turn on Location Services',
+              detail: 'Android 10 and 11 require Location Services to be on while scanning for nearby Bluetooth bikes.',
               primaryLabel: 'Try again',
               onPrimary: widget.controller.retry,
             ),
-            AddBikeScanning(:final results, :final isScanning) => _ScanResults(
-              key: const ValueKey('scanning'),
-              results: results,
-              isScanning: isScanning,
-              onSelect: widget.controller.selectCandidate,
-              onScanAgain: widget.controller.retry,
-            ),
+            AddBikeScanning(
+              :final results,
+              :final savedDeviceIds,
+              :final isScanning,
+            ) =>
+              _ScanResults(
+                key: const ValueKey('scanning'),
+                results: results,
+                savedDeviceIds: savedDeviceIds,
+                isScanning: isScanning,
+                onSelect: widget.controller.selectCandidate,
+                onScanAgain: widget.controller.retry,
+              ),
             AddBikeConnecting(:final candidate) => _ProgressMessage(
               key: const ValueKey('connecting'),
               icon: Icons.bluetooth_connected_rounded,
@@ -307,6 +327,7 @@ final class _AddBikePageState extends State<AddBikePage>
 final class _ScanResults extends StatelessWidget {
   const _ScanResults({
     required this.results,
+    required this.savedDeviceIds,
     required this.isScanning,
     required this.onSelect,
     required this.onScanAgain,
@@ -314,6 +335,7 @@ final class _ScanResults extends StatelessWidget {
   });
 
   final List<DiscoveredBike> results;
+  final Set<String> savedDeviceIds;
   final bool isScanning;
   final Future<void> Function(DiscoveredBike candidate) onSelect;
   final Future<void> Function() onScanAgain;
@@ -371,20 +393,34 @@ final class _ScanResults extends StatelessWidget {
         for (final candidate in results) ...[
           _CandidateTile(
             candidate: candidate,
-            onTap: () => unawaited(onSelect(candidate)),
+            alreadySaved: savedDeviceIds.contains(candidate.deviceId),
+            onTap: savedDeviceIds.contains(candidate.deviceId)
+                ? null
+                : () => unawaited(onSelect(candidate)),
           ),
           const SizedBox(height: 12),
         ],
+        if (!isScanning && results.isNotEmpty)
+          OutlinedButton.icon(
+            onPressed: onScanAgain,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Scan again'),
+          ),
       ],
     );
   }
 }
 
 final class _CandidateTile extends StatelessWidget {
-  const _CandidateTile({required this.candidate, required this.onTap});
+  const _CandidateTile({
+    required this.candidate,
+    required this.alreadySaved,
+    required this.onTap,
+  });
 
   final DiscoveredBike candidate;
-  final VoidCallback onTap;
+  final bool alreadySaved;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -405,43 +441,52 @@ final class _CandidateTile extends StatelessWidget {
         AppColors.orange,
       ),
     };
-    return Material(
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.electric_bike_rounded,
-                color: AppColors.magentaSoft,
-                size: 32,
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      candidate.name.isEmpty ? 'SUPER73 bike' : candidate.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(icon, size: 17, color: color),
-                        const SizedBox(width: 6),
-                        Text('$quality · ${candidate.rssi} dBm'),
-                      ],
-                    ),
-                  ],
+    return Opacity(
+      opacity: alreadySaved ? 0.55 : 1,
+      child: Material(
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.electric_bike_rounded,
+                  color: AppColors.magentaSoft,
+                  size: 32,
                 ),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-            ],
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        candidate.name.isEmpty
+                            ? 'SUPER73 bike'
+                            : candidate.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 5),
+                      if (alreadySaved)
+                        const Text('Already saved')
+                      else
+                        Row(
+                          children: [
+                            Icon(icon, size: 17, color: color),
+                            const SizedBox(width: 6),
+                            Text('$quality · ${candidate.rssi} dBm'),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                if (!alreadySaved)
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              ],
+            ),
           ),
         ),
       ),

@@ -95,6 +95,7 @@ final class ActiveBikeCoordinator {
   BikeSession? _session;
   SavedBike? _currentBike;
   String? _temporaryBikeId;
+  final Set<String> _forgettingBikeIds = {};
   var _reconcileRequested = false;
   var _reconcileForce = false;
   var _reconcileMayRequestPermission = false;
@@ -178,6 +179,12 @@ final class ActiveBikeCoordinator {
   }
 
   Future<void> selectTemporarily(String deviceId) async {
+    if (!_bikes.peek().any((saved) => saved.bike.deviceId == deviceId)) {
+      _acceptBikes(await bikeRepository.getBikes());
+      if (_disposed) {
+        return;
+      }
+    }
     _requireSavedBike(deviceId);
     if (_temporaryBikeId == deviceId && _session?.deviceId == deviceId) {
       return;
@@ -196,23 +203,53 @@ final class ActiveBikeCoordinator {
 
   Future<void> makeBikeActive(String deviceId) async {
     await settingsRepository.makeBikeActive(deviceId);
+    if (_disposed) {
+      return;
+    }
     _acceptSettings(await settingsRepository.get());
+    if (_disposed) {
+      return;
+    }
     _temporaryBikeId = null;
     await _reconcile(force: _session?.deviceId != deviceId);
   }
 
   Future<void> forgetBike(String deviceId) async {
-    _switchGeneration++;
-    if (_session?.deviceId == deviceId) {
-      await _clearSession();
+    if (_disposed || !_forgettingBikeIds.add(deviceId)) {
+      return;
     }
-    if (_temporaryBikeId == deviceId) {
-      _temporaryBikeId = null;
+    try {
+      _switchGeneration++;
+      _acceptBikes(
+        _bikes
+            .peek()
+            .where(
+              (saved) => saved.bike.deviceId != deviceId,
+            )
+            .toList(),
+      );
+      if (_temporaryBikeId == deviceId) {
+        _temporaryBikeId = null;
+      }
+      if (_session?.deviceId == deviceId) {
+        await _clearSession();
+      }
+      await bikeRepository.forgetBike(deviceId);
+      if (_disposed) {
+        return;
+      }
+      _acceptBikes(await bikeRepository.getBikes());
+      if (_disposed) {
+        return;
+      }
+      _acceptSettings(await settingsRepository.get());
+      if (_disposed) {
+        return;
+      }
+      await _reconcile();
+    } finally {
+      _forgettingBikeIds.remove(deviceId);
     }
-    await bikeRepository.forgetBike(deviceId);
-    _acceptBikes(await bikeRepository.getBikes());
-    _acceptSettings(await settingsRepository.get());
-    await _reconcile();
   }
 
   Future<void> retry() async {
@@ -247,6 +284,9 @@ final class ActiveBikeCoordinator {
     }
     if (temporarilySelect != null) {
       _acceptBikes(await bikeRepository.getBikes());
+      if (_disposed) {
+        return;
+      }
       _temporaryBikeId = temporarilySelect.bike.deviceId;
     }
     _discoveryPaused = false;
@@ -423,7 +463,6 @@ final class ActiveBikeCoordinator {
           _publishSessionState(sessionState);
         }
       });
-      _publishSessionState(next.state.peek());
       unawaited(
         next.connect().catchError((Object error) {
           if (!_disposed && _session == next) {
@@ -464,6 +503,9 @@ final class ActiveBikeCoordinator {
     _session = null;
     _currentBike = null;
     _readyRecorded = false;
+    if (!_disposed) {
+      _state.value = const ActiveBikeLoading();
+    }
     if (old != null) {
       await old.dispose();
     }
@@ -509,7 +551,11 @@ final class ActiveBikeCoordinator {
   }
 
   void _acceptBikes(List<SavedBike> bikes) {
-    final immutable = List<SavedBike>.unmodifiable(bikes);
+    final immutable = List<SavedBike>.unmodifiable(
+      bikes.where(
+        (saved) => !_forgettingBikeIds.contains(saved.bike.deviceId),
+      ),
+    );
     _inputs = _CoordinatorInputs(
       bikes: immutable,
       settings: _inputs.settings,

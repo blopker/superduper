@@ -13,6 +13,7 @@ List<int> v1StateFrame({
 final class FakeBluetoothPermissionGateway
     implements BluetoothPermissionGateway {
   BluetoothPermissionState state = BluetoothPermissionState.granted;
+  BluetoothScanPrerequisite scanPrerequisite = BluetoothScanPrerequisite.ready;
   Object? ensureError;
   Duration ensureDelay = Duration.zero;
   Completer<void>? ensureGate;
@@ -47,6 +48,11 @@ final class FakeBluetoothPermissionGateway
   }
 
   @override
+  Future<BluetoothScanPrerequisite> checkScanPrerequisite() async {
+    return scanPrerequisite;
+  }
+
+  @override
   Future<bool> openSettings() async {
     settingsOpens++;
     return true;
@@ -66,6 +72,7 @@ final class FakeBikeTransport implements BikeTransport {
   List<DiscoveredBike> replayedScanResults = const [];
   int scanStarts = 0;
   int scanStops = 0;
+  Object? stopScanError;
   bool isDisposed = false;
 
   @override
@@ -108,6 +115,9 @@ final class FakeBikeTransport implements BikeTransport {
   @override
   Future<void> stopScan() async {
     scanStops++;
+    if (stopScanError case final error?) {
+      _throw(error);
+    }
     _scanning.add(false);
   }
 

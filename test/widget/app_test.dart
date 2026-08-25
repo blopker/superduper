@@ -103,4 +103,52 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
+
+  testWidgets('bootstrap can retry without deleting app data', (tester) async {
+    var attempts = 0;
+    var resets = 0;
+    AppServices? recovered;
+
+    await tester.pumpWidget(
+      SuperduperBootstrap(
+        resetData: () async => resets++,
+        createServices: () {
+          attempts++;
+          if (attempts == 1) {
+            throw StateError('database temporarily unavailable');
+          }
+          final database = AppDatabase(NativeDatabase.memory());
+          return recovered = AppServices(
+            database: database,
+            transport: FakeBikeTransport(),
+            permissions: FakeBluetoothPermissionGateway(),
+            importer: InstalledDataImporter(
+              database: database,
+              documentsDirectory: () async =>
+                  Directory('scratch/widget_tests/bootstrap_safe_retry'),
+            ),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Try again'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.runAsync(() async {
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (recovered == null && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      await recovered!.startup.initialize();
+    });
+    await tester.pumpAndSettle();
+
+    expect(attempts, 2);
+    expect(resets, 0);
+    expect(find.text('ADD YOUR FIRST BIKE'), findsOneWidget);
+
+    await tester.runAsync(recovered!.dispose);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 }

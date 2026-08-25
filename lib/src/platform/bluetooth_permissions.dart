@@ -2,13 +2,17 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum BluetoothPermissionState { granted, denied, permanentlyDenied, restricted }
 
 enum BluetoothPermissionPlatform { android, ios, macos, other }
 
+enum BluetoothScanPrerequisite { ready, locationServicesDisabled }
+
 abstract interface class BluetoothPermissionGateway {
   Future<BluetoothPermissionState> ensureAccess({required bool request});
+  Future<BluetoothScanPrerequisite> checkScanPrerequisite();
   Future<bool> openSettings();
 }
 
@@ -17,11 +21,20 @@ final class SystemBluetoothPermissionGateway
   SystemBluetoothPermissionGateway({
     DeviceInfoPlugin? deviceInfo,
     BluetoothPermissionPlatform? platform,
+    Future<int> Function()? androidSdkInt,
+    Future<ServiceStatus> Function()? locationServiceStatus,
+    Future<bool> Function()? settingsOpener,
   }) : _deviceInfo = deviceInfo ?? DeviceInfoPlugin(),
-       _platform = platform ?? _currentPlatform();
+       _platform = platform ?? _currentPlatform(),
+       _androidSdkIntOverride = androidSdkInt,
+       _locationServiceStatusOverride = locationServiceStatus,
+       _settingsOpenerOverride = settingsOpener;
 
   final DeviceInfoPlugin _deviceInfo;
   final BluetoothPermissionPlatform _platform;
+  final Future<int> Function()? _androidSdkIntOverride;
+  final Future<ServiceStatus> Function()? _locationServiceStatusOverride;
+  final Future<bool> Function()? _settingsOpenerOverride;
 
   @override
   Future<BluetoothPermissionState> ensureAccess({required bool request}) async {
@@ -40,9 +53,33 @@ final class SystemBluetoothPermissionGateway
   }
 
   @override
-  Future<bool> openSettings() {
-    if (_platform == BluetoothPermissionPlatform.macos ||
-        _platform == BluetoothPermissionPlatform.other) {
+  Future<BluetoothScanPrerequisite> checkScanPrerequisite() async {
+    if (_platform != BluetoothPermissionPlatform.android ||
+        await _androidSdkInt() >= 31) {
+      return BluetoothScanPrerequisite.ready;
+    }
+    final status =
+        await (_locationServiceStatusOverride?.call() ??
+            Permission.locationWhenInUse.serviceStatus);
+    return status == ServiceStatus.enabled
+        ? BluetoothScanPrerequisite.ready
+        : BluetoothScanPrerequisite.locationServicesDisabled;
+  }
+
+  @override
+  Future<bool> openSettings() async {
+    if (_settingsOpenerOverride case final opener?) {
+      return opener();
+    }
+    if (_platform == BluetoothPermissionPlatform.macos) {
+      return launchUrl(
+        Uri.parse(
+          'x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth',
+        ),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+    if (_platform == BluetoothPermissionPlatform.other) {
       return Future.value(false);
     }
     return openAppSettings();
@@ -50,8 +87,7 @@ final class SystemBluetoothPermissionGateway
 
   Future<List<Permission>> _requiredPermissions() async {
     if (_platform == BluetoothPermissionPlatform.android) {
-      final android = await _deviceInfo.androidInfo;
-      if (android.version.sdkInt >= 31) {
+      if (await _androidSdkInt() >= 31) {
         return const [Permission.bluetoothScan, Permission.bluetoothConnect];
       }
       return const [Permission.locationWhenInUse];
@@ -60,6 +96,13 @@ final class SystemBluetoothPermissionGateway
       return const [Permission.bluetooth];
     }
     return const [];
+  }
+
+  Future<int> _androidSdkInt() async {
+    if (_androidSdkIntOverride case final read?) {
+      return read();
+    }
+    return (await _deviceInfo.androidInfo).version.sdkInt;
   }
 
   static BluetoothPermissionPlatform _currentPlatform() {

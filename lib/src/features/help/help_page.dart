@@ -54,7 +54,7 @@ final class HelpPage extends StatelessWidget {
               number: '03',
               icon: Icons.sync_rounded,
               title: 'Wait for confirmation',
-              detail: 'Superduper reapplies kept settings while open and confirms them before showing Ready to ride.',
+              detail: 'Superduper reapplies Set on connect values while open and confirms them before showing Ready to ride.',
               accent: AppColors.mint,
             ),
             const SizedBox(height: 30),

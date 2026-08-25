@@ -83,6 +83,11 @@ final class BikeHardwareTestState {
   };
 }
 
+typedef _BikeReleaseResult = ({
+  bool settingsRestored,
+  bool autoConnectResumed,
+});
+
 final class BikeHardwareTestController {
   BikeHardwareTestController({
     required this.transport,
@@ -100,7 +105,7 @@ final class BikeHardwareTestController {
       Duration(milliseconds: 750),
       Duration(seconds: 1),
     ],
-    this.stepTimeout = const Duration(seconds: 45),
+    this.stepTimeout = const Duration(seconds: 75),
     this.cleanupTimeout = const Duration(seconds: 20),
   });
 
@@ -132,9 +137,35 @@ final class BikeHardwareTestController {
   DateTime? _startedAt;
   var _traceTruncated = false;
   var _disposed = false;
-  Future<void>? _releaseFuture;
+  var _foreground = true;
+  var _powerCycleInterrupted = false;
+  Completer<void>? _foregroundResume;
+  Future<_BikeReleaseResult>? _releaseFuture;
 
   ReadonlySignal<BikeHardwareTestState> get state => _state.readonly();
+
+  void setForeground(bool foreground) {
+    if (_disposed || foreground == _foreground) {
+      return;
+    }
+    _foreground = foreground;
+    if (!foreground) {
+      final phase = _state.peek().phase;
+      if (phase == BikeHardwareTestPhase.waitingForPowerOff ||
+          phase == BikeHardwareTestPhase.waitingForPowerOn) {
+        _powerCycleInterrupted = true;
+      }
+      _foregroundResume = Completer<void>();
+      _addTrace('test.lifecycle', 'The app left the foreground.');
+      return;
+    }
+    _addTrace('test.lifecycle', 'The app returned to the foreground.');
+    final resume = _foregroundResume;
+    _foregroundResume = null;
+    if (resume != null && !resume.isCompleted) {
+      resume.complete();
+    }
+  }
 
   String createReport({
     required String appVersion,
@@ -195,6 +226,7 @@ final class BikeHardwareTestController {
     _startedAt = DateTime.now();
     _trace.clear();
     _traceTruncated = false;
+    _powerCycleInterrupted = false;
     _addTrace('test.start', 'Beginning hardware verification.');
     _state.value = const BikeHardwareTestState(
       phase: BikeHardwareTestPhase.preparing,
@@ -223,12 +255,14 @@ final class BikeHardwareTestController {
         'Restoring the bike',
         'The test failed. Restoring the starting settings before releasing Bluetooth.',
       );
-      await _releaseBike(restore: true);
+      final release = await _releaseBike(restore: true);
       if (_isCurrent(generation)) {
         _publish(
           BikeHardwareTestPhase.failed,
           'Test failed',
-          'The bike was released back to normal app control. Review the last failed step below.',
+          release.autoConnectResumed
+              ? 'Normal app control resumed. Review the failed step and any cleanup warning below.'
+              : 'Normal app control could not resume. Review the failed step and cleanup warning below.',
         );
       }
     }
@@ -246,12 +280,17 @@ final class BikeHardwareTestController {
       'Stopping the test',
       'Restoring the starting settings when the bike is reachable.',
     );
-    await _releaseBike(restore: true);
+    final release = await _releaseBike(restore: true);
     if (!_disposed) {
       _publish(
         BikeHardwareTestPhase.cancelled,
         'Test stopped',
-        'Normal app auto-connect has resumed.',
+        switch (release) {
+          (settingsRestored: true, autoConnectResumed: true) => 'Starting settings were restored and normal app auto-connect resumed.',
+          (settingsRestored: false, autoConnectResumed: true) => 'Normal app auto-connect resumed, but the test could not restore every starting setting.',
+          (settingsRestored: true, autoConnectResumed: false) => 'Starting settings were restored, but normal app auto-connect could not resume.',
+          _ => 'The test could not restore every setting or resume normal app auto-connect.',
+        },
       );
     }
   }
@@ -275,6 +314,12 @@ final class BikeHardwareTestController {
     if (access.permission != BluetoothPermissionState.granted) {
       throw BikeHardwareTestFailure(
         'Bluetooth permission is ${access.permission.name}.',
+      );
+    }
+    if (access.scanPrerequisite ==
+        BluetoothScanPrerequisite.locationServicesDisabled) {
+      throw const BikeHardwareTestFailure(
+        'Turn on Location Services before scanning. Android 10 and 11 require it for nearby Bluetooth discovery.',
       );
     }
     if (access.adapter != BikeAdapterState.on) {
@@ -309,7 +354,7 @@ final class BikeHardwareTestController {
       _addLog(
         BikeHardwareTestLogStatus.warning,
         'Module serial',
-        'macOS did not include the manufacturer serial in this advertisement.',
+        'The Bluetooth advertisement did not include the module serial.',
       );
     }
 
@@ -471,10 +516,7 @@ final class BikeHardwareTestController {
       'The test is waiting for the BLE disconnect. It will tell you when to turn the bike back on.',
     );
     _addTrace('test.prompt', 'Waiting for the bike to power off.');
-    await _waitFor(
-      generation,
-      () => connection.disconnectEvents > disconnectsBefore,
-    );
+    await _waitForPowerOff(connection, generation, disconnectsBefore);
     _checkCurrent(generation);
     _addLog(
       BikeHardwareTestLogStatus.passed,
@@ -541,8 +583,21 @@ final class BikeHardwareTestController {
       'Restoring the bike',
       'Returning the physical bike to the configuration it had before the test.',
     );
-    await _releaseBike(restore: true);
+    final release = await _releaseBike(restore: true);
     _checkCurrent(generation);
+    if (!release.settingsRestored || !release.autoConnectResumed) {
+      _publish(
+        BikeHardwareTestPhase.failed,
+        'Checks passed, cleanup incomplete',
+        switch (release) {
+          (settingsRestored: false, autoConnectResumed: true) => 'The bike passed its checks, but its starting settings could not be fully restored.',
+          (settingsRestored: true, autoConnectResumed: false) => 'The bike passed its checks, but normal app auto-connect could not resume.',
+          _ => 'The bike passed its checks, but settings restoration and normal auto-connect were incomplete.',
+        },
+      );
+      _addTrace('test.complete', 'Hardware checks passed; cleanup incomplete.');
+      return;
+    }
     _publish(
       BikeHardwareTestPhase.passed,
       'All hardware checks passed',
@@ -650,9 +705,16 @@ final class BikeHardwareTestController {
     int generation, {
     required Duration timeout,
   }) async {
-    final deadline = DateTime.now().add(timeout);
+    var remaining = timeout;
     while (true) {
       _checkCurrent(generation);
+      await _waitForForeground(generation);
+      if (_powerCycleInterrupted &&
+          _state.peek().phase == BikeHardwareTestPhase.waitingForPowerOn) {
+        throw const BikeHardwareTestFailure(
+          'The app left the foreground during the power-cycle check. Run the test again and keep Superduper open.',
+        );
+      }
       final current = session.state.peek();
       if (current is SessionReady) {
         return;
@@ -669,12 +731,64 @@ final class BikeHardwareTestController {
           'The bike session stopped before becoming ready.',
         );
       }
-      if (!DateTime.now().isBefore(deadline)) {
+      if (remaining <= Duration.zero) {
         throw BikeHardwareTestFailure(
           'The bike did not become ready within ${timeout.inSeconds} seconds.',
         );
       }
+      final slice = remaining < const Duration(milliseconds: 150)
+          ? remaining
+          : const Duration(milliseconds: 150);
+      final started = DateTime.now();
+      await Future<void>.delayed(slice);
+      if (_foreground) {
+        remaining -= DateTime.now().difference(started);
+      }
+    }
+  }
+
+  Future<void> stopWithoutRestoring() async {
+    if (_disposed || _state.peek().phase != BikeHardwareTestPhase.restoring) {
+      return;
+    }
+    _generation++;
+    try {
+      await _session?.dispose();
+    } on Object {
+      // The release path still returns Bluetooth ownership to the app.
+    }
+    final release = await _releaseBike(restore: false);
+    if (!_disposed) {
+      _publish(
+        BikeHardwareTestPhase.cancelled,
+        'Test stopped without restoring',
+        release.autoConnectResumed
+            ? 'Normal app auto-connect resumed. The bike may still have settings changed by the test.'
+            : 'The bike may still have test settings, and normal app auto-connect could not resume.',
+      );
+    }
+  }
+
+  Future<void> _waitForPowerOff(
+    _DiagnosticBikeConnection connection,
+    int generation,
+    int disconnectsBefore,
+  ) async {
+    while (connection.disconnectEvents <= disconnectsBefore) {
+      _checkCurrent(generation);
+      await _waitForForeground(generation);
+      if (_powerCycleInterrupted) {
+        throw const BikeHardwareTestFailure(
+          'The app left the foreground while checking for bike power-off. Run the test again and keep Superduper open.',
+        );
+      }
       await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    _checkCurrent(generation);
+    if (_powerCycleInterrupted) {
+      throw const BikeHardwareTestFailure(
+        'The app left the foreground while checking for bike power-off. Run the test again and keep Superduper open.',
+      );
     }
   }
 
@@ -684,18 +798,38 @@ final class BikeHardwareTestController {
     Duration? timeout,
   }) async {
     _checkCurrent(generation);
-    final deadline = timeout == null ? null : DateTime.now().add(timeout);
+    var remaining = timeout;
     while (!condition()) {
       _checkCurrent(generation);
-      if (deadline != null && !DateTime.now().isBefore(deadline)) {
+      await _waitForForeground(generation);
+      if (remaining != null && remaining <= Duration.zero) {
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final slice =
+          remaining != null && remaining < const Duration(milliseconds: 150)
+          ? remaining
+          : const Duration(milliseconds: 150);
+      final started = DateTime.now();
+      await Future<void>.delayed(slice);
+      if (_foreground && remaining != null) {
+        remaining -= DateTime.now().difference(started);
+      }
     }
     _checkCurrent(generation);
   }
 
-  Future<void> _releaseBike({required bool restore}) {
+  Future<void> _waitForForeground(int generation) async {
+    while (!_foreground) {
+      final resume = _foregroundResume;
+      if (resume == null) {
+        return;
+      }
+      await resume.future;
+      _checkCurrent(generation);
+    }
+  }
+
+  Future<_BikeReleaseResult> _releaseBike({required bool restore}) {
     if (_releaseFuture case final pending?) {
       return pending;
     }
@@ -718,9 +852,12 @@ final class BikeHardwareTestController {
     return pending;
   }
 
-  Future<void> _performReleaseBike({required bool restore}) async {
+  Future<_BikeReleaseResult> _performReleaseBike({
+    required bool restore,
+  }) async {
     final session = _session;
     final original = _originalConfiguration;
+    var settingsRestored = !restore || session == null || original == null;
     if (restore && session != null && original != null) {
       try {
         final restorable = await _waitUntilRestorable(session);
@@ -741,14 +878,17 @@ final class BikeHardwareTestController {
             'Cleanup',
             'Restored ${_formatConfiguration(original, protocol: session.protocolVersion)}.',
           );
+          settingsRestored = true;
         } else {
           _addLog(
             BikeHardwareTestLogStatus.warning,
             'Cleanup',
             'The bike was unreachable, so the test could not restore its starting settings.',
           );
+          settingsRestored = false;
         }
       } on Object catch (error) {
+        settingsRestored = false;
         _addLog(
           BikeHardwareTestLogStatus.warning,
           'Cleanup',
@@ -768,11 +908,13 @@ final class BikeHardwareTestController {
         // Normal app control must still resume after a failed test disconnect.
       }
     }
+    var autoConnectResumed = true;
     if (_exclusiveBluetooth.isAcquired) {
       try {
         await _exclusiveBluetooth.release();
         _addTrace('test.release', 'Normal auto-connect resumed.');
       } on Object catch (error) {
+        autoConnectResumed = false;
         _addLog(
           BikeHardwareTestLogStatus.warning,
           'Normal connection resume',
@@ -783,6 +925,10 @@ final class BikeHardwareTestController {
     } else {
       _addTrace('test.release', 'No paused auto-connect session to resume.');
     }
+    return (
+      settingsRestored: settingsRestored,
+      autoConnectResumed: autoConnectResumed,
+    );
   }
 
   Future<bool> _waitUntilRestorable(BikeSession session) async {

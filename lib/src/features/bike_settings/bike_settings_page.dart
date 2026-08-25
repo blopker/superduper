@@ -195,7 +195,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               const SizedBox(height: 14),
               Text(
-                'The advertised name “${saved.bike.advertisedName}” selects ${_protocolLabel(BikeProtocolVersion.fromAdvertisedName(saved.bike.advertisedName) ?? BikeProtocolVersion.v1)} by default. Only change this if that choice is wrong; the wrong protocol can prevent controls and kept settings from working.',
+                'The advertised name “${saved.bike.advertisedName}” selects ${_protocolLabel(BikeProtocolVersion.fromAdvertisedName(saved.bike.advertisedName) ?? BikeProtocolVersion.v1)} by default. Only change this if that choice is wrong; the wrong protocol can prevent controls and Set on connect values from working.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textMuted,
                 ),
@@ -225,7 +225,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                 title: const Text('Active bike'),
                 subtitle: Text(
                   isActive
-                      ? 'Connects and applies kept settings when Superduper opens.'
+                      ? 'Connects and applies Set on connect values when Superduper opens.'
                       : 'Make this the bike Superduper prepares first.',
                 ),
                 value: isActive,
@@ -252,7 +252,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   ),
                   subtitle: Text(
                     canReconnect
-                        ? 'Connect again and apply this bike’s kept settings.'
+                        ? 'Connect again and apply this bike’s Set on connect values.'
                         : 'Pause this connection until you reconnect or reopen the app.',
                   ),
                   trailing: const Icon(
@@ -322,7 +322,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'This removes the bike and every kept setting from this device.',
+          'This removes the bike and every Set on connect value from this device.',
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
@@ -388,7 +388,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         builder: (context) => AlertDialog(
           title: const Text('Change bike region?'),
           content: const Text(
-            'Region changes how future Mode commands are encoded. It does not change the bike until you explicitly choose a mode.',
+            'The selected region is included the next time Superduper sends settings to the bike. Changing it here does not immediately write to the bike.',
           ),
           actions: [
             TextButton(
@@ -427,7 +427,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       builder: (context) => AlertDialog(
         title: const Text('CHANGE BIKE PROTOCOL?'),
         content: Text(
-          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and kept settings may stop working.${protocol == BikeProtocolVersion.v1 && _region == null ? ' V1 will initially use the US region.' : ''}',
+          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and Set on connect values may stop working.${protocol == BikeProtocolVersion.v1 && _region == null ? ' V1 will initially use the US region.' : ''}',
         ),
         actions: [
           TextButton(

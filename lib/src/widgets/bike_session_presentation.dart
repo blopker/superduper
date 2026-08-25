@@ -60,7 +60,8 @@ final class BikeSessionPresentation {
         label: 'Connected',
         color: AppColors.mint,
         title: 'Ready to ride',
-        detail: '$bikeName is connected and its kept settings are confirmed.',
+        detail:
+            '$bikeName is connected and its Set on connect values are confirmed.',
         canRetry: false,
       ),
       SessionReconnecting(:final retryAfter, :final failure) =>

@@ -274,6 +274,7 @@ final class BikeSession {
   int? _platformConnectGeneration;
   Future<BikeConfiguration>? _configurationChangeFuture;
   int? _configurationChangeGeneration;
+  BikeRegion? _lastV1WireRegion;
 
   String get deviceId => connection.deviceId;
   ReadonlySignal<BikeSessionState> get state => _state.readonly();
@@ -337,12 +338,13 @@ final class BikeSession {
         if (failure is BikeSessionDisposedFailure) {
           throw failure;
         }
-        _pending.value = null;
         if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
           _scheduleSynchronizationRetry(failure);
         } else if (_isConnectionFailure(failure)) {
+          _pending.value = null;
           _scheduleReconnect(failure);
         } else {
+          _pending.value = null;
           _state.value = SessionFailed(failure: failure, canRetry: true);
         }
         throw failure;
@@ -525,7 +527,6 @@ final class BikeSession {
         if (!_isCurrent(generation)) {
           return;
         }
-        await _refreshVersions();
         await _enableNotifications();
         if (!_isCurrent(generation)) {
           return;
@@ -533,21 +534,26 @@ final class BikeSession {
         _state.value = const SessionConnected();
         await _synchronizeNow(forceLockedWrite: true);
         _reconnectAttempt = 0;
+        if (_isCurrent(generation) && _hasObservedConnection) {
+          await _refreshVersions();
+        }
       } on Object catch (error) {
         if (!_isCurrent(generation)) {
           return;
         }
         final failure = _asFailure(error);
-        _pending.value = null;
         if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
           _scheduleSynchronizationRetry(failure);
         } else if (failure case BikeBluetoothUnavailable(canRetry: false)) {
+          _pending.value = null;
           _state.value = SessionFailed(failure: failure, canRetry: false);
         } else if (failure is _ProtocolSessionFailure ||
             failure is BikeAuthenticationFailed ||
             failure is BikeProtocolNotSupported) {
+          _pending.value = null;
           _state.value = SessionFailed(failure: failure, canRetry: true);
         } else {
+          _pending.value = null;
           _scheduleReconnect(failure);
         }
       }
@@ -714,6 +720,9 @@ final class BikeSession {
       if (updated == null) {
         return;
       }
+      if (_protocolVersion == BikeProtocolVersion.v1) {
+        _lastV1WireRegion = updated.region;
+      }
       if (_preferredRegion case final region?) {
         updated = updated.copyWith(region: region);
       }
@@ -743,6 +752,7 @@ final class BikeSession {
     if (_disposed) {
       return;
     }
+    _reconnectTimer?.cancel();
     _generation++;
     _hasObservedConnection = false;
     _pollTimer?.cancel();
@@ -769,14 +779,12 @@ final class BikeSession {
         forceLockedWrite &&
         LockedConfigurationPolicy.hasLockedSettings(_preferences);
 
-    BikeConfiguration? lastTarget;
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
       final target = LockedConfigurationPolicy.effective(
         observed: confirmed,
         preferences: _preferences,
         preferredRegion: _preferredRegion,
       );
-      lastTarget = target;
       if (!mustWrite &&
           LockedConfigurationPolicy.lockedValuesMatch(
             observed: confirmed,
@@ -787,39 +795,33 @@ final class BikeSession {
         return;
       }
       _state.value = SessionSynchronizing(attempt: attempt);
-      _pending.value = target;
       await _writeConfiguration(target);
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
       mustWrite = false;
       confirmed = await _readConfigurationUntil(
-        (candidate) => LockedConfigurationPolicy.lockedValuesMatch(
-          observed: candidate,
-          target: target,
-          preferences: _preferences,
-        ),
+        (candidate) =>
+            LockedConfigurationPolicy.lockedValuesMatch(
+              observed: candidate,
+              target: target,
+              preferences: _preferences,
+            ) &&
+            _wireRegionMatches(target),
       );
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
       _publishObserved(confirmed);
       if (LockedConfigurationPolicy.lockedValuesMatch(
-        observed: confirmed,
-        target: target,
-        preferences: _preferences,
-      )) {
-        _markReady(confirmed, completedTarget: target);
+            observed: confirmed,
+            target: target,
+            preferences: _preferences,
+          ) &&
+          _wireRegionMatches(target)) {
+        _markReady(confirmed);
         return;
       }
-    }
-
-    if (lastTarget != null) {
-      _clearPendingIf(lastTarget);
-    }
-    if (_pending.peek() != null) {
-      _state.value = const SessionSynchronizing(attempt: 1);
-      return;
     }
     throw const BikeSettingsNotApplied();
   }
@@ -835,7 +837,12 @@ final class BikeSession {
     if (current == null) {
       throw const BikeSessionNotReady();
     }
-    final target = update(current).copyWith(
+    final enforced = LockedConfigurationPolicy.effective(
+      observed: current,
+      preferences: _preferences,
+      preferredRegion: _preferredRegion,
+    );
+    final target = update(enforced).copyWith(
       region: _preferredRegion ?? current.region,
     );
     final generation = _generation;
@@ -886,7 +893,7 @@ final class BikeSession {
             throw const BikeSessionDisposedFailure();
           }
           confirmed = await _readConfigurationUntil(
-            (candidate) => candidate == target,
+            (candidate) => candidate == target && _wireRegionMatches(target),
             retryWrite: () {
               if (_pending.peek() != target) {
                 return Future.value();
@@ -898,7 +905,7 @@ final class BikeSession {
             throw const BikeSessionDisposedFailure();
           }
           _publishObserved(confirmed);
-          if (confirmed != target) {
+          if (confirmed != target || !_wireRegionMatches(target)) {
             throw const BikeSettingsNotApplied();
           }
         } on Object catch (error) {
@@ -984,11 +991,13 @@ final class BikeSession {
         final decoded = BikeProtocol.decodeV1State(
           await _readHistoryRecord(BikeGatt.v1StateSelector),
         );
+        _lastV1WireRegion = decoded.region;
         final preferredRegion = _preferredRegion;
         return preferredRegion == null
             ? decoded
             : decoded.copyWith(region: preferredRegion);
       case BikeProtocolVersion.v2:
+        _lastV1WireRegion = null;
         return BikeProtocol.decodeV2State(
           d0: await _readHistoryRecord(BikeGatt.v2ControlSelector),
           d9: await _readHistoryRecord(BikeGatt.v2ModeSelector),
@@ -1048,6 +1057,7 @@ final class BikeSession {
     if (_disposed || !_hasObservedConnection) {
       return;
     }
+    _pollTimer?.cancel();
     _synchronizationRetryTimer?.cancel();
     _reconnectTimer?.cancel();
     _synchronizationRetryAttempt = 0;
@@ -1078,7 +1088,6 @@ final class BikeSession {
     }
     _pollTimer?.cancel();
     _synchronizationRetryTimer?.cancel();
-    _pending.value = null;
     _state.value = SessionDegraded(
       configuration: configuration,
       failure: failure,
@@ -1158,6 +1167,7 @@ final class BikeSession {
         _state.peek() is SessionIdle) {
       return;
     }
+    _reconnectTimer?.cancel();
     _generation++;
     _pollTimer?.cancel();
     _synchronizationRetryTimer?.cancel();
@@ -1227,7 +1237,6 @@ final class BikeSession {
     }
     final delay = _synchronizationRetryDelays[_synchronizationRetryAttempt];
     _synchronizationRetryAttempt++;
-    _pending.value = null;
     _state.value = SessionSynchronizing(attempt: _synchronizationRetryAttempt);
     _synchronizationRetryTimer = Timer(delay, () {
       if (!_disposed &&
@@ -1266,6 +1275,11 @@ final class BikeSession {
     return failure is BikeSessionTransportFailure ||
         failure is BikeCommandTimedOut ||
         failure is BikeBluetoothUnavailable && failure.canRetry;
+  }
+
+  bool _wireRegionMatches(BikeConfiguration target) {
+    return _protocolVersion != BikeProtocolVersion.v1 ||
+        _lastV1WireRegion == target.region;
   }
 
   bool _isCurrent(int generation) => !_disposed && generation == _generation;

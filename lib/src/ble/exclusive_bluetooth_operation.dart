@@ -6,6 +6,7 @@ import 'package:superduper/src/platform/bluetooth_permissions.dart';
 typedef ExclusiveBluetoothAccess = ({
   BluetoothPermissionState permission,
   BikeAdapterState adapter,
+  BluetoothScanPrerequisite scanPrerequisite,
 });
 
 final class ExclusiveBluetoothOperation {
@@ -34,7 +35,19 @@ final class ExclusiveBluetoothOperation {
       request: requestPermission,
     );
     if (permission != BluetoothPermissionState.granted) {
-      return (permission: permission, adapter: BikeAdapterState.unknown);
+      return (
+        permission: permission,
+        adapter: BikeAdapterState.unknown,
+        scanPrerequisite: BluetoothScanPrerequisite.ready,
+      );
+    }
+    final scanPrerequisite = await permissions.checkScanPrerequisite();
+    if (scanPrerequisite != BluetoothScanPrerequisite.ready) {
+      return (
+        permission: permission,
+        adapter: BikeAdapterState.unknown,
+        scanPrerequisite: scanPrerequisite,
+      );
     }
     final adapter = await transport.adapterStates
         .where((state) => state != BikeAdapterState.unknown)
@@ -43,7 +56,11 @@ final class ExclusiveBluetoothOperation {
           adapterTimeout,
           onTimeout: () => BikeAdapterState.unknown,
         );
-    return (permission: permission, adapter: adapter);
+    return (
+      permission: permission,
+      adapter: adapter,
+      scanPrerequisite: scanPrerequisite,
+    );
   }
 
   Future<void> release({
@@ -51,6 +68,11 @@ final class ExclusiveBluetoothOperation {
     bool stopScan = true,
   }) async {
     if (!_acquired) {
+      if (temporarilySelect != null) {
+        await activeBikeCoordinator.selectTemporarily(
+          temporarilySelect.bike.deviceId,
+        );
+      }
       return;
     }
     _acquired = false;

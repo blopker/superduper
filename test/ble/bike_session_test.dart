@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
@@ -72,9 +73,9 @@ void main() {
         .where((write) => write.characteristicUuid == BikeGatt.registerSelector)
         .toList();
     expect(selectorWrites.map((write) => write.value), [
+      BikeGatt.v1StateSelector,
       BikeGatt.displayVersionSelector,
       BikeGatt.componentVersionsSelector,
-      BikeGatt.v1StateSelector,
     ]);
     final authenticationWrite = connection.writes.singleWhere(
       (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
@@ -300,6 +301,23 @@ void main() {
     expect(session.observed.value?.mode, 3);
   });
 
+  test('re-arms reconnect after a late platform disconnect event', () async {
+    connection.readErrors[BikeGatt.authenticationChallenge] =
+        const BikeConnectionFailure('Read', 'The link was lost.');
+    session = createSession(
+      reconnectDelays: const [Duration(milliseconds: 20)],
+    );
+
+    await session.connect();
+    expect(session.state.value, isA<SessionReconnecting>());
+    expect(connection.connectCalls, 1);
+
+    connection.emitState(BikeConnectionState.disconnected);
+    await _waitUntil(() => connection.connectCalls > 1);
+
+    expect(session.state.value, isA<SessionReconnecting>());
+  });
+
   test(
     'retries locked settings while the controller finishes booting',
     () async {
@@ -485,6 +503,41 @@ void main() {
   });
 
   test(
+    'preserves a user command queued during locked synchronization',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 3],
+        [0, 0, 0, 0, 1, 3],
+      ]);
+      session = createSession(
+        preferences: const RidePreferences(
+          desiredLight: false,
+          desiredMode: 3,
+          desiredAssist: 0,
+          keepLight: false,
+          keepMode: true,
+          keepAssist: false,
+        ),
+        confirmationRetryDelays: const [Duration(milliseconds: 10)],
+      );
+
+      final connect = session.connect();
+      await _waitUntil(() => connection.configurationWriteStarts == 1);
+      final change = session.setLight(true);
+
+      await connect;
+      final confirmed = await change;
+
+      expect(confirmed.light, isTrue);
+      expect(confirmed.mode, 3);
+      expect(session.pending.value, isNull);
+      expect(session.state.value, isA<SessionReady>());
+    },
+  );
+
+  test(
     'a confirmed locked change updates in-memory enforcement immediately',
     () async {
       connection.readFrames.addAll([
@@ -608,6 +661,56 @@ void main() {
     );
     expect(write.value[4], 7);
     expect(session.observed.value?.region, BikeRegion.eu);
+  });
+
+  test(
+    'uses selected V1 region for every write and confirms the wire family',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 1, 5],
+      ]);
+      session = createSession(
+        region: BikeRegion.eu,
+        confirmationRetryDelays: const [Duration.zero, Duration.zero],
+      );
+      await session.connect();
+
+      final confirmed = await session.setLight(true);
+
+      final writes = connection.writes
+          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+          .toList();
+      expect(writes, hasLength(2));
+      expect(writes.map((write) => write.value[4]), everyElement(5));
+      expect(confirmed.region, BikeRegion.eu);
+      expect(session.observed.value?.region, BikeRegion.eu);
+    },
+  );
+
+  test('does not leak periodic poll timers when readiness is republished', () {
+    fakeAsync((async) {
+      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+      session = BikeSession(
+        connection: connection,
+        preferredRegion: null,
+        preferences: const RidePreferences.defaults(),
+        protocol: BikeProtocolVersion.v1,
+        reconnectDelays: const [],
+      );
+      unawaited(session.connect());
+      async.flushMicrotasks();
+      expect(async.periodicTimerCount, 1);
+
+      unawaited(session.setLight(false));
+      async.flushMicrotasks();
+      expect(async.periodicTimerCount, 1);
+
+      unawaited(session.dispose());
+      async.flushMicrotasks();
+      expect(async.periodicTimerCount, 0);
+    });
   });
 
   test('reads and writes the V2 control and ride-mode records', () async {

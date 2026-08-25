@@ -252,6 +252,65 @@ void main() {
           ),
     );
   });
+
+  test('backgrounding cannot count as a successful bike power-off', () async {
+    await controller.dispose();
+    controller = BikeHardwareTestController(
+      transport: transport,
+      permissions: permissions,
+      activeBikeCoordinator: coordinator,
+      scanDuration: const Duration(milliseconds: 100),
+      notificationWait: Duration.zero,
+      reconnectDelays: const [Duration.zero],
+      confirmationRetryDelays: const [],
+      cleanupTimeout: Duration.zero,
+    );
+    final connection = FakeBikeConnection(deviceId: 'bike');
+    connection.readFrames.addAll([
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 1),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(mode: 3, assist: 1),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 1),
+    ]);
+    transport.connections['bike'] = connection;
+
+    final run = controller.start();
+    await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
+    transport.emitResults(const [
+      DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
+    ]);
+    await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOff);
+
+    controller.setForeground(false);
+    connection
+      ..connectError = StateError('suspended')
+      ..emitState(BikeConnectionState.disconnected);
+    controller.setForeground(true);
+    await run.timeout(const Duration(seconds: 5));
+
+    expect(controller.state.peek().phase, BikeHardwareTestPhase.failed);
+    expect(
+      controller.state
+          .peek()
+          .log
+          .lastWhere(
+            (entry) => entry.label == 'Test stopped',
+          )
+          .detail,
+      contains('left the foreground'),
+    );
+  });
 }
 
 Future<void> _waitForPhase(
