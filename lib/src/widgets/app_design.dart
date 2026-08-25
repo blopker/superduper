@@ -332,6 +332,7 @@ final class BikeHeader extends StatelessWidget {
     this.region,
     this.trailing,
     this.avatarSize = 68,
+    this.compact = false,
     super.key,
   });
 
@@ -341,10 +342,46 @@ final class BikeHeader extends StatelessWidget {
   final BikeRegion? region;
   final Widget? trailing;
   final double avatarSize;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final palette = BikeColorPalette.from(color);
+    if (compact) {
+      return Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: Theme.of(context).textTheme.titleLarge),
+                if (isActive || region != null) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (isActive)
+                        StatusPill(
+                          label: 'Active bike',
+                          color: palette.accent,
+                        ),
+                      if (region case final bikeRegion?)
+                        Text(
+                          '${bikeRegion.label} region',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          ?trailing,
+        ],
+      );
+    }
     return Row(
       children: [
         BikeAvatar(color: color, size: avatarSize),

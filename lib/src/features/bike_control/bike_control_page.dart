@@ -162,14 +162,14 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           name: bike.bike.displayName,
           isActive: isActive,
           region: bike.bike.region,
-          avatarSize: 70,
+          compact: true,
           trailing: IconButton(
             tooltip: 'Bike settings',
             onPressed: () => _openSettings(bike),
             icon: const Icon(Icons.tune_rounded),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
         _ConnectionSummary(
           state: sessionState,
           coordinatorFailure: coordinatorFailure,
