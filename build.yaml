@@ -1,0 +1,9 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          databases:
+            app_database: lib/src/persistence/app_database.dart
+          fatal_warnings: true
+          generate_manager: false

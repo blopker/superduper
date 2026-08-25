@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "superduper_launchscreen-1x.jpg",
+      "filename" : "superduper-launch-1x.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "superduper_launchscreen-2x.jpg",
+      "filename" : "superduper-launch-2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "superduper_launchscreen-3x.jpg",
+      "filename" : "superduper-launch-3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

@@ -26,6 +26,8 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Superduper uses Bluetooth to find and configure your bike.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

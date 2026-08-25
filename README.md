@@ -26,25 +26,29 @@ Features:
 
 - No account or internet connection required
 - Quickly switch between multiple bikes
-- Lock settings, like Mode, to automatically switch when the bike is turned on and the app is running
-- (Android only) Background Lock, which will keep your bike on whatever settings you set it at, even the phone is locked
+- Automatically connect to one active bike when the app opens
+- Mark values as Set on connect so they are reapplied and confirmed while the app is open
 - Open source
 
 ## Getting Started
 
-- Open the app and select the "Select Bike" button. This will find any bikes around you that are on and save the details into the app.
-- Select your bike in the list.
-- Set the settings you want to use. These can be changed at any time.
+1. Power on your bike and choose `Add bike`.
+2. Allow the Bluetooth access needed by your operating system.
+3. Select the bike found nearby, confirm its name and region, and save it.
+4. Set Light, Mode, and Assist from Bike Control. Enable
+   `Set on connect` for each value Superduper should restore.
 
-Optionally, you can tap the "Edit" button to change the name of the bike.
-
-**Make sure your bluetooth is on**
+The first saved bike becomes active. On later launches, Superduper connects to
+that bike directly, applies its Set on connect values, confirms them, and reports
+`Ready to ride` without requiring Bike Control to be opened. With multiple
+bikes, use `Make active` to choose the one that auto-connects.
 
 ## Bike Functions
 
-Control your bike's functions by tapping the buttons on the screen. Press the lock icon to lock the setting.
-A locked setting tells the bike to use that setting when it turns on. An unlocked setting will reset to the default
-when the bike turns on.
+Bike Control sends changes immediately and confirms the resulting state before
+showing it as ready. `Set on connect` stores the currently confirmed value
+and reapplies it whenever that bike connects while Superduper is open. Unkept
+values follow the bike.
 
 ### Light
 
@@ -56,7 +60,9 @@ Changes the legal category your bike will operate at. PAS is Pedal Assist System
 which means the motor will only run when you are pedaling.
 Throttle means the motor will run when you press the throttle, regardless of if you are pedaling or not.
 
-#### US:
+Note: the mode setting means different things on different bike models. The table below may only match the early RX/R models.
+
+#### US (RX/R Bikes):
 
 | Mode | Class | PAS | Throttle | Speed Limit |
 | ---- | ----- | --- | -------- | ----------- |
@@ -66,7 +72,7 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 | 4    | Off-Road | Yes | Yes  | No Limit    |
 
 
-#### EU:
+#### EU (RX/R Bikes):
 
 | Mode | Class | PAS | Throttle | Speed Limit |
 | ---- | ----- | --- | -------- | ----------- |
@@ -80,10 +86,6 @@ Throttle means the motor will run when you press the throttle, regardless of if 
 Changes the amount of assist your bike will provide while pedaling.
 0 is no assist, 4 is full assist. This does not affect throttle power.
 
-### Background Lock (Android Only)
-
-**Uses extra battery.** Locks the current "locked" settings in the background. This means that if you close the app, or your phone goes to sleep, the settings will continue to be applied.
-
 
 ## FAQ
 
@@ -95,21 +97,18 @@ Make sure only one app is connected to the bike at a time. If you have the offic
 
 You can also try restarting the bike and your phone.
 
-Finally, older bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
+Finally, older (or newer) bike firmware may not be supported. Make sure your bike firmware is up to date from the official app.
 
-### How does Background Lock work and how is it different from the setting lock?
+### How does Set on connect work?
 
-The setting lock feature tells Superduper to ignore whatever the bike is set to and use the settings you have set in the app. This is useful for when the bike starts up and settings reset, like lights and mode. However, the app only enforces the setting lock when the app is open. If you close the app, the bike will go back to whatever settings it was set to. To use it, long press the setting button you want to lock.
-
-Background Lock is a feature that will keep the bike on the settings you set in the app, even if the app is closed. This is useful for when you want to leave the bike on a certain setting, like lights and mode, but don't want to keep the app open. For now, this feature is only available on Android. It also takes extra battery to keep the app running in the background.
-
-### What's up with the bike names?
-
-The bike names are randomly generated from your bike's unique ID, to make it easier to read and differentiate between multiple bikes. You can change the name in the bike's Edit page after you connect to the bike for the first time.
+It saves the value the bike most recently confirmed. While Superduper is open,
+the active-bike session reads the bike, restores any kept value that differs,
+and reads again before reporting `Ready to ride`. Closing or backgrounding the
+app pauses that guarantee; reopening the app resynchronizes the active bike.
 
 ### What are the supported devices?
 
-Right now the app requires Android 10+ and iOS 12+.
+Android 10+, iOS 15+.
 
 ### What bikes are supported?
 
@@ -117,13 +116,11 @@ So far, all bike models have worked. Open a ticket if your model is having issue
 
 ### Can this app make the bike go even faster?
 
-Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself.
+Superduper can only add automation around what the official app already does. It cannot, for instance, program the controller. This is the job of the firmware, software that runs on the bike itself. Check out the [CFW site](https://cfw.reverse.bike/) for that.
 
 ### I'm having another issue or have a feature request
 
 I'm sorry! Please start by making sure you have the newest app from the app store. After that, please submit the issue to https://github.com/blopker/superduper/issues. It helps to have a way I can reproduce the issue, with screenshots or video. Alternatively, you may have luck either clearing all the app's data or reinstalling it.
-
-## Developers
 
 ### Releases
 

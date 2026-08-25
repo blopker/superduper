@@ -1,3 +1,0 @@
-Hey friends! Creator of Superduper (https://github.com/blopker/superduper) here, the alternative app for your Super73 bike. I wanted to announce a new version was just released, 0.4.0 (34). Aside from updating various dependencies, you can now change the colors of the app's buttons to match your bike more closely 🔥🌈. Let me know what you think!
-
-The update should now be ready in TestFlight (https://testflight.apple.com/join/Tl0UibRY) and soon on Google Play (https://play.google.com/store/apps/details?id=io.kbl.superduper). If you have any issues, please let me know here or on GitHub (https://github.com/blopker/superduper/issues). Happy riding!
