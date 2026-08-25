@@ -168,7 +168,7 @@ void main() {
     expect(session.state.value, isA<SessionReconnecting>());
   });
 
-  test('advertised-name protocol accepts untested firmware', () async {
+  test('firmware revision is metadata and does not affect protocol', () async {
     connection
       ..firmwareRevision = '260101'
       ..softwareRevision = '260101'
@@ -179,7 +179,6 @@ void main() {
 
     expect(session.state.value, isA<SessionReady>());
     expect(session.protocolVersion, BikeProtocolVersion.v1);
-    expect(session.unknownFirmwareRevision, '260101');
     expect(session.versions.value?.firmwareRevision, '260101');
   });
 
@@ -248,7 +247,6 @@ void main() {
 
     expect(session.state.value, isA<SessionReady>());
     expect(session.protocolVersion, BikeProtocolVersion.v2);
-    expect(session.unknownFirmwareRevision, '221122');
     expect(connection.authenticated, isTrue);
   });
 
@@ -424,7 +422,7 @@ void main() {
     expect(configurationWrites, hasLength(2));
     expect(
       configurationWrites.map((write) => write.value),
-      everyElement([0, 0xd1, 1, 0, 0, 0, 0, 0, 0, 0]),
+      everyElement([0, 0xd1, 0, 0, 3, 0, 0, 0, 0, 0]),
     );
   });
 

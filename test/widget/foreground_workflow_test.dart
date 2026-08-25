@@ -120,19 +120,28 @@ void main() {
       expect(find.text('Save changes'), findsNothing);
 
       await tester.enterText(find.byType(TextField).first, 'Daily Rider');
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.runAsync(
-        () => _waitUntilAsync(
+      final nameField = tester.widget<TextField>(find.byType(TextField).first);
+      await tester.runAsync(() async {
+        nameField.onChanged?.call('Daily Rider');
+        await _waitUntilAsync(
           () async =>
               (await fixture.services.bikeRepository.getBikes())
                   .single
                   .bike
                   .displayName ==
               'Daily Rider',
-        ),
-      );
+        );
+      });
       await tester.pump();
 
+      expect(
+        fixture.services.activeBikeCoordinator.bikes
+            .peek()
+            .single
+            .bike
+            .displayName,
+        'Daily Rider',
+      );
       expect(find.text('Saved'), findsOneWidget);
       expect(find.text('V1 — SUPER73'), findsOneWidget);
       await tester.ensureVisible(find.text('V1 — SUPER73'));
@@ -148,7 +157,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        (await fixture.services.bikeRepository.getBikes())
+        fixture.services.activeBikeCoordinator.bikes
+            .peek()
             .single
             .bike
             .protocol,

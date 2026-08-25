@@ -26,15 +26,24 @@ final class BikeSettingsPage extends SignalStatefulWidget {
 }
 
 final class _BikeSettingsPageState extends State<BikeSettingsPage> {
+  static const _nameSaveDelay = Duration(milliseconds: 600);
+
   final TextEditingController _name = TextEditingController();
   late AppServices _services;
   late BikeRegion? _region;
   late BikeColor _color;
   late BikeProtocolVersion _protocol;
+  Timer? _nameSaveTimer;
+  Future<void>? _saveFuture;
   String? _nameError;
   String? _regionError;
+  var _saveRequested = false;
   var _saving = false;
   var _forgetting = false;
+  var _closing = false;
+  var _allowPop = false;
+  var _regionFieldRevision = 0;
+  var _protocolFieldRevision = 0;
 
   @override
   void initState() {
@@ -54,6 +63,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
 
   @override
   void dispose() {
+    _nameSaveTimer?.cancel();
     _name.dispose();
     super.dispose();
   }
@@ -83,7 +93,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     final sessionState = matchingStatus?.sessionState;
     final canReconnect =
         sessionState is SessionDisconnected || sessionState is SessionFailed;
-    return BikePageScaffold(
+    final page = BikePageScaffold(
       title: 'Bike settings',
       color: _color,
       children: [
@@ -101,15 +111,18 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
             children: [
               TextField(
                 controller: _name,
-                enabled: !_saving,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
                   labelText: 'Bike name',
                   errorText: _nameError,
                 ),
+                onChanged: _scheduleNameSave,
+                onSubmitted: (_) => _saveNameNow(),
               ),
               if (_protocol == BikeProtocolVersion.v1) ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<BikeRegion>(
+                  key: ValueKey((_region, _regionFieldRevision)),
                   initialValue: _region,
                   decoration: InputDecoration(
                     labelText: 'Region',
@@ -122,16 +135,11 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                         child: Text(region.label),
                       ),
                   ],
-                  onChanged: _saving
-                      ? null
-                      : (region) {
-                          if (region != null) {
-                            setState(() {
-                              _region = region;
-                              _regionError = null;
-                            });
-                          }
-                        },
+                  onChanged: (region) {
+                    if (region != null) {
+                      unawaited(_changeRegion(region));
+                    }
+                  },
                 ),
               ],
               const SizedBox(height: 16),
@@ -148,13 +156,12 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                       child: BikeColorLabel(color: color),
                     ),
                 ],
-                onChanged: _saving
-                    ? null
-                    : (color) {
-                        if (color != null) {
-                          setState(() => _color = color);
-                        }
-                      },
+                onChanged: (color) {
+                  if (color != null && color != _color) {
+                    setState(() => _color = color);
+                    unawaited(_queueSaveNow());
+                  }
+                },
               ),
             ],
           ),
@@ -170,6 +177,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<BikeProtocolVersion>(
+                key: ValueKey((_protocol, _protocolFieldRevision)),
                 initialValue: _protocol,
                 decoration: const InputDecoration(labelText: 'Protocol'),
                 items: [
@@ -179,16 +187,11 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                       child: Text(_protocolLabel(protocol)),
                     ),
                 ],
-                onChanged: _saving
-                    ? null
-                    : (protocol) {
-                        if (protocol != null) {
-                          setState(() {
-                            _protocol = protocol;
-                            _regionError = null;
-                          });
-                        }
-                      },
+                onChanged: (protocol) {
+                  if (protocol != null) {
+                    unawaited(_changeProtocol(protocol));
+                  }
+                },
               ),
               const SizedBox(height: 14),
               Text(
@@ -199,17 +202,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: _saving ? null : () => _save(saved),
-          icon: _saving
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.check_rounded),
-          label: Text(_saving ? 'Saving…' : 'Save changes'),
         ),
         const SizedBox(height: 34),
         const SectionHeader(
@@ -237,7 +229,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                       : 'Make this the bike Superduper prepares first.',
                 ),
                 value: isActive,
-                onChanged: isActive || _saving
+                onChanged: isActive
                     ? null
                     : (_) => unawaited(
                         _runCoordinatorAction(
@@ -344,49 +336,53 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         ),
       ],
     );
+    return PopScope(
+      canPop: _allowPop || (!_saving && _nameSaveTimer == null),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          unawaited(_saveBeforeExit());
+        }
+      },
+      child: page,
+    );
   }
 
-  Future<void> _save(SavedBike saved) async {
-    final name = _name.text.trim();
-    if (name.isEmpty) {
-      setState(() => _nameError = 'Enter a bike name.');
+  void _scheduleNameSave(String value) {
+    _nameSaveTimer?.cancel();
+    _nameSaveTimer = null;
+    final nameIsEmpty = value.trim().isEmpty;
+    setState(() {
+      _nameError = nameIsEmpty ? 'Enter a bike name.' : null;
+      if (!nameIsEmpty) {
+        _nameSaveTimer = Timer(_nameSaveDelay, () {
+          _nameSaveTimer = null;
+          if (!mounted) {
+            return;
+          }
+          setState(() {});
+          unawaited(_queueSave());
+        });
+      }
+    });
+  }
+
+  void _saveNameNow() {
+    _nameSaveTimer?.cancel();
+    _nameSaveTimer = null;
+    final nameIsEmpty = _name.text.trim().isEmpty;
+    setState(() {
+      _nameError = nameIsEmpty ? 'Enter a bike name.' : null;
+    });
+    if (!nameIsEmpty) {
+      unawaited(_queueSave());
+    }
+  }
+
+  Future<void> _changeRegion(BikeRegion region) async {
+    if (region == _region) {
       return;
     }
-    if (_protocol == BikeProtocolVersion.v1 && _region == null) {
-      setState(() => _regionError = 'Choose the bike region.');
-      return;
-    }
-    final savedProtocol = saved.bike.protocol;
-    if (savedProtocol != _protocol) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('CHANGE BIKE PROTOCOL?'),
-          content: Text(
-            'Superduper will reconnect using ${_protocolLabel(_protocol)}. If this does not match the bike, controls and kept settings may stop working.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Change protocol'),
-            ),
-          ],
-        ),
-      );
-      if (!(confirmed ?? false)) {
-        return;
-      }
-      if (!mounted) {
-        return;
-      }
-    }
-    if (_protocol == BikeProtocolVersion.v1 &&
-        saved.bike.region != null &&
-        saved.bike.region != _region) {
+    if (_region != null) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -406,40 +402,173 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           ],
         ),
       );
-      if (!(confirmed ?? false)) {
+      if (!mounted) {
         return;
       }
-      if (!mounted) {
+      if (!(confirmed ?? false)) {
+        setState(() => _regionFieldRevision += 1);
         return;
       }
     }
     setState(() {
-      _nameError = null;
-      _saving = true;
+      _region = region;
+      _regionError = null;
+      _regionFieldRevision += 1;
     });
-    try {
-      await _services.bikeRepository.updateBikeDetails(
-        widget.initialBike.bike.deviceId,
-        displayName: name,
-        region: _region,
-        color: _color,
-        protocol: _protocol,
-      );
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userFacingError(error, context: UserErrorContext.saveBike),
-            ),
+    await _queueSaveNow();
+  }
+
+  Future<void> _changeProtocol(BikeProtocolVersion protocol) async {
+    if (protocol == _protocol) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('CHANGE BIKE PROTOCOL?'),
+        content: Text(
+          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and kept settings may stop working.${protocol == BikeProtocolVersion.v1 && _region == null ? ' V1 will initially use the US region.' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Change protocol'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!(confirmed ?? false)) {
+      setState(() => _protocolFieldRevision += 1);
+      return;
+    }
+    setState(() {
+      _protocol = protocol;
+      _region = protocol == BikeProtocolVersion.v1
+          ? (_region ?? BikeRegion.us)
+          : null;
+      _regionError = null;
+      _protocolFieldRevision += 1;
+      _regionFieldRevision += 1;
+    });
+    await _queueSaveNow();
+  }
+
+  Future<void> _queueSaveNow() {
+    _nameSaveTimer?.cancel();
+    _nameSaveTimer = null;
+    return _queueSave();
+  }
+
+  Future<void> _queueSave() {
+    _saveRequested = true;
+    if (_saveFuture case final pending?) {
+      return pending;
+    }
+    final future = _drainSaves();
+    _saveFuture = future;
+    unawaited(
+      future.whenComplete(() {
+        if (identical(_saveFuture, future)) {
+          _saveFuture = null;
+        }
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _drainSaves() async {
+    if (mounted) {
+      setState(() => _saving = true);
+    }
+    var savedAnyChanges = false;
+    var failed = false;
+    while (_saveRequested) {
+      _saveRequested = false;
+      final name = _name.text.trim();
+      if (name.isEmpty ||
+          (_protocol == BikeProtocolVersion.v1 && _region == null)) {
+        if (mounted) {
+          setState(() {
+            _nameError = name.isEmpty ? 'Enter a bike name.' : null;
+            _regionError =
+                _protocol == BikeProtocolVersion.v1 && _region == null
+                ? 'Choose the bike region.'
+                : null;
+          });
+        }
+        break;
+      }
+      try {
+        await _services.bikeRepository.updateBikeDetails(
+          widget.initialBike.bike.deviceId,
+          displayName: name,
+          region: _region,
+          color: _color,
+          protocol: _protocol,
         );
+        savedAnyChanges = true;
+      } on Object catch (error) {
+        failed = true;
+        _saveRequested = false;
+        if (mounted) {
+          _showMessage(
+            userFacingError(error, context: UserErrorContext.saveBike),
+          );
+        }
       }
     }
+    if (!mounted) {
+      return;
+    }
+    setState(() => _saving = false);
+    if (savedAnyChanges && !failed) {
+      _showMessage('Saved', isToast: true);
+    }
+  }
+
+  Future<void> _saveBeforeExit() async {
+    if (_closing) {
+      return;
+    }
+    _closing = true;
+    final hasPendingNameSave = _nameSaveTimer != null;
+    _nameSaveTimer?.cancel();
+    _nameSaveTimer = null;
+    if (hasPendingNameSave && _name.text.trim().isNotEmpty) {
+      await _queueSave();
+    } else if (_saveFuture case final pending?) {
+      await pending;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  void _showMessage(String message, {bool isToast = false}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: isToast ? SnackBarBehavior.floating : null,
+          duration: isToast
+              ? const Duration(milliseconds: 1200)
+              : const Duration(seconds: 4),
+          content: Text(message),
+        ),
+      );
   }
 
   static String _protocolLabel(BikeProtocolVersion protocol) {

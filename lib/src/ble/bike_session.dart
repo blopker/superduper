@@ -257,7 +257,6 @@ final class BikeSession {
   StreamSubscription<List<int>>? _telemetrySubscription;
   BikeRegion? _preferredRegion;
   RidePreferences _preferences;
-  String? _unknownFirmwareRevision;
   Timer? _pollTimer;
   Timer? _reconnectTimer;
   Timer? _synchronizationRetryTimer;
@@ -283,7 +282,6 @@ final class BikeSession {
   ReadonlySignal<BikeVersionInfo?> get versions => _versions.readonly();
   bool get manualReconnectPaused => _manualReconnectPaused;
   BikeProtocolVersion get protocolVersion => _protocolVersion;
-  String? get unknownFirmwareRevision => _unknownFirmwareRevision;
   bool get canChangeConfiguration {
     if (_disposed ||
         _disconnectRequested ||
@@ -503,7 +501,6 @@ final class BikeSession {
       _synchronizationRetryTimer?.cancel();
       _pending.value = null;
       await _disableNotifications(updatePeripheral: false);
-      _unknownFirmwareRevision = null;
       _versions.value = null;
       _state.value = const SessionConnecting();
       try {
@@ -591,8 +588,6 @@ final class BikeSession {
           'Reading firmware revision',
         ),
       );
-      _unknownFirmwareRevision =
-          _protocolVersion.isTestedFirmwareRevision(firmware) ? null : firmware;
       final software = _decodeRevision(
         await _timed(
           connection.readCharacteristic(

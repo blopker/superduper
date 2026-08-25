@@ -42,12 +42,6 @@ void main() {
       );
       expect(BikeProtocolVersion.fromAdvertisedName('SUPER73-X'), isNull);
       expect(BikeProtocolVersion.fromAdvertisedName(' SUPER73 '), isNull);
-      expect(BikeProtocolVersion.v1.isTestedFirmwareRevision('221122'), isTrue);
-      expect(
-        BikeProtocolVersion.v1.isTestedFirmwareRevision('250426'),
-        isFalse,
-      );
-      expect(BikeProtocolVersion.v2.isTestedFirmwareRevision('250426'), isTrue);
     });
   });
 

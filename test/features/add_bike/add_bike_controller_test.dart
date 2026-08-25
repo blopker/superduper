@@ -172,7 +172,7 @@ void main() {
   });
 
   test(
-    'untested firmware warns but does not block advertised protocol',
+    'firmware revision is metadata and does not affect setup',
     () async {
       const candidate = DiscoveredBike(
         deviceId: 'future-bike',
@@ -189,7 +189,7 @@ void main() {
 
       final confirmation = controller.state.value as AddBikeConfirming;
       expect(confirmation.protocol, BikeProtocolVersion.v1);
-      expect(confirmation.untestedFirmwareRevision, '260101');
+      expect(confirmation.versions?.firmwareRevision, '260101');
     },
   );
 

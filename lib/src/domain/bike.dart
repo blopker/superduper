@@ -13,13 +13,6 @@ enum BikeProtocolVersion {
       _ => null,
     };
   }
-
-  bool isTestedFirmwareRevision(String revision) {
-    return switch (this) {
-      BikeProtocolVersion.v1 => revision.trim() == '221122',
-      BikeProtocolVersion.v2 => revision.trim() == '250426',
-    };
-  }
 }
 
 enum BikeRegion {

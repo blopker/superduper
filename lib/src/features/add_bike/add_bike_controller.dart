@@ -55,7 +55,6 @@ final class AddBikeConfirming extends AddBikeState {
     required this.configuration,
     required this.suggestedName,
     required this.versions,
-    required this.untestedFirmwareRevision,
   });
 
   final DiscoveredBike candidate;
@@ -63,7 +62,6 @@ final class AddBikeConfirming extends AddBikeState {
   final BikeConfiguration configuration;
   final String suggestedName;
   final BikeVersionInfo? versions;
-  final String? untestedFirmwareRevision;
 }
 
 final class AddBikeSaving extends AddBikeState {
@@ -231,7 +229,6 @@ final class AddBikeController {
             ? defaultBikeName(candidate.deviceId)
             : advertisedName,
         versions: session.versions.peek(),
-        untestedFirmwareRevision: session.unknownFirmwareRevision,
       );
     } on Object catch (error) {
       if (_isCurrent(generation)) {

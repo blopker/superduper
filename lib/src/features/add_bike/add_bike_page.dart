@@ -26,7 +26,6 @@ final class _AddBikePageState extends State<AddBikePage>
   BikeRegion? _region;
   BikeColor _color = BikeColor.royalHorizon;
   String? _validationMessage;
-  String? _compatibilityWarningId;
   var _isSaving = false;
 
   @override
@@ -60,7 +59,6 @@ final class _AddBikePageState extends State<AddBikePage>
       :final protocol,
       :final configuration,
       :final suggestedName,
-      :final untestedFirmwareRevision,
     )) {
       if (_confirmationId != candidate.deviceId) {
         _confirmationId = candidate.deviceId;
@@ -70,24 +68,8 @@ final class _AddBikePageState extends State<AddBikePage>
             ? configuration.region
             : null;
       }
-      if (untestedFirmwareRevision != null) {
-        final warningId = '${candidate.deviceId}:$untestedFirmwareRevision';
-        if (_compatibilityWarningId != warningId) {
-          _compatibilityWarningId = warningId;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            unawaited(
-              _showCompatibilityWarning(
-                candidate: candidate,
-                protocol: protocol,
-                firmwareRevision: untestedFirmwareRevision,
-              ),
-            );
-          });
-        }
-      }
     } else {
       _confirmationId = null;
-      _compatibilityWarningId = null;
     }
 
     final previewColor = state is AddBikeConfirming ? _color : null;
@@ -318,46 +300,6 @@ final class _AddBikePageState extends State<AddBikePage>
           ),
         );
       }
-    }
-  }
-
-  Future<void> _showCompatibilityWarning({
-    required DiscoveredBike candidate,
-    required BikeProtocolVersion protocol,
-    required String firmwareRevision,
-  }) async {
-    final current = widget.controller.state.peek();
-    if (!mounted ||
-        current is! AddBikeConfirming ||
-        current.candidate.deviceId != candidate.deviceId ||
-        current.untestedFirmwareRevision != firmwareRevision) {
-      return;
-    }
-    final continueSetup = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('UNTESTED BIKE FIRMWARE'),
-        content: Text(
-          '${candidate.name} reports firmware $firmwareRevision. Its advertised '
-          'name selects the ${protocol.name.toUpperCase()} protocol, but this '
-          'firmware has not been tested with Superduper. You can continue, but '
-          'controls or saved settings may not work correctly.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Choose another bike'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continue anyway'),
-          ),
-        ],
-      ),
-    );
-    if (continueSetup != true && mounted) {
-      await widget.controller.retry();
     }
   }
 }
