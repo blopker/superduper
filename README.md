@@ -1,9 +1,6 @@
-<!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="assets/superduper-nobg.png" alt="Logo" width="80" height="80">
-  </a>
+  <img src="assets/superduper-nobg.png" alt="Logo" width="80" height="80">
 
   <h3 align="center">SuperDuper App</h3>
 
