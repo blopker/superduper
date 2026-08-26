@@ -404,7 +404,7 @@ final class _ActiveStatus extends StatelessWidget {
             excludeSemantics: true,
             child: Text(
               presentation.title.toUpperCase(),
-              style: Theme.of(context).textTheme.displaySmall,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
           ),
           const SizedBox(height: 10),
@@ -422,10 +422,13 @@ final class _ActiveStatus extends StatelessWidget {
               runSpacing: 10,
               children: [
                 if (bike != null)
-                  FilledButton.icon(
-                    onPressed: () => onOpenBike(bike.bike.deviceId),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Open controls'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => onOpenBike(bike.bike.deviceId),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Open controls'),
+                    ),
                   )
                 else if (state is NoActiveBike)
                   FilledButton.icon(
