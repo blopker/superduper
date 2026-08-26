@@ -322,7 +322,7 @@ final class _MigrationNotice extends StatelessWidget {
     final detail = switch (startupState) {
       StartupReady(:final importResult) when importResult.warnings.isNotEmpty =>
         '${importResult.bikesImported} saved bike(s) imported with ${importResult.warnings.length} adjustment(s). The original files were left unchanged.',
-      _ => 'Superduper repaired the saved active-bike selection. Review your bikes before riding.',
+      _ => 'Superduper repaired the saved auto-connect selection. Review your bikes before riding.',
     };
     return SurfacePanel(
       color: AppColors.surface,
@@ -463,7 +463,7 @@ final class _ActiveStatus extends StatelessWidget {
         icon: Icons.bluetooth_searching_rounded,
         label: 'Preparing',
         color: AppColors.yellow,
-        title: 'Preparing active bike',
+        title: 'Preparing auto-connect bike',
         detail: 'Loading your saved bike and ride settings…',
         canRetry: false,
         needsSettings: false,
@@ -564,11 +564,6 @@ final class _BikeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final region = saved.bike.region;
-    final detail = [
-      if (region != null) '${region.label} region',
-      if (isActive) 'Auto-connects on launch',
-    ].join(' · ');
     return Material(
       color: isActive ? saved.bike.color.panelTint : AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
@@ -579,32 +574,24 @@ final class _BikeTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              BikeAvatar(color: saved.bike.color),
-              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            saved.bike.displayName,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(width: 9),
-                          const StatusPill(
-                            label: 'Active',
-                            color: AppColors.magentaSoft,
-                          ),
-                        ],
-                      ],
+                    Text(
+                      saved.bike.displayName,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    if (detail.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(detail),
+                    if (isActive) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'AUTO CONNECT',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.magentaSoft,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -621,11 +608,12 @@ final class _BikeTile extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  if (!isActive)
-                    const PopupMenuItem(
-                      value: 'active',
-                      child: Text('Make active'),
-                    ),
+                  CheckedPopupMenuItem(
+                    value: 'active',
+                    checked: isActive,
+                    enabled: !isActive,
+                    child: const Text('Auto connect'),
+                  ),
                   const PopupMenuItem(
                     value: 'forget',
                     child: Text('Forget bike'),

@@ -17,19 +17,19 @@ final class BikeColorPalette {
   });
 
   factory BikeColorPalette.from(BikeColor color) {
+    final sourcePrimary = color.gradientColors.first;
     final sourceAccent = color.gradientColors.last;
-    final sourceSecondary = color.gradientColors.first;
     final panel = color.panelTint;
     final panelRaised = Color.alphaBlend(
-      sourceAccent.withValues(alpha: 0.16),
+      sourcePrimary.withValues(alpha: 0.16),
       AppColors.surfaceRaised,
     );
     final surfaceHighest = Color.alphaBlend(
-      sourceAccent.withValues(alpha: 0.22),
+      sourcePrimary.withValues(alpha: 0.22),
       AppColors.surfaceRaised,
     );
     final accent = _accessibleAccent(sourceAccent, surfaceHighest);
-    final secondary = _accessibleAccent(sourceSecondary, surfaceHighest);
+    final secondary = _accessibleAccent(sourcePrimary, surfaceHighest);
     return BikeColorPalette._(
       accent: accent,
       onAccent: foregroundFor(accent),
@@ -38,16 +38,16 @@ final class BikeColorPalette {
       panel: panel,
       panelRaised: panelRaised,
       surfaceLow: Color.alphaBlend(
-        sourceAccent.withValues(alpha: 0.07),
+        sourcePrimary.withValues(alpha: 0.07),
         AppColors.inkLight,
       ),
       surfaceHighest: surfaceHighest,
       outline: Color.alphaBlend(
-        sourceAccent.withValues(alpha: 0.34),
+        sourcePrimary.withValues(alpha: 0.34),
         AppColors.border,
       ),
       outlineVariant: Color.alphaBlend(
-        sourceAccent.withValues(alpha: 0.18),
+        sourcePrimary.withValues(alpha: 0.18),
         AppColors.borderTint,
       ),
     );
@@ -331,7 +331,6 @@ final class BikeHeader extends StatelessWidget {
     required this.isActive,
     this.region,
     this.trailing,
-    this.avatarSize = 68,
     this.compact = false,
     super.key,
   });
@@ -341,7 +340,6 @@ final class BikeHeader extends StatelessWidget {
   final bool isActive;
   final BikeRegion? region;
   final Widget? trailing;
-  final double avatarSize;
   final bool compact;
 
   @override
@@ -364,7 +362,7 @@ final class BikeHeader extends StatelessWidget {
                     children: [
                       if (isActive)
                         StatusPill(
-                          label: 'Active bike',
+                          label: 'Auto connect',
                           color: palette.accent,
                         ),
                       if (region case final bikeRegion?)
@@ -384,8 +382,6 @@ final class BikeHeader extends StatelessWidget {
     }
     return Row(
       children: [
-        BikeAvatar(color: color, size: avatarSize),
-        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,7 +390,7 @@ final class BikeHeader extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: StatusPill(
-                    label: 'Active bike',
+                    label: 'Auto connect',
                     color: palette.accent,
                   ),
                 ),
@@ -575,31 +571,6 @@ final class StatusPill extends StatelessWidget {
   }
 }
 
-final class BikeAvatar extends StatelessWidget {
-  const BikeAvatar({required this.color, this.size = 58, super.key});
-
-  final BikeColor color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = color.gradientColors;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: colors.last,
-        borderRadius: BorderRadius.circular(size * 0.34),
-      ),
-      child: Icon(
-        Icons.electric_bike_rounded,
-        color: color.iconColor,
-        size: size * 0.52,
-      ),
-    );
-  }
-}
-
 final class BikeColorLabel extends StatelessWidget {
   const BikeColorLabel({required this.color, super.key});
 
@@ -652,13 +623,9 @@ extension BikeColorDesign on BikeColor {
 
   Color get panelTint {
     return Color.alphaBlend(
-      gradientColors.last.withValues(alpha: 0.11),
+      gradientColors.first.withValues(alpha: 0.11),
       AppColors.surface,
     );
-  }
-
-  Color get iconColor {
-    return BikeColorPalette.foregroundFor(gradientColors.last);
   }
 }
 

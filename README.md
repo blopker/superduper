@@ -26,7 +26,7 @@ Features:
 
 - No account or internet connection required
 - Quickly switch between multiple bikes
-- Automatically connect to one active bike when the app opens
+- Automatically connect to one auto-connect bike when the app opens
 - Mark values as Set on connect so they are reapplied and confirmed while the app is open
 - Open source
 
@@ -38,10 +38,10 @@ Features:
 4. Set Light, Mode, and Assist from Bike Control. Enable
    `Set on connect` for each value Superduper should restore.
 
-The first saved bike becomes active. On later launches, Superduper connects to
+The first saved bike becomes the auto-connect bike. On later launches, Superduper connects to
 that bike directly, applies its Set on connect values, confirms them, and reports
 `Ready to ride` without requiring Bike Control to be opened. With multiple
-bikes, use `Make active` to choose the one that auto-connects.
+bikes, use `Auto connect` to choose the one that connects on launch.
 
 ## Bike Functions
 
@@ -102,9 +102,9 @@ Finally, older (or newer) bike firmware may not be supported. Make sure your bik
 ### How does Set on connect work?
 
 It saves the value the bike most recently confirmed. While Superduper is open,
-the active-bike session reads the bike, restores any kept value that differs,
+the auto-connect session reads the bike, restores any kept value that differs,
 and reads again before reporting `Ready to ride`. Closing or backgrounding the
-app pauses that guarantee; reopening the app resynchronizes the active bike.
+app pauses that guarantee; reopening the app resynchronizes the auto-connect bike.
 
 ### What are the supported devices?
 

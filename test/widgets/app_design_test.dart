@@ -34,17 +34,22 @@ void main() {
     );
   });
 
-  test('every bike avatar chooses an accessible foreground color', () {
+  test('bike cards are tinted from the primary gradient color', () {
     for (final color in BikeColor.values) {
-      final background = color.gradientColors.last;
-      final contrast = _contrastRatio(background, color.iconColor);
+      expect(
+        color.panelTint,
+        Color.alphaBlend(
+          color.gradientColors.first.withValues(alpha: 0.11),
+          AppColors.surface,
+        ),
+      );
+    }
+  });
+
+  test('every bike color chooses accessible foreground colors', () {
+    for (final color in BikeColor.values) {
       final palette = BikeColorPalette.from(color);
 
-      expect(
-        contrast,
-        greaterThanOrEqualTo(4.5),
-        reason: '${color.displayName} has only $contrast:1 contrast.',
-      );
       expect(
         _contrastRatio(palette.accent, palette.onAccent),
         greaterThanOrEqualTo(4.5),
@@ -66,7 +71,6 @@ void main() {
         reason: '${color.displayName} has an invisible secondary color.',
       );
     }
-    expect(BikeColor.frostedMint.iconColor, AppColors.ink);
   });
 
   testWidgets('bike color theme changes only its subtree', (tester) async {

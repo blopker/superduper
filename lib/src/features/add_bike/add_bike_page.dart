@@ -223,11 +223,6 @@ final class _AddBikePageState extends State<AddBikePage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: BikeAvatar(color: _color, size: 72),
-              ),
-              const SizedBox(height: 22),
               TextField(
                 controller: _name,
                 autofocus: true,

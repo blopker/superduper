@@ -206,7 +206,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         const SizedBox(height: 34),
         const SectionHeader(
           eyebrow: 'On app launch',
-          title: 'Automatic connection',
+          title: 'Connection preference',
         ),
         const SizedBox(height: 16),
         SurfacePanel(
@@ -222,11 +222,11 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   isActive ? Icons.star_rounded : Icons.star_outline_rounded,
                   color: isActive ? AppColors.yellow : AppColors.textMuted,
                 ),
-                title: const Text('Active bike'),
+                title: const Text('Auto connect'),
                 subtitle: Text(
                   isActive
                       ? 'Connects and applies Set on connect values when Superduper opens.'
-                      : 'Make this the bike Superduper prepares first.',
+                      : 'Use this bike when Superduper opens.',
                 ),
                 value: isActive,
                 onChanged: isActive
@@ -753,19 +753,21 @@ final class _VersionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 20),
-          Flexible(
-            child: SelectionArea(
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 3),
+          SelectionArea(
+            child: Text(
+              value,
+              style: const TextStyle(fontFamily: 'monospace'),
             ),
           ),
         ],
