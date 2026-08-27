@@ -43,8 +43,7 @@ This information is collected by Apple and Google, not by SuperDuper, and is sub
 SuperDuper requests the following permissions:
 
 - **Bluetooth**: Required to connect to your ebike
-- **Location** (Android only): Required by Android's system for Bluetooth scanning
-- **Background processing** (for Android Background Lock feature)
+- **Background processing** (for Android Background Sync)
 
 These permissions are used solely for the functionality of the app and not for data collection purposes.
 

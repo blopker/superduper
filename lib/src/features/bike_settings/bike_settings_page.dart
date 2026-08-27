@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
@@ -42,6 +43,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   var _saving = false;
   var _forgetting = false;
   var _closing = false;
+  var _changingBackground = false;
   var _allowPop = false;
   var _regionFieldRevision = 0;
   var _protocolFieldRevision = 0;
@@ -81,6 +83,10 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       );
     }
     final saved = matches.single;
+    final automaticSetupEnabled =
+        saved.backgroundPreference.requested &&
+        saved.backgroundPreference.consentVersion >=
+            backgroundSyncConsentVersion;
     final coordinator = _services.activeBikeCoordinator;
     final deviceId = widget.initialBike.bike.deviceId;
     final isActive = coordinator.activeBikeId.value == deviceId;
@@ -240,6 +246,34 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                         ),
                       ),
               ),
+              if (defaultTargetPlatform == TargetPlatform.android) ...[
+                const Divider(height: 1),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  secondary: const Icon(Icons.sync_rounded),
+                  title: const Text('Background Sync'),
+                  subtitle: Text(
+                    saved.bike.moduleSerial == null
+                        ? 'Connect after discovering this bike before enabling Background Sync.'
+                        : isActive
+                        ? 'Android will attempt to apply Set on connect values when this bike turns on.'
+                        : 'Make this the active bike to use Background Sync.',
+                  ),
+                  value: automaticSetupEnabled,
+                  onChanged:
+                      _changingBackground ||
+                          (saved.bike.moduleSerial == null &&
+                              !automaticSetupEnabled) ||
+                          (!isActive && !automaticSetupEnabled)
+                      ? null
+                      : (enabled) => unawaited(
+                          _changeBackgroundPreference(saved, enabled),
+                        ),
+                ),
+              ],
               if (hasSession) ...[
                 const Divider(height: 1),
                 ListTile(
@@ -463,6 +497,53 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       _regionFieldRevision += 1;
     });
     await _queueSaveNow();
+  }
+
+  Future<void> _changeBackgroundPreference(
+    SavedBike saved,
+    bool enabled,
+  ) async {
+    if (enabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Enable Background Sync?'),
+          content: const Text(
+            'Android will scan for this bike in the background and briefly connect when it turns on. It cannot work after Force Stop, permission removal, or Bluetooth being turned off.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Enable'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || !(confirmed ?? false)) {
+        return;
+      }
+    }
+    setState(() => _changingBackground = true);
+    try {
+      await _services.backgroundSyncCoordinator.setAutomaticSetup(
+        saved.bike.deviceId,
+        enabled: enabled,
+      );
+    } on Object catch (error) {
+      if (mounted) {
+        _showMessage(
+          userFacingError(error, context: UserErrorContext.saveBike),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _changingBackground = false);
+      }
+    }
   }
 
   Future<void> _queueSaveNow() {

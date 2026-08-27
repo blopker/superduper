@@ -291,9 +291,9 @@ preserve.
 | Area | Android | iOS | macOS target |
 | --- | --- | --- | --- |
 | Product release | Yes | Yes | No documented release |
-| Configured minimum | API 29 / Android 10 | iOS 15.6 | macOS 11 |
+| Configured minimum | API 31 / Android 12 | iOS 15.6 | macOS 11 |
 | BLE scan/connect | Yes | Yes | Development support present |
-| Location requested at launch | Yes | Yes in current code | No |
+| Location requested at launch | No | Yes in current code | No |
 | Background Lock control | Yes | No | No |
 | Notification and battery-optimization prompts | For Background Lock | No | No |
 | Supported orientations | Platform default | Portrait and landscape | Desktop window |

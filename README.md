@@ -105,7 +105,7 @@ app pauses that guarantee; reopening the app resynchronizes the auto-connect bik
 
 ### What are the supported devices?
 
-Android 10+, iOS 15+.
+Android 12+, iOS 15+.
 
 ### What bikes are supported?
 

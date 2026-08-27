@@ -111,6 +111,21 @@ void main() {
     );
   });
 
+  test('background sync preference records explicit consent', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(deviceId: 'bike');
+
+    await repository.setBackgroundPreference(
+      'bike',
+      requested: true,
+      consentVersion: 1,
+    );
+
+    final saved = (await repository.getBikes()).single;
+    expect(saved.backgroundPreference.requested, isTrue);
+    expect(saved.backgroundPreference.consentVersion, 1);
+  });
+
   test('bike details update together with a normalized name', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');

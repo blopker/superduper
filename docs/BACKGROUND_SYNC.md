@@ -1,6 +1,6 @@
 # Background locked-setting synchronization
 
-Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026.
+Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android filtered-scan prototype is implemented but has not yet passed the physical-device matrix below.
 
 ## Goal
 
@@ -133,6 +133,50 @@ Android directly supports waking a dead app process when a matching BLE advertis
 
 Source: [Android background BLE guidance](https://developer.android.com/develop/connectivity/bluetooth/ble/background).
 
+### Implemented Android prototype
+
+The first Android vertical slice now follows this lifecycle:
+
+```text
+exact manufacturer-serial advertisement
+  -> scan PendingIntent
+  -> private BroadcastReceiver
+  -> unique expedited WorkManager request
+  -> existing Flutter engine, or a headless engine only when no engine exists
+  -> one-shot Dart BackgroundBikeSynchronizer
+  -> production BikeSession authentication, merge, write, and readback
+  -> disconnect and record the bounded outcome in Android shared preferences
+```
+
+The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it registers only the active bike's exact module serial. The preference is not saved if permission, Bluetooth, or scanner state prevents registration. Disabling it, changing the active bike, or forgetting the bike reconciles the native registration; the first disabled refresh also cancels any stale native registration left by an interrupted opt-out.
+
+Android restores a saved registration after boot, package replacement, and the next app open. It also re-registers when Bluetooth is turned back on while the app process is alive. A manifest receiver cannot reliably receive `ACTION_STATE_CHANGED` for a dead process on modern Android, so Bluetooth-toggle recovery with a dead process is deliberately not claimed. In that case the next app open is the recovery point unless the device retains the original scan registration.
+
+Restore attempts are idempotent and never crash the app when the Bluetooth stack rejects a scan start. A scan callback error invalidates the process-local registration and schedules bounded recovery work. Every actual new registration clears the presence debounce, preventing a missed `MATCH_LOST` callback from suppressing the next power-on event.
+
+The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
+
+The prototype still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung hardware matrix. Companion Device Manager has not been added because exact manufacturer filtering is the stronger first feasibility test.
+
+### Android hardware smoke test
+
+Use a debug build and a physical bike whose module serial appears under Bike information:
+
+1. Choose at least one Set on connect value, make the bike active, and enable Background Sync.
+2. Turn the bike off and allow Android to observe its disappearance.
+3. Background the app and remove its task without using Force Stop.
+4. Turn the screen off, then power on the bike.
+5. After the transaction has had time to finish, inspect the prototype result:
+
+   ```text
+   adb shell run-as io.kbl.superduper cat shared_prefs/background_sync.xml
+   ```
+
+   `last_outcome` should be `confirmed`, and `last_completed_at_ms` should be recent. If registration failed, `registration_error_detail` records the native reason.
+6. Open the app and confirm the locked value was applied while every unlocked value remained unchanged.
+
+For the cold-process case, `adb shell am kill io.kbl.superduper` may be used only after the app is backgrounded. Do not use `am force-stop`: Force Stop intentionally cancels this path until the user opens the app again.
+
 ### Discovery
 
 The strongest scan filter is the exact active bike:
@@ -173,7 +217,7 @@ If the operation cannot reliably finish as short work, a `connectedDevice` foreg
 
 Android can hibernate an app that the user has not opened for several months. On Android 12 and later, hibernation resets runtime permissions and prevents background jobs and alerts. Android explicitly recognizes communication with smart and companion devices as a reason to explain and request an exemption from unused-app restrictions.
 
-“Automatic bike setup” onboarding should therefore:
+“Background Sync” onboarding should therefore:
 
 - explain why background operation is necessary;
 - check the unused-app restrictions status; and
@@ -316,7 +360,7 @@ Test at least a current Pixel and Samsung device:
 
 ## Product behavior
 
-Present this as an explicit “Automatic bike setup” option during or after bike setup. The app should show:
+Present this as an explicit “Background Sync” option during or after bike setup. The app should show:
 
 - whether the feature is enabled;
 - which bike is active;

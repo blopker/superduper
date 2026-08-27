@@ -147,6 +147,7 @@ final class BikeSession {
     ConfigurationConfirmed? onConfigurationConfirmed,
     VersionsRead? onVersionsRead,
     OdometerRead? onOdometerRead,
+    this.readDiagnosticsOnConnect = true,
     Duration commandTimeout = const Duration(seconds: 15),
     Duration? pollInterval = const Duration(seconds: 30),
     List<Duration> reconnectDelays = const [
@@ -233,6 +234,7 @@ final class BikeSession {
   final ConfigurationConfirmed? _onConfigurationConfirmed;
   final VersionsRead? _onVersionsRead;
   final OdometerRead? _onOdometerRead;
+  final bool readDiagnosticsOnConnect;
   final Duration _commandTimeout;
   final Duration? _pollInterval;
   final List<Duration> _reconnectDelays;
@@ -547,7 +549,9 @@ final class BikeSession {
         _state.value = const SessionConnected();
         await _synchronizeNow(forceLockedWrite: true);
         _reconnectAttempt = 0;
-        if (_isCurrent(generation) && _hasObservedConnection) {
+        if (readDiagnosticsOnConnect &&
+            _isCurrent(generation) &&
+            _hasObservedConnection) {
           await _refreshOdometer();
           await _refreshVersions();
         }

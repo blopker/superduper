@@ -111,6 +111,7 @@ final class ActiveBikeCoordinator {
   ReadonlySignal<String?> get activeBikeId => _activeBikeId.readonly();
   ReadonlySignal<bool> get migrationNoticePending =>
       _migrationNoticePending.readonly();
+  bool get isDiscoveryPaused => _discoveryPaused;
 
   Future<void> start() async {
     if (_started || _disposed) {
@@ -276,6 +277,20 @@ final class ActiveBikeCoordinator {
     _discoveryPaused = true;
     _switchGeneration++;
     await _clearSession();
+  }
+
+  Future<bool> pauseForBackgroundSynchronization() async {
+    if (_discoveryPaused) {
+      return false;
+    }
+    await pauseForDiscovery();
+    return true;
+  }
+
+  Future<void> resumeAfterBackgroundSynchronization() async {
+    if (_discoveryPaused) {
+      await resumeAfterDiscovery();
+    }
   }
 
   Future<void> resumeAfterDiscovery({SavedBike? temporarilySelect}) async {

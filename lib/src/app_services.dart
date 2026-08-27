@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
+import 'package:superduper/src/ble/background_bike_synchronizer.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/flutter_blue_bike_transport.dart';
 import 'package:superduper/src/features/startup/startup_controller.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
+import 'package:superduper/src/platform/background_sync.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/platform/external_links.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
@@ -21,6 +23,8 @@ final class AppServices {
     BluetoothPermissionGateway? permissions,
     ExternalLinkLauncher? externalLinks,
     ActiveBikeCoordinator? activeBikeCoordinator,
+    BackgroundSyncPlatformGateway? backgroundSyncPlatform,
+    BackgroundSyncCoordinator? backgroundSyncCoordinator,
   }) {
     final resolvedImporter =
         importer ?? InstalledDataImporter(database: database);
@@ -66,6 +70,21 @@ final class AppServices {
             },
           ),
         );
+    final resolvedBackgroundSyncPlatform =
+        backgroundSyncPlatform ?? const NoopBackgroundSyncPlatformGateway();
+    final resolvedBackgroundSyncCoordinator =
+        backgroundSyncCoordinator ??
+        BackgroundSyncCoordinator(
+          bikeRepository: resolvedBikeRepository,
+          settingsRepository: resolvedSettingsRepository,
+          activeBikeCoordinator: resolvedActiveBikeCoordinator,
+          synchronizer: BackgroundBikeSynchronizer(
+            bikeRepository: resolvedBikeRepository,
+            settingsRepository: resolvedSettingsRepository,
+            transport: resolvedTransport,
+          ),
+          platform: resolvedBackgroundSyncPlatform,
+        );
     return AppServices._(
       database: database,
       importer: resolvedImporter,
@@ -75,11 +94,15 @@ final class AppServices {
       permissions: resolvedPermissions,
       externalLinks: resolvedExternalLinks,
       activeBikeCoordinator: resolvedActiveBikeCoordinator,
+      backgroundSyncCoordinator: resolvedBackgroundSyncCoordinator,
       startup: StartupController(
         database: database,
         importer: resolvedImporter,
         settingsRepository: resolvedSettingsRepository,
-        onReady: resolvedActiveBikeCoordinator.start,
+        onReady: () async {
+          await resolvedActiveBikeCoordinator.start();
+          await resolvedBackgroundSyncCoordinator.start();
+        },
       ),
     );
   }
@@ -93,11 +116,15 @@ final class AppServices {
     required this.permissions,
     required this.externalLinks,
     required this.activeBikeCoordinator,
+    required this.backgroundSyncCoordinator,
     required this.startup,
   });
 
   factory AppServices.standard() {
-    return AppServices(database: AppDatabase.open());
+    return AppServices(
+      database: AppDatabase.open(),
+      backgroundSyncPlatform: SystemBackgroundSyncPlatformGateway(),
+    );
   }
 
   final AppDatabase database;
@@ -108,6 +135,7 @@ final class AppServices {
   final BluetoothPermissionGateway permissions;
   final ExternalLinkLauncher externalLinks;
   final ActiveBikeCoordinator activeBikeCoordinator;
+  final BackgroundSyncCoordinator backgroundSyncCoordinator;
   final StartupController startup;
   Future<void>? _disposeFuture;
 
@@ -136,6 +164,7 @@ final class AppServices {
       capture(error, stackTrace);
     }
     for (final cleanup in <Future<void> Function()>[
+      backgroundSyncCoordinator.dispose,
       activeBikeCoordinator.dispose,
       transport.dispose,
       database.close,

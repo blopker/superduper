@@ -265,6 +265,25 @@ final class BikeRepository {
     );
   }
 
+  Future<void> setBackgroundPreference(
+    String deviceId, {
+    required bool requested,
+    required int consentVersion,
+  }) {
+    final preference = BackgroundPreference(
+      requested: requested,
+      consentVersion: consentVersion,
+    );
+    _validateBackgroundPreference(preference);
+    return _updatePreferences(
+      deviceId,
+      BikePreferencesCompanion(
+        backgroundRequested: Value(requested),
+        backgroundConsentVersion: Value(consentVersion),
+      ),
+    );
+  }
+
   Future<void> markConnected(String deviceId) {
     return _updateBike(
       deviceId,
