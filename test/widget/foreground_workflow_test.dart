@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/app.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
+import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/persistence/installed_data_importer.dart';
@@ -59,6 +62,45 @@ void main() {
       Theme.of(tester.element(find.text('HELP & TIPS'))).colorScheme.primary,
       AppColors.magenta,
     );
+  });
+
+  testWidgets('Background Sync can identify an existing bike', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    expect(defaultTargetPlatform, TargetPlatform.android);
+    final fixture = await _pumpReadyBikeApp(
+      tester,
+      'background_identity',
+      moduleSerial: null,
+    );
+
+    await tester.tap(find.byTooltip('Bike settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('BIKE SETTINGS'), findsOneWidget);
+    expect(find.text('Bike not found'), findsNothing);
+    final label = find.text('Background Sync');
+    await tester.ensureVisible(label);
+    await tester.pump();
+
+    final backgroundSwitch = find.ancestor(
+      of: label,
+      matching: find.byType(SwitchListTile),
+    );
+    expect(backgroundSwitch, findsOneWidget);
+    expect(
+      tester.widget<SwitchListTile>(backgroundSwitch).onChanged,
+      isNotNull,
+    );
+    expect(
+      (await fixture.services.bikeRepository.getBikes())
+          .single
+          .bike
+          .moduleSerial,
+      '00112233aabbccdd',
+    );
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('lock controls wait for a confirmed bike value', (tester) async {
@@ -232,6 +274,7 @@ void main() {
     await services.bikeRepository.addBike(
       deviceId: 'pending-bike',
       displayName: 'Pending Bike',
+      moduleSerial: '00112233aabbccdd',
     );
     transport.readFramesOnOpen['pending-bike'] = [
       [1],
@@ -262,8 +305,9 @@ typedef _ReadyBikeFixture = ({
 
 Future<_ReadyBikeFixture> _pumpReadyBikeApp(
   WidgetTester tester,
-  String suffix,
-) async {
+  String suffix, {
+  String? moduleSerial = '00112233aabbccdd',
+}) async {
   final database = AppDatabase(NativeDatabase.memory());
   final transport = FakeBikeTransport();
   final permissions = FakeBluetoothPermissionGateway();
@@ -273,6 +317,10 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
     bikeRepository: bikeRepository,
     settingsRepository: settingsRepository,
     permissions: permissions,
+    identityResolver: BikeIdentityResolver(
+      bikeRepository: bikeRepository,
+      transport: transport,
+    ),
     buildSession: (bike) => BikeSession(
       connection: transport.openConnection(bike.bike.deviceId),
       preferredRegion: bike.bike.region,
@@ -308,9 +356,19 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
   await services.bikeRepository.addBike(
     deviceId: 'active-bike',
     displayName: 'Commuter',
-    moduleSerial: '00112233aabbccdd',
+    moduleSerial: moduleSerial,
     color: BikeColor.frostedMint,
   );
+  if (moduleSerial == null) {
+    transport.replayedScanResults = const [
+      DiscoveredBike(
+        deviceId: 'ACTIVE-BIKE',
+        name: 'SUPER73',
+        rssi: -20,
+        moduleSerial: '00112233aabbccdd',
+      ),
+    ];
+  }
   await services.bikeRepository.setModeLock(
     'active-bike',
     enabled: true,

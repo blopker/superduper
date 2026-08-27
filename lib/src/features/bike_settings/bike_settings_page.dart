@@ -10,6 +10,7 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/domain/distance.dart';
 import 'package:superduper/src/features/bike_settings/bike_version_report.dart';
 import 'package:superduper/src/features/help/help_page.dart';
+import 'package:superduper/src/platform/background_sync.dart';
 import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
@@ -257,7 +258,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   title: const Text('Background Sync'),
                   subtitle: Text(
                     saved.bike.moduleSerial == null
-                        ? 'Connect after discovering this bike before enabling Background Sync.'
+                        ? 'Turn this bike on. Enabling Background Sync will identify it.'
                         : isActive
                         ? 'Android will attempt to apply Set on connect values when this bike turns on.'
                         : 'Make this the active bike to use Background Sync.',
@@ -265,8 +266,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   value: automaticSetupEnabled,
                   onChanged:
                       _changingBackground ||
-                          (saved.bike.moduleSerial == null &&
-                              !automaticSetupEnabled) ||
                           (!isActive && !automaticSetupEnabled)
                       ? null
                       : (enabled) => unawaited(
@@ -533,6 +532,10 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         saved.bike.deviceId,
         enabled: enabled,
       );
+    } on BackgroundSyncConfigurationFailure catch (error) {
+      if (mounted) {
+        await _showBackgroundSyncFailure(error.message);
+      }
     } on Object catch (error) {
       if (mounted) {
         _showMessage(
@@ -544,6 +547,33 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         setState(() => _changingBackground = false);
       }
     }
+  }
+
+  Future<void> _showBackgroundSyncFailure(String message) {
+    final canOpenSettings = message.toLowerCase().contains('permission');
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Couldn’t enable Background Sync'),
+        content: Text(message),
+        actions: [
+          if (canOpenSettings)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(
+                  _services.activeBikeCoordinator.openPermissionSettings(),
+                );
+              },
+              child: const Text('Open settings'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _queueSaveNow() {

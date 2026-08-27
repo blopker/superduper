@@ -4,7 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/background_bike_synchronizer.dart';
+import 'package:superduper/src/ble/bike_identity_resolver.dart';
+import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
 import 'package:superduper/src/repositories/settings_repository.dart';
 
@@ -15,6 +19,15 @@ const backgroundSyncWorkerChannelName =
 typedef BackgroundWakeHandler = Future<BackgroundSyncResult> Function(
   BackgroundSyncRequest request,
 );
+
+final class BackgroundSyncConfigurationFailure implements Exception {
+  const BackgroundSyncConfigurationFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 abstract interface class BackgroundSyncPlatformGateway {
   Future<void> configure({required String moduleSerial});
@@ -40,9 +53,11 @@ final class SystemBackgroundSyncPlatformGateway
     implements BackgroundSyncPlatformGateway {
   SystemBackgroundSyncPlatformGateway({
     this.channel = const MethodChannel(backgroundSyncChannelName),
+    this.configurationTimeout = const Duration(seconds: 10),
   });
 
   final MethodChannel channel;
+  final Duration configurationTimeout;
   BackgroundWakeHandler? _handler;
 
   bool get _isSupported => defaultTargetPlatform == TargetPlatform.android;
@@ -53,11 +68,19 @@ final class SystemBackgroundSyncPlatformGateway
       return;
     }
     try {
-      await channel.invokeMethod<void>('configure', {
-        'moduleSerial': moduleSerial,
-      });
+      await channel
+          .invokeMethod<void>('configure', {'moduleSerial': moduleSerial})
+          .timeout(configurationTimeout);
     } on MissingPluginException {
       // Unit tests and non-Android embedders do not install the Android host.
+    } on PlatformException catch (error) {
+      throw BackgroundSyncConfigurationFailure(
+        error.message ?? 'Android could not register the background scan.',
+      );
+    } on TimeoutException {
+      throw const BackgroundSyncConfigurationFailure(
+        'Android did not respond while registering the background scan. Turn Bluetooth off and back on, then try again.',
+      );
     }
   }
 
@@ -104,14 +127,28 @@ final class BackgroundSyncCoordinator {
     required this.settingsRepository,
     required this.activeBikeCoordinator,
     required this.synchronizer,
+    required this.transport,
+    required this.permissions,
+    required this.identityResolver,
     required this.platform,
+    this.moduleSerialDiscoveryTimeout = const Duration(seconds: 15),
   });
 
   final BikeRepository bikeRepository;
   final SettingsRepository settingsRepository;
   final ActiveBikeCoordinator activeBikeCoordinator;
   final BackgroundBikeSynchronizer synchronizer;
+  final BikeTransport transport;
+  final BluetoothPermissionGateway permissions;
+  final BikeIdentityResolver identityResolver;
   final BackgroundSyncPlatformGateway platform;
+  final Duration moduleSerialDiscoveryTimeout;
+  late final ExclusiveBluetoothOperation _exclusiveBluetooth =
+      ExclusiveBluetoothOperation(
+        transport: transport,
+        permissions: permissions,
+        activeBikeCoordinator: activeBikeCoordinator,
+      );
 
   StreamSubscription<List<SavedBike>>? _bikesSubscription;
   StreamSubscription<AppPreferences>? _settingsSubscription;
@@ -185,12 +222,12 @@ final class BackgroundSyncCoordinator {
             saved.bike.deviceId == deviceId &&
             settings.activeBikeId == deviceId,
       );
-      if (matches.isEmpty || matches.single.bike.moduleSerial == null) {
+      if (matches.isEmpty) {
         throw StateError(
-          'Background Sync requires an active bike with a module serial.',
+          'Background Sync requires an active bike.',
         );
       }
-      final serial = matches.single.bike.moduleSerial!;
+      final serial = await _moduleSerialFor(matches.single);
       await platform.configure(moduleSerial: serial);
       _configuredSerial = serial;
       _configurationKnown = true;
@@ -217,6 +254,51 @@ final class BackgroundSyncCoordinator {
     }
     _bikes = await bikeRepository.getBikes();
     _settings = await settingsRepository.get();
+  }
+
+  Future<String> _moduleSerialFor(SavedBike saved) async {
+    if (saved.bike.moduleSerial case final serial?) {
+      return serial;
+    }
+    try {
+      final access = await _exclusiveBluetooth.acquire(
+        requestPermission: true,
+        adapterTimeout: const Duration(seconds: 3),
+      );
+      if (access.permission != BluetoothPermissionState.granted) {
+        throw const BackgroundSyncConfigurationFailure(
+          'Bluetooth permission is required to identify this bike for Background Sync.',
+        );
+      }
+      if (access.scanPrerequisite != BluetoothScanPrerequisite.ready) {
+        throw const BackgroundSyncConfigurationFailure(
+          'Bluetooth scanning is disabled in system settings.',
+        );
+      }
+      if (access.adapter != BikeAdapterState.on) {
+        throw const BackgroundSyncConfigurationFailure(
+          'Turn Bluetooth on to identify this bike for Background Sync.',
+        );
+      }
+
+      final resolved = await identityResolver.resolve(
+        saved,
+        timeout: moduleSerialDiscoveryTimeout,
+      );
+      return resolved.bike.moduleSerial!;
+    } on TimeoutException {
+      throw const BackgroundSyncConfigurationFailure(
+        'Turn on this bike and keep it nearby, then try enabling Background Sync again.',
+      );
+    } on BackgroundSyncConfigurationFailure {
+      rethrow;
+    } on Object {
+      throw const BackgroundSyncConfigurationFailure(
+        'Android could not identify this bike. Turn it on, keep it nearby, and try again.',
+      );
+    } finally {
+      await _exclusiveBluetooth.release(stopScan: false);
+    }
   }
 
   Future<void> _scheduleRefresh() {

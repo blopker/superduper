@@ -148,7 +148,7 @@ exact manufacturer-serial advertisement
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
-The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it registers only the active bike's exact module serial. The preference is not saved if permission, Bluetooth, or scanner state prevents registration. Disabling it, changing the active bike, or forgetting the bike reconciles the native registration; the first disabled refresh also cancels any stale native registration left by an interrupted opt-out.
+The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it registers only the active bike's exact module serial. If an imported bike does not have a saved serial, enablement briefly scans for that active bike and stores the serial before registering background work. The preference is not saved if the bike cannot be identified or permission, Bluetooth, or scanner state prevents registration. Disabling it, changing the active bike, or forgetting the bike reconciles the native registration; the first disabled refresh also cancels any stale native registration left by an interrupted opt-out.
 
 Android restores a saved registration after boot, package replacement, and the next app open. It also re-registers when Bluetooth is turned back on while the app process is alive. A manifest receiver cannot reliably receive `ACTION_STATE_CHANGED` for a dead process on modern Android, so Bluetooth-toggle recovery with a dead process is deliberately not claimed. In that case the next app open is the recovery point unless the device retains the original scan registration.
 

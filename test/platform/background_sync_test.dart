@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/background_bike_synchronizer.dart';
+import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/platform/background_sync.dart';
@@ -14,10 +18,13 @@ import 'package:superduper/src/repositories/settings_repository.dart';
 import '../support/fake_bike_transport.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late AppDatabase database;
   late BikeRepository bikes;
   late SettingsRepository settings;
   late FakeBikeTransport transport;
+  late FakeBluetoothPermissionGateway permissions;
   late ActiveBikeCoordinator activeBike;
   late _FakeBackgroundSyncPlatform platform;
   late BackgroundSyncCoordinator coordinator;
@@ -27,10 +34,11 @@ void main() {
     bikes = BikeRepository(database: database);
     settings = SettingsRepository(database: database);
     transport = FakeBikeTransport();
+    permissions = FakeBluetoothPermissionGateway();
     activeBike = ActiveBikeCoordinator(
       bikeRepository: bikes,
       settingsRepository: settings,
-      permissions: FakeBluetoothPermissionGateway(),
+      permissions: permissions,
       buildSession: (saved) => BikeSession(
         connection: transport.openConnection(saved.bike.deviceId),
         preferredRegion: saved.bike.region,
@@ -46,6 +54,12 @@ void main() {
       synchronizer: BackgroundBikeSynchronizer(
         bikeRepository: bikes,
         settingsRepository: settings,
+        transport: transport,
+      ),
+      transport: transport,
+      permissions: permissions,
+      identityResolver: BikeIdentityResolver(
+        bikeRepository: bikes,
         transport: transport,
       ),
       platform: platform,
@@ -113,6 +127,28 @@ void main() {
     expect(saved.backgroundPreference.consentVersion, 0);
   });
 
+  test('discovers and saves a missing module serial while enabling', () async {
+    await bikes.addBike(deviceId: 'bike');
+    await coordinator.start();
+    transport.replayedScanResults = const [
+      DiscoveredBike(
+        deviceId: 'BIKE',
+        name: 'SUPER73',
+        rssi: -20,
+        moduleSerial: '00112233aabbccdd',
+      ),
+    ];
+
+    await coordinator.setAutomaticSetup('bike', enabled: true);
+
+    final saved = (await bikes.getBikes()).single;
+    expect(saved.bike.moduleSerial, '00112233aabbccdd');
+    expect(saved.backgroundPreference.requested, isTrue);
+    expect(platform.configuredSerials, ['00112233aabbccdd']);
+    expect(transport.scanStarts, 1);
+    expect(transport.scanStops, 1);
+  });
+
   test('does not release an exclusive operation it did not acquire', () async {
     await bikes.addBike(
       deviceId: 'bike',
@@ -134,6 +170,61 @@ void main() {
 
     expect(result.outcome, BackgroundSyncOutcome.skippedBusy);
     expect(activeBike.isDiscoveryPaused, isTrue);
+  });
+
+  test('preserves the native scan registration error', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel(backgroundSyncChannelName);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(
+            code: 'background_sync',
+            message: 'Bluetooth scan registration failed with code 4',
+          );
+        });
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    await expectLater(
+      SystemBackgroundSyncPlatformGateway().configure(
+        moduleSerial: '00112233aabbccdd',
+      ),
+      throwsA(
+        isA<BackgroundSyncConfigurationFailure>().having(
+          (error) => error.message,
+          'message',
+          'Bluetooth scan registration failed with code 4',
+        ),
+      ),
+    );
+  });
+
+  test('turns a stalled native registration into a visible failure', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel(backgroundSyncChannelName);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) => Completer<void>().future);
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    await expectLater(
+      SystemBackgroundSyncPlatformGateway(
+        configurationTimeout: Duration.zero,
+      ).configure(moduleSerial: '00112233aabbccdd'),
+      throwsA(
+        isA<BackgroundSyncConfigurationFailure>().having(
+          (error) => error.message,
+          'message',
+          contains('did not respond'),
+        ),
+      ),
+    );
   });
 }
 

@@ -132,7 +132,7 @@ internal object BackgroundScanManager {
             return registrationUnavailable(
                 context,
                 reportFailure,
-                "Bluetooth scan registration failed with code $result",
+                scanRegistrationFailureDetail(result),
                 result,
             )
         }
@@ -182,6 +182,28 @@ internal object BackgroundScanManager {
         context.getSystemService(BluetoothManager::class.java)
             ?.adapter
             ?.bluetoothLeScanner
+
+    private fun scanRegistrationFailureDetail(errorCode: Int) = when (errorCode) {
+        1 ->
+            "Android reports that the background Bluetooth scan is already running (code 1). " +
+                "Turn Bluetooth off and back on, then try again."
+        2 ->
+            "Android could not register the background Bluetooth scan (code 2). " +
+                "Turn Bluetooth off and back on, then try again; restart the phone if it continues."
+        3 ->
+            "Android reported an internal Bluetooth error while enabling Background Sync " +
+                "(code 3). Turn Bluetooth off and back on, then try again."
+        4 ->
+            "This phone does not support the requested background Bluetooth scan settings " +
+                "(code 4)."
+        5 ->
+            "Android has no Bluetooth scan resources available (code 5). " +
+                "Close other apps using Bluetooth or restart the phone, then try again."
+        6 ->
+            "Android reports that Bluetooth scans were started too frequently (code 6). " +
+                "Wait 30 seconds, then try again."
+        else -> "Android could not register the background Bluetooth scan (code $errorCode)."
+    }
 
     private fun hasScanPermission(context: Context): Boolean {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

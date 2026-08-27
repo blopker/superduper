@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:signals/signals.dart';
+import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
@@ -62,12 +63,14 @@ final class ActiveBikeCoordinator {
     required this.settingsRepository,
     required this.permissions,
     required this.buildSession,
+    this.identityResolver,
   });
 
   final BikeRepository bikeRepository;
   final SettingsRepository settingsRepository;
   final BluetoothPermissionGateway permissions;
   final BikeSessionBuilder buildSession;
+  final BikeIdentityResolver? identityResolver;
   final Signal<ActiveBikeState> _state = signal(
     const ActiveBikeLoading(),
     options: const SignalOptions(name: 'activeBike.state'),
@@ -462,7 +465,22 @@ final class ActiveBikeCoordinator {
       }
       _state.value = const ActiveBikeLoading();
 
-      final next = buildSession(bike);
+      var preparedBike = bike;
+      if (bike.bike.moduleSerial == null && identityResolver != null) {
+        try {
+          preparedBike = await identityResolver!.resolve(bike);
+        } on Object {
+          // Advertisement metadata improves background behavior but must not
+          // prevent the normal foreground connection.
+        }
+      }
+      if (_disposed ||
+          _discoveryPaused ||
+          !_foreground ||
+          generation != _switchGeneration) {
+        return;
+      }
+      final next = buildSession(preparedBike);
       if (_disposed ||
           _discoveryPaused ||
           !_foreground ||
@@ -471,7 +489,7 @@ final class ActiveBikeCoordinator {
         return;
       }
       _readyRecorded = false;
-      _currentBike = bike;
+      _currentBike = preparedBike;
       _session = next;
       _sessionStateCleanup = next.state.subscribe((sessionState) {
         if (!_disposed && _session == next) {

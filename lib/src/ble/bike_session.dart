@@ -915,18 +915,8 @@ final class BikeSession {
         if (target == null || current == null) {
           throw const BikeSessionNotReady();
         }
-        if (target == current) {
-          _clearPendingIf(target);
-          if (_pending.peek() != null) {
-            continue;
-          }
-          _markReady(current);
-          if (persistenceFailure != null) {
-            throw persistenceFailure;
-          }
-          return current;
-        }
-
+        // An explicit control must reach the bike even when telemetry claims
+        // the cached state already matches; the controller can lag that cache.
         _pollTimer?.cancel();
         _synchronizationRetryTimer?.cancel();
         late BikeConfiguration confirmed;

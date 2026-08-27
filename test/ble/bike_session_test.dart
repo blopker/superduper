@@ -562,6 +562,29 @@ void main() {
   });
 
   test(
+    'writes the final explicit command when cached state already matches it',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+      ]);
+      session = createSession();
+      await session.connect();
+
+      final off = session.setLight(false);
+      final on = session.setLight(true);
+      await Future.wait([off, on]);
+
+      final writes = connection.writes
+          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+          .toList();
+      expect(writes, hasLength(1));
+      expect(writes.single.value[2], 1);
+      expect(session.observed.value?.light, isTrue);
+    },
+  );
+
+  test(
     'preserves a user command queued during locked synchronization',
     () async {
       connection.readFrames.addAll([
@@ -750,13 +773,17 @@ void main() {
 
   test('does not leak periodic poll timers when readiness is republished', () {
     fakeAsync((async) {
-      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+      ]);
       session = BikeSession(
         connection: connection,
         preferredRegion: null,
         preferences: const RidePreferences.defaults(),
         protocol: BikeProtocolVersion.v1,
         reconnectDelays: const [],
+        confirmationRetryDelays: const [],
       );
       unawaited(session.connect());
       async.flushMicrotasks();

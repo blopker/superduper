@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/background_bike_synchronizer.dart';
+import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/flutter_blue_bike_transport.dart';
@@ -37,12 +38,17 @@ final class AppServices {
         permissions ?? SystemBluetoothPermissionGateway();
     final resolvedExternalLinks =
         externalLinks ?? const SystemExternalLinkLauncher();
+    final resolvedIdentityResolver = BikeIdentityResolver(
+      bikeRepository: resolvedBikeRepository,
+      transport: resolvedTransport,
+    );
     final resolvedActiveBikeCoordinator =
         activeBikeCoordinator ??
         ActiveBikeCoordinator(
           bikeRepository: resolvedBikeRepository,
           settingsRepository: resolvedSettingsRepository,
           permissions: resolvedPermissions,
+          identityResolver: resolvedIdentityResolver,
           buildSession: (bike) => BikeSession(
             connection: resolvedTransport.openConnection(bike.bike.deviceId),
             preferredRegion: bike.bike.region,
@@ -83,6 +89,9 @@ final class AppServices {
             settingsRepository: resolvedSettingsRepository,
             transport: resolvedTransport,
           ),
+          transport: resolvedTransport,
+          permissions: resolvedPermissions,
+          identityResolver: resolvedIdentityResolver,
           platform: resolvedBackgroundSyncPlatform,
         );
     return AppServices._(
