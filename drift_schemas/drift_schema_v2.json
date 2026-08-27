@@ -1,0 +1,676 @@
+{
+  "_meta": {
+    "description": "This file contains a serialized version of schema entities for drift.",
+    "version": "1.3.0"
+  },
+  "options": {
+    "store_date_time_values_as_text": false
+  },
+  "entities": [
+    {
+      "id": 0,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "bikes",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "device_id",
+            "getter_name": "deviceId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "display_name",
+            "getter_name": "displayName",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "advertised_name",
+            "getter_name": "advertisedName",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "protocol",
+            "getter_name": "protocol",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [],
+            "type_converter": {
+              "dart_expr": "const EnumNameConverter<BikeProtocolVersion>(BikeProtocolVersion.values)",
+              "dart_type_name": "BikeProtocolVersion"
+            }
+          },
+          {
+            "name": "region",
+            "getter_name": "region",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "color_key",
+            "getter_name": "colorKey",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "sort_order",
+            "getter_name": "sortOrder",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "created_at_ms",
+            "getter_name": "createdAtMs",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "updated_at_ms",
+            "getter_name": "updatedAtMs",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "last_connected_at_ms",
+            "getter_name": "lastConnectedAtMs",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "module_serial",
+            "getter_name": "moduleSerial",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "odometer_meters",
+            "getter_name": "odometerMeters",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "odometer_read_at_ms",
+            "getter_name": "odometerReadAtMs",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [
+          "CHECK (length(device_id) > 0)",
+          "CHECK (length(display_name) > 0)",
+          "CHECK (length(advertised_name) > 0)",
+          "CHECK (protocol IN ('v1', 'v2'))",
+          "CHECK ((protocol = 'v1' AND region IS NOT NULL AND region IN ('us', 'eu')) OR (protocol = 'v2' AND region IS NULL))",
+          "CHECK (length(color_key) > 0)"
+        ],
+        "explicit_pk": [
+          "device_id"
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "references": [
+        0
+      ],
+      "type": "table",
+      "data": {
+        "name": "bike_preferences",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "device_id",
+            "getter_name": "deviceId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES bikes (device_id) ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES bikes (device_id) ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "bikes",
+                    "column": "device_id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": null,
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          },
+          {
+            "name": "desired_light",
+            "getter_name": "desiredLight",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"desired_light\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"desired_light\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "desired_mode",
+            "getter_name": "desiredMode",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "desired_assist",
+            "getter_name": "desiredAssist",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "keep_light",
+            "getter_name": "keepLight",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"keep_light\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"keep_light\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "keep_mode",
+            "getter_name": "keepMode",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"keep_mode\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"keep_mode\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "keep_assist",
+            "getter_name": "keepAssist",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"keep_assist\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"keep_assist\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "background_requested",
+            "getter_name": "backgroundRequested",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"background_requested\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"background_requested\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "background_consent_version",
+            "getter_name": "backgroundConsentVersion",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [
+          "CHECK (desired_mode BETWEEN 0 AND 3)",
+          "CHECK (desired_assist BETWEEN 0 AND 4)",
+          "CHECK (background_consent_version >= 0)"
+        ],
+        "explicit_pk": [
+          "device_id"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "references": [
+        0
+      ],
+      "type": "table",
+      "data": {
+        "name": "bike_versions",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "device_id",
+            "getter_name": "deviceId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES bikes (device_id) ON DELETE CASCADE",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES bikes (device_id) ON DELETE CASCADE"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "bikes",
+                    "column": "device_id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": null,
+                  "on_delete": "cascade"
+                }
+              }
+            ]
+          },
+          {
+            "name": "hardware_revision",
+            "getter_name": "hardwareRevision",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "firmware_revision",
+            "getter_name": "firmwareRevision",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "software_revision",
+            "getter_name": "softwareRevision",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "stm_firmware_version",
+            "getter_name": "stmFirmwareVersion",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "controller_variant",
+            "getter_name": "controllerVariant",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "bootloader_handoff",
+            "getter_name": "bootloaderHandoff",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "motor_controller_version",
+            "getter_name": "motorControllerVersion",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "bms_version",
+            "getter_name": "bmsVersion",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "read_at_ms",
+            "getter_name": "readAtMs",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [
+          "CHECK (length(hardware_revision) > 0)",
+          "CHECK (length(firmware_revision) > 0)",
+          "CHECK (length(software_revision) > 0)",
+          "CHECK (stm_firmware_version BETWEEN 0 AND 16777215)",
+          "CHECK (controller_variant BETWEEN 0 AND 65535)",
+          "CHECK (bootloader_handoff BETWEEN 0 AND 255)",
+          "CHECK (motor_controller_version BETWEEN 0 AND 4294967295)",
+          "CHECK (bms_version BETWEEN 0 AND 4294967295)"
+        ],
+        "explicit_pk": [
+          "device_id"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "references": [
+        0
+      ],
+      "type": "table",
+      "data": {
+        "name": "app_settings",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "singleton_id",
+            "getter_name": "singletonId",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "active_bike_id",
+            "getter_name": "activeBikeId",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES bikes (device_id) ON DELETE SET NULL",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES bikes (device_id) ON DELETE SET NULL"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "bikes",
+                    "column": "device_id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": null,
+                  "on_delete": "setNull"
+                }
+              }
+            ]
+          },
+          {
+            "name": "last_viewed_bike_id",
+            "getter_name": "lastViewedBikeId",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "defaultConstraints": "REFERENCES bikes (device_id) ON DELETE SET NULL",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "REFERENCES bikes (device_id) ON DELETE SET NULL"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": [
+              {
+                "foreign_key": {
+                  "to": {
+                    "table": "bikes",
+                    "column": "device_id"
+                  },
+                  "initially_deferred": false,
+                  "on_update": null,
+                  "on_delete": "setNull"
+                }
+              }
+            ]
+          },
+          {
+            "name": "migration_notice_pending",
+            "getter_name": "migrationNoticePending",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"migration_notice_pending\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"migration_notice_pending\" IN (0, 1))"
+            },
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [
+          "CHECK (singleton_id = 1)"
+        ],
+        "explicit_pk": [
+          "singleton_id"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "references": [],
+      "type": "table",
+      "data": {
+        "name": "data_imports",
+        "was_declared_in_moor": false,
+        "columns": [
+          {
+            "name": "import_key",
+            "getter_name": "importKey",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "outcome",
+            "getter_name": "outcome",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "completed_at_ms",
+            "getter_name": "completedAtMs",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "bikes_imported",
+            "getter_name": "bikesImported",
+            "moor_type": "int",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "warnings_json",
+            "getter_name": "warningsJson",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          }
+        ],
+        "is_virtual": false,
+        "without_rowid": false,
+        "constraints": [
+          "CHECK (outcome IN ('completed', 'no_source', 'skipped_by_user'))",
+          "CHECK (bikes_imported >= 0)"
+        ],
+        "explicit_pk": [
+          "import_key"
+        ]
+      }
+    }
+  ],
+  "fixed_sql": [
+    {
+      "name": "bikes",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"bikes\" (\"device_id\" TEXT NOT NULL, \"display_name\" TEXT NOT NULL, \"advertised_name\" TEXT NOT NULL, \"protocol\" TEXT NOT NULL, \"region\" TEXT NULL, \"color_key\" TEXT NOT NULL, \"sort_order\" INTEGER NOT NULL, \"created_at_ms\" INTEGER NOT NULL, \"updated_at_ms\" INTEGER NOT NULL, \"last_connected_at_ms\" INTEGER NULL, \"module_serial\" TEXT NULL, \"odometer_meters\" INTEGER NULL, \"odometer_read_at_ms\" INTEGER NULL, PRIMARY KEY (\"device_id\"), CHECK (length(device_id) > 0), CHECK (length(display_name) > 0), CHECK (length(advertised_name) > 0), CHECK (protocol IN ('v1', 'v2')), CHECK ((protocol = 'v1' AND region IS NOT NULL AND region IN ('us', 'eu')) OR (protocol = 'v2' AND region IS NULL)), CHECK (length(color_key) > 0));"
+        }
+      ]
+    },
+    {
+      "name": "bike_preferences",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"bike_preferences\" (\"device_id\" TEXT NOT NULL REFERENCES bikes (device_id) ON DELETE CASCADE, \"desired_light\" INTEGER NOT NULL CHECK (\"desired_light\" IN (0, 1)), \"desired_mode\" INTEGER NOT NULL, \"desired_assist\" INTEGER NOT NULL, \"keep_light\" INTEGER NOT NULL CHECK (\"keep_light\" IN (0, 1)), \"keep_mode\" INTEGER NOT NULL CHECK (\"keep_mode\" IN (0, 1)), \"keep_assist\" INTEGER NOT NULL CHECK (\"keep_assist\" IN (0, 1)), \"background_requested\" INTEGER NOT NULL CHECK (\"background_requested\" IN (0, 1)), \"background_consent_version\" INTEGER NOT NULL, PRIMARY KEY (\"device_id\"), CHECK (desired_mode BETWEEN 0 AND 3), CHECK (desired_assist BETWEEN 0 AND 4), CHECK (background_consent_version >= 0));"
+        }
+      ]
+    },
+    {
+      "name": "bike_versions",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"bike_versions\" (\"device_id\" TEXT NOT NULL REFERENCES bikes (device_id) ON DELETE CASCADE, \"hardware_revision\" TEXT NOT NULL, \"firmware_revision\" TEXT NOT NULL, \"software_revision\" TEXT NOT NULL, \"stm_firmware_version\" INTEGER NOT NULL, \"controller_variant\" INTEGER NOT NULL, \"bootloader_handoff\" INTEGER NOT NULL, \"motor_controller_version\" INTEGER NOT NULL, \"bms_version\" INTEGER NOT NULL, \"read_at_ms\" INTEGER NOT NULL, PRIMARY KEY (\"device_id\"), CHECK (length(hardware_revision) > 0), CHECK (length(firmware_revision) > 0), CHECK (length(software_revision) > 0), CHECK (stm_firmware_version BETWEEN 0 AND 16777215), CHECK (controller_variant BETWEEN 0 AND 65535), CHECK (bootloader_handoff BETWEEN 0 AND 255), CHECK (motor_controller_version BETWEEN 0 AND 4294967295), CHECK (bms_version BETWEEN 0 AND 4294967295));"
+        }
+      ]
+    },
+    {
+      "name": "app_settings",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"app_settings\" (\"singleton_id\" INTEGER NOT NULL, \"active_bike_id\" TEXT NULL REFERENCES bikes (device_id) ON DELETE SET NULL, \"last_viewed_bike_id\" TEXT NULL REFERENCES bikes (device_id) ON DELETE SET NULL, \"migration_notice_pending\" INTEGER NOT NULL CHECK (\"migration_notice_pending\" IN (0, 1)), PRIMARY KEY (\"singleton_id\"), CHECK (singleton_id = 1));"
+        }
+      ]
+    },
+    {
+      "name": "data_imports",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"data_imports\" (\"import_key\" TEXT NOT NULL, \"outcome\" TEXT NOT NULL, \"completed_at_ms\" INTEGER NOT NULL, \"bikes_imported\" INTEGER NOT NULL, \"warnings_json\" TEXT NOT NULL, PRIMARY KEY (\"import_key\"), CHECK (outcome IN ('completed', 'no_source', 'skipped_by_user')), CHECK (bikes_imported >= 0));"
+        }
+      ]
+    }
+  ]
+}

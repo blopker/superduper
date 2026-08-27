@@ -6,6 +6,7 @@ import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/domain/distance.dart';
 import 'package:superduper/src/features/bike_settings/bike_version_report.dart';
 import 'package:superduper/src/features/help/help_page.dart';
 import 'package:superduper/src/platform/report_exporter.dart';
@@ -272,9 +273,13 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           ),
         ),
         const SizedBox(height: 34),
-        const SectionHeader(eyebrow: 'Technical', title: 'Bike versions'),
+        const SectionHeader(eyebrow: 'Technical', title: 'Bike information'),
         const SizedBox(height: 16),
-        _BikeVersionsPanel(bike: saved.bike, versions: saved.versions),
+        _BikeVersionsPanel(
+          bike: saved.bike,
+          versions: saved.versions,
+          odometer: saved.odometer,
+        ),
         const SizedBox(height: 34),
         const SectionHeader(
           eyebrow: 'Technical',
@@ -646,18 +651,23 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
 }
 
 final class _BikeVersionsPanel extends StatelessWidget {
-  const _BikeVersionsPanel({required this.bike, required this.versions});
+  const _BikeVersionsPanel({
+    required this.bike,
+    required this.versions,
+    required this.odometer,
+  });
 
   final Bike bike;
   final CachedBikeVersions? versions;
+  final CachedBikeOdometer? odometer;
 
   @override
   Widget build(BuildContext context) {
     final cached = versions;
-    if (cached == null && bike.moduleSerial == null) {
+    if (cached == null && bike.moduleSerial == null && odometer == null) {
       return const SurfacePanel(
         child: Text(
-          'Connect to read version numbers. The module serial is captured when the bike is seen during discovery.',
+          'Connect to read the odometer and version numbers. The module serial is captured when the bike is seen during discovery.',
         ),
       );
     }
@@ -665,6 +675,22 @@ final class _BikeVersionsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (odometer case CachedBikeOdometer(
+            :final meters,
+            :final readAt,
+          )) ...[
+            _VersionRow(
+              label: 'Odometer',
+              value: formatOdometerDistance(meters),
+            ),
+            Text(
+              'Read ${_formatTimestamp(readAt)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           if (bike.moduleSerial case final serial?)
             _VersionRow(label: 'Module serial', value: serial),
           if (cached case CachedBikeVersions(:final info, :final readAt)) ...[
@@ -706,8 +732,8 @@ final class _BikeVersionsPanel extends StatelessWidget {
             const SizedBox(height: 18),
             ReportActions(
               createReport: () => _createReport(cached),
-              shareLabel: 'Save or send versions',
-              copyLabel: 'Copy versions',
+              shareLabel: 'Save or send bike info',
+              copyLabel: 'Copy bike info',
             ),
           ] else ...[
             const SizedBox(height: 12),
@@ -728,11 +754,12 @@ final class _BikeVersionsPanel extends StatelessWidget {
       content: createBikeVersionReport(
         bike: bike,
         versions: versions,
+        odometer: odometer,
         metadata: metadata,
       ),
-      filenamePrefix: 'superduper-bike-versions',
-      subject: 'Superduper bike version report',
-      message: 'Bike version information exported from Superduper. The attached text file contains the bike BLE identifier and may contain its module serial.',
+      filenamePrefix: 'superduper-bike-info',
+      subject: 'Superduper bike information',
+      message: 'Bike information exported from Superduper. The attached text file contains the bike BLE identifier and may contain its module serial.',
     );
   }
 

@@ -7,6 +7,7 @@ import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/domain/distance.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/user_facing_error.dart';
 
@@ -361,13 +362,14 @@ final class BikeHardwareTestController {
     _publish(
       BikeHardwareTestPhase.connecting,
       'Connecting to ${candidate.name}',
-      'Discovering GATT, authenticating, identifying the protocol, and reading versions.',
+      'Discovering GATT, authenticating, and reading bike information.',
     );
     final connection = _DiagnosticBikeConnection(
       transport.openConnection(candidate.deviceId),
       onTrace: _addTrace,
     );
     var versionReads = 0;
+    var odometerReads = 0;
     var sawAuthenticationState = false;
     final session = BikeSession(
       connection: connection,
@@ -376,6 +378,9 @@ final class BikeHardwareTestController {
       protocol: BikeProtocolVersion.fromAdvertisedName(candidate.name)!,
       onVersionsRead: (_) async {
         versionReads++;
+      },
+      onOdometerRead: (_) async {
+        odometerReads++;
       },
       pollInterval: null,
       reconnectDelays: reconnectDelays,
@@ -422,6 +427,19 @@ final class BikeHardwareTestController {
       _formatVersions(versions!),
     );
     _addTrace('bike.versions', _formatVersions(versions));
+
+    final odometer = session.odometerMeters.peek();
+    _expect(
+      odometer != null && odometerReads >= 1,
+      'The bike odometer could not be read.',
+    );
+    final formattedOdometer = formatOdometerDistance(odometer!);
+    _addLog(
+      BikeHardwareTestLogStatus.passed,
+      'Odometer',
+      '$formattedOdometer ($odometer meters).',
+    );
+    _addTrace('bike.odometer', '$odometer meters; $formattedOdometer');
 
     final initial = session.observed.peek();
     _expect(initial != null, 'The initial configuration was not read.');
@@ -509,6 +527,7 @@ final class BikeHardwareTestController {
     final discoveriesBefore = connection.gattDiscoveries;
     final configWritesBefore = connection.configurationWrites.length;
     final versionReadsBefore = versionReads;
+    final odometerReadsBefore = odometerReads;
 
     _publish(
       BikeHardwareTestPhase.waitingForPowerOff,
@@ -548,6 +567,11 @@ final class BikeHardwareTestController {
     _expect(
       versionReads > versionReadsBefore && session.versions.peek() != null,
       'Version information was not refreshed after reconnect.',
+    );
+    _expect(
+      odometerReads > odometerReadsBefore &&
+          session.odometerMeters.peek() != null,
+      'The odometer was not refreshed after reconnect.',
     );
     _expect(
       connection.configurationWrites.length > configWritesBefore,

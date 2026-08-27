@@ -48,6 +48,7 @@ final class BikeRepository {
         const BackgroundPreference.defaults(),
     BikeVersionInfo? versions,
     String? moduleSerial,
+    int? odometerMeters,
   }) {
     final normalizedId = deviceId.trim();
     if (normalizedId.isEmpty) {
@@ -58,6 +59,9 @@ final class BikeRepository {
     final normalizedVersions = versions == null
         ? null
         : _normalizeVersionInfo(versions);
+    if (odometerMeters != null) {
+      _validateUnsigned(odometerMeters, 0xffffffff, 'odometerMeters');
+    }
     final normalizedAdvertisedName = advertisedName.trim();
     final protocol = BikeProtocolVersion.fromAdvertisedName(
       normalizedAdvertisedName,
@@ -109,6 +113,10 @@ final class BikeRepository {
               createdAtMs: now,
               updatedAtMs: now,
               moduleSerial: Value(normalizedSerial),
+              odometerMeters: Value(odometerMeters),
+              odometerReadAtMs: Value(
+                odometerMeters == null ? null : now,
+              ),
             ),
           );
       await database
@@ -315,6 +323,23 @@ final class BikeRepository {
     });
   }
 
+  Future<bool> saveOdometer(String deviceId, int meters) {
+    _validateUnsigned(meters, 0xffffffff, 'meters');
+    return database.transaction(() async {
+      final bike = await _requireBike(deviceId);
+      final changed = bike.odometerMeters != meters;
+      await (database.update(
+        database.bikes,
+      )..where((table) => table.deviceId.equals(deviceId))).write(
+        BikesCompanion(
+          odometerMeters: Value(meters),
+          odometerReadAtMs: Value(_clock().millisecondsSinceEpoch),
+        ),
+      );
+      return changed;
+    });
+  }
+
   Future<void> _updateBike(
     String deviceId,
     BikesCompanion changes, {
@@ -485,6 +510,14 @@ final class BikeRepository {
           : CachedBikeVersions(
               info: _mapVersionInfo(versions),
               readAt: DateTime.fromMillisecondsSinceEpoch(versions.readAtMs),
+            ),
+      odometer: bike.odometerMeters == null || bike.odometerReadAtMs == null
+          ? null
+          : CachedBikeOdometer(
+              meters: bike.odometerMeters!,
+              readAt: DateTime.fromMillisecondsSinceEpoch(
+                bike.odometerReadAtMs!,
+              ),
             ),
     );
   }

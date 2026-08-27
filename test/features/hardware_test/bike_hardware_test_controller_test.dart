@@ -134,6 +134,7 @@ void main() {
           'First connection and authentication',
           'Protocol',
           'Version information',
+          'Odometer',
           'Initial configuration',
           'Notification subscription',
           'Light toggle',
@@ -145,6 +146,10 @@ void main() {
           'Reconnect and locked settings',
           'Cleanup',
         ]),
+      );
+      expect(
+        result.log.singleWhere((entry) => entry.label == 'Odometer').detail,
+        '123.5 km · 76.7 mi (123456 meters).',
       );
       expect(
         connection.writes.where(

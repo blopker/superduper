@@ -458,6 +458,16 @@ schedules transfer steps rather than changing the `F0CD`/`F0DC` formats.
 
 The device cycles through controller fields marked for BLE export, packs fields sharing an ID into one 10-byte record, and notifies the TX characteristic when the record has changed. Multi-byte payload fields in these records are little-endian even though the two-byte packet ID is big-endian.
 
+Protocol v1 carries its odometer in record `0202`, sourced from CAN `0x202`
+data bytes 4 through 7:
+
+```text
+offset  size  encoding       confirmed meaning
+0       2     big-endian     02 02
+2       4                    other controller fields
+6       4     little-endian  total distance in meters
+```
+
 Protocol v2 exports IDs `D0`, `D1`, `D2`, and `D9`:
 
 #### `00D0`
@@ -711,6 +721,14 @@ Protocol v2 uses two records:
 
 The writable `00D1` or `00C1` value left in `0x155f` is not an authoritative
 state snapshot and may not reflect subsequent physical-button changes.
+
+### Reading the odometer through history
+
+After authentication, select `0202` for protocol v1 or `00D0` for protocol v2,
+then read and validate the matching record from `0x155f`. Bytes 6 through 9 are
+an unsigned little-endian 32-bit total distance in meters. A deterministic
+history read is preferred for an initial snapshot because unchanged telemetry
+does not produce a new notification.
 
 ### Authenticated protocol-identification fallback
 

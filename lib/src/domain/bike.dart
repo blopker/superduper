@@ -181,6 +181,13 @@ final class CachedBikeVersions {
   final DateTime readAt;
 }
 
+final class CachedBikeOdometer {
+  const CachedBikeOdometer({required this.meters, required this.readAt});
+
+  final int meters;
+  final DateTime readAt;
+}
+
 final class RidePreferences {
   const RidePreferences({
     required this.desiredLight,
@@ -264,12 +271,14 @@ final class SavedBike {
     required this.preferences,
     this.backgroundPreference = const BackgroundPreference.defaults(),
     this.versions,
+    this.odometer,
   });
 
   final Bike bike;
   final RidePreferences preferences;
   final BackgroundPreference backgroundPreference;
   final CachedBikeVersions? versions;
+  final CachedBikeOdometer? odometer;
 }
 
 final class BikeNotFoundException implements Exception {

@@ -58,6 +58,12 @@ final class AppServices {
                 versions,
               );
             },
+            onOdometerRead: (meters) async {
+              await resolvedBikeRepository.saveOdometer(
+                bike.bike.deviceId,
+                meters,
+              );
+            },
           ),
         );
     return AppServices._(

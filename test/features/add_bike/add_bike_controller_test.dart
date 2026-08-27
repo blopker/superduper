@@ -169,6 +169,7 @@ void main() {
     expect(saved.preferences.desiredLight, isTrue);
     expect(saved.preferences.desiredMode, 2);
     expect(saved.preferences.desiredAssist, 3);
+    expect(saved.odometer?.meters, 123456);
     expect(
       saved.versions?.info,
       const BikeVersionInfo(

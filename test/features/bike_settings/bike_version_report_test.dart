@@ -30,6 +30,10 @@ void main() {
       ),
       readAt: DateTime.utc(2026, 8, 24, 16, 30),
     );
+    final odometer = CachedBikeOdometer(
+      meters: 1609344,
+      readAt: DateTime.utc(2026, 8, 24, 16, 45),
+    );
     const metadata = ReportMetadata(
       appVersion: '2.0.0',
       buildNumber: '42',
@@ -40,6 +44,7 @@ void main() {
     final report = createBikeVersionReport(
       bike: bike,
       versions: versions,
+      odometer: odometer,
       metadata: metadata,
       generatedAt: DateTime.utc(2026, 8, 24, 17, 45),
     );
@@ -55,6 +60,9 @@ void main() {
     expect(report, contains('Module serial: 00112233aabbccdd'));
     expect(report, contains('Region: US'));
     expect(report, contains('Versions cached: 2026-08-24T16:30:00.000Z'));
+    expect(report, contains('Odometer: 1609.3 km · 1000.0 mi'));
+    expect(report, contains('Odometer meters: 1609344'));
+    expect(report, contains('Odometer read: 2026-08-24T16:45:00.000Z'));
     expect(report, contains('Hardware revision: 221122'));
     expect(report, contains('Display firmware: v3.2.0'));
     expect(report, contains('Software revision: display-17'));

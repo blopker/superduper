@@ -178,7 +178,8 @@ void main() {
         BikeProtocolVersion.v1,
       );
 
-      expect(find.text('BIKE VERSIONS'), findsOneWidget);
+      expect(find.text('BIKE INFORMATION'), findsOneWidget);
+      expect(find.text('123.5 km · 76.7 mi'), findsOneWidget);
       expect(find.text('v3.2.0'), findsOneWidget);
       expect(find.text('00112233aabbccdd'), findsOneWidget);
       expect(find.text('221122'), findsNWidgets(2));
@@ -288,6 +289,9 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
       },
       onVersionsRead: (versions) async {
         await bikeRepository.saveVersions(bike.bike.deviceId, versions);
+      },
+      onOdometerRead: (meters) async {
+        await bikeRepository.saveOdometer(bike.bike.deviceId, meters);
       },
     ),
   );

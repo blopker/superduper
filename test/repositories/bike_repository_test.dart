@@ -198,6 +198,41 @@ void main() {
     expect(saved.versions?.readAt.isAtSameMomentAs(now), isTrue);
   });
 
+  test('odometer readings are cached with a newly saved bike', () async {
+    await settingsRepository.initialize();
+
+    final saved = await repository.addBike(
+      deviceId: 'bike',
+      odometerMeters: 123456,
+    );
+
+    expect(saved.odometer?.meters, 123456);
+    expect(saved.odometer?.readAt.isAtSameMomentAs(now), isTrue);
+  });
+
+  test(
+    'odometer reads refresh their timestamp without touching bike edits',
+    () async {
+      await settingsRepository.initialize();
+      await repository.addBike(deviceId: 'bike');
+      final originalUpdatedAt =
+          (await repository.getBikes()).single.bike.updatedAt;
+
+      expect(await repository.saveOdometer('bike', 123456), isTrue);
+      now = now.add(const Duration(hours: 1));
+      expect(await repository.saveOdometer('bike', 123456), isFalse);
+
+      final saved = (await repository.getBikes()).single;
+      expect(saved.odometer?.meters, 123456);
+      expect(saved.odometer?.readAt.isAtSameMomentAs(now), isTrue);
+      expect(saved.bike.updatedAt, originalUpdatedAt);
+      expect(
+        () => repository.saveOdometer('bike', 0x100000000),
+        throwsRangeError,
+      );
+    },
+  );
+
   test('module serials are normalized and only saved when changed', () async {
     await settingsRepository.initialize();
     final saved = await repository.addBike(

@@ -201,6 +201,35 @@ void main() {
     });
   });
 
+  group('decodeOdometerMeters', () {
+    test('decodes the protocol-specific record as a little-endian u32', () {
+      expect(
+        BikeProtocol.decodeOdometerMeters(
+          version: BikeProtocolVersion.v1,
+          packet: const [2, 2, 0, 0, 0, 0, 0x78, 0x56, 0x34, 0x12],
+        ),
+        0x12345678,
+      );
+      expect(
+        BikeProtocol.decodeOdometerMeters(
+          version: BikeProtocolVersion.v2,
+          packet: const [0, 0xd0, 0, 0, 0, 0, 0xef, 0xcd, 0xab, 0x90],
+        ),
+        0x90abcdef,
+      );
+    });
+
+    test('rejects a record from the wrong protocol', () {
+      expect(
+        () => BikeProtocol.decodeOdometerMeters(
+          version: BikeProtocolVersion.v1,
+          packet: const [0, 0xd0, 0, 0, 0, 0, 1, 0, 0, 0],
+        ),
+        throwsA(isA<UnexpectedBikePacket>()),
+      );
+    });
+  });
+
   group('decodeVersionInfo', () {
     test('combines Device Information with full FCFC and FAFA records', () {
       expect(

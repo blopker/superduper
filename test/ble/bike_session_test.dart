@@ -21,6 +21,7 @@ void main() {
     int correctiveAttempts = 2,
     ConfigurationConfirmed? onConfirmed,
     VersionsRead? onVersionsRead,
+    OdometerRead? onOdometerRead,
     List<Duration> confirmationRetryDelays = const [],
     List<Duration> reconnectDelays = const [],
     List<Duration> synchronizationRetryDelays = const [],
@@ -33,6 +34,7 @@ void main() {
       authenticationKey: authenticationKey,
       onConfigurationConfirmed: onConfirmed,
       onVersionsRead: onVersionsRead,
+      onOdometerRead: onOdometerRead,
       pollInterval: null,
       reconnectDelays: reconnectDelays,
       synchronizationRetryDelays: synchronizationRetryDelays,
@@ -74,9 +76,11 @@ void main() {
         .toList();
     expect(selectorWrites.map((write) => write.value), [
       BikeGatt.v1StateSelector,
+      BikeGatt.v1OdometerSelector,
       BikeGatt.displayVersionSelector,
       BikeGatt.componentVersionsSelector,
     ]);
+    expect(session.odometerMeters.value, connection.odometerMeters);
     final authenticationWrite = connection.writes.singleWhere(
       (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
     );
@@ -218,6 +222,61 @@ void main() {
             write.value[0] == 0xfc,
       ),
       hasLength(2),
+    );
+  });
+
+  test('reads and publishes the V1 odometer on every connection', () async {
+    connection
+      ..odometerMeters = 12345678
+      ..readFrames.addAll([
+        [0, 0, 2, 0, 1, 3],
+        [0, 0, 2, 0, 1, 3],
+      ]);
+    final readings = <int>[];
+    session = createSession(
+      onOdometerRead: (meters) async => readings.add(meters),
+    );
+
+    await session.connect();
+    await session.pauseForBackground();
+    await session.resumeFromBackground();
+
+    expect(readings, [12345678, 12345678]);
+    expect(session.odometerMeters.value, 12345678);
+    expect(
+      connection.writes.where(
+        (write) =>
+            write.characteristicUuid == BikeGatt.registerSelector &&
+            write.value[0] == 0x02 &&
+            write.value[1] == 0x02,
+      ),
+      hasLength(2),
+    );
+  });
+
+  test('reuses the V2 control record as its odometer reading', () async {
+    connection.readFrames.addAll([
+      [0, 0xd0, 1, 0, 0, 0, 0x40, 0xe2, 0x01, 0],
+      [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
+    ]);
+    final readings = <int>[];
+    session = createSession(
+      protocol: BikeProtocolVersion.v2,
+      onOdometerRead: (meters) async => readings.add(meters),
+    );
+
+    await session.connect();
+
+    expect(readings, [123456]);
+    expect(session.odometerMeters.value, 123456);
+    expect(
+      connection.writes.where(
+        (write) =>
+            write.characteristicUuid == BikeGatt.registerSelector &&
+            write.value[0] == 0 &&
+            write.value[1] == 0xd0,
+      ),
+      hasLength(1),
     );
   });
 

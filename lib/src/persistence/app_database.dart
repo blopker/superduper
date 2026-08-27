@@ -25,6 +25,8 @@ class Bikes extends Table {
   IntColumn get updatedAtMs => integer()();
   IntColumn get lastConnectedAtMs => integer().nullable()();
   TextColumn get moduleSerial => text().nullable()();
+  IntColumn get odometerMeters => integer().nullable()();
+  IntColumn get odometerReadAtMs => integer().nullable()();
 
   @override
   List<String> get customConstraints => [
@@ -180,11 +182,19 @@ final class AppDatabase extends _$AppDatabase {
     onCreate: (migrator) async {
       await migrator.createAll();
     },
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await transaction(() async {
+          await migrator.addColumn(bikes, bikes.odometerMeters);
+          await migrator.addColumn(bikes, bikes.odometerReadAtMs);
+        });
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 }

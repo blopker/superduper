@@ -125,6 +125,28 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _odometerMetersMeta = const VerificationMeta(
+    'odometerMeters',
+  );
+  @override
+  late final GeneratedColumn<int> odometerMeters = GeneratedColumn<int>(
+    'odometer_meters',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _odometerReadAtMsMeta = const VerificationMeta(
+    'odometerReadAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> odometerReadAtMs = GeneratedColumn<int>(
+    'odometer_read_at_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     deviceId,
@@ -138,6 +160,8 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
     updatedAtMs,
     lastConnectedAtMs,
     moduleSerial,
+    odometerMeters,
+    odometerReadAtMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -243,6 +267,24 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
         ),
       );
     }
+    if (data.containsKey('odometer_meters')) {
+      context.handle(
+        _odometerMetersMeta,
+        odometerMeters.isAcceptableOrUnknown(
+          data['odometer_meters']!,
+          _odometerMetersMeta,
+        ),
+      );
+    }
+    if (data.containsKey('odometer_read_at_ms')) {
+      context.handle(
+        _odometerReadAtMsMeta,
+        odometerReadAtMs.isAcceptableOrUnknown(
+          data['odometer_read_at_ms']!,
+          _odometerReadAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -298,6 +340,14 @@ class $BikesTable extends Bikes with TableInfo<$BikesTable, BikeRow> {
         DriftSqlType.string,
         data['${effectivePrefix}module_serial'],
       ),
+      odometerMeters: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}odometer_meters'],
+      ),
+      odometerReadAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}odometer_read_at_ms'],
+      ),
     );
   }
 
@@ -324,6 +374,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
   final int updatedAtMs;
   final int? lastConnectedAtMs;
   final String? moduleSerial;
+  final int? odometerMeters;
+  final int? odometerReadAtMs;
   const BikeRow({
     required this.deviceId,
     required this.displayName,
@@ -336,6 +388,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     required this.updatedAtMs,
     this.lastConnectedAtMs,
     this.moduleSerial,
+    this.odometerMeters,
+    this.odometerReadAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -361,6 +415,12 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     if (!nullToAbsent || moduleSerial != null) {
       map['module_serial'] = Variable<String>(moduleSerial);
     }
+    if (!nullToAbsent || odometerMeters != null) {
+      map['odometer_meters'] = Variable<int>(odometerMeters);
+    }
+    if (!nullToAbsent || odometerReadAtMs != null) {
+      map['odometer_read_at_ms'] = Variable<int>(odometerReadAtMs);
+    }
     return map;
   }
 
@@ -383,6 +443,12 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       moduleSerial: moduleSerial == null && nullToAbsent
           ? const Value.absent()
           : Value(moduleSerial),
+      odometerMeters: odometerMeters == null && nullToAbsent
+          ? const Value.absent()
+          : Value(odometerMeters),
+      odometerReadAtMs: odometerReadAtMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(odometerReadAtMs),
     );
   }
 
@@ -405,6 +471,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
       lastConnectedAtMs: serializer.fromJson<int?>(json['lastConnectedAtMs']),
       moduleSerial: serializer.fromJson<String?>(json['moduleSerial']),
+      odometerMeters: serializer.fromJson<int?>(json['odometerMeters']),
+      odometerReadAtMs: serializer.fromJson<int?>(json['odometerReadAtMs']),
     );
   }
   @override
@@ -424,6 +492,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       'updatedAtMs': serializer.toJson<int>(updatedAtMs),
       'lastConnectedAtMs': serializer.toJson<int?>(lastConnectedAtMs),
       'moduleSerial': serializer.toJson<String?>(moduleSerial),
+      'odometerMeters': serializer.toJson<int?>(odometerMeters),
+      'odometerReadAtMs': serializer.toJson<int?>(odometerReadAtMs),
     };
   }
 
@@ -439,6 +509,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     int? updatedAtMs,
     Value<int?> lastConnectedAtMs = const Value.absent(),
     Value<String?> moduleSerial = const Value.absent(),
+    Value<int?> odometerMeters = const Value.absent(),
+    Value<int?> odometerReadAtMs = const Value.absent(),
   }) => BikeRow(
     deviceId: deviceId ?? this.deviceId,
     displayName: displayName ?? this.displayName,
@@ -453,6 +525,12 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
         ? lastConnectedAtMs.value
         : this.lastConnectedAtMs,
     moduleSerial: moduleSerial.present ? moduleSerial.value : this.moduleSerial,
+    odometerMeters: odometerMeters.present
+        ? odometerMeters.value
+        : this.odometerMeters,
+    odometerReadAtMs: odometerReadAtMs.present
+        ? odometerReadAtMs.value
+        : this.odometerReadAtMs,
   );
   BikeRow copyWithCompanion(BikesCompanion data) {
     return BikeRow(
@@ -479,6 +557,12 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
       moduleSerial: data.moduleSerial.present
           ? data.moduleSerial.value
           : this.moduleSerial,
+      odometerMeters: data.odometerMeters.present
+          ? data.odometerMeters.value
+          : this.odometerMeters,
+      odometerReadAtMs: data.odometerReadAtMs.present
+          ? data.odometerReadAtMs.value
+          : this.odometerReadAtMs,
     );
   }
 
@@ -495,7 +579,9 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
           ..write('createdAtMs: $createdAtMs, ')
           ..write('updatedAtMs: $updatedAtMs, ')
           ..write('lastConnectedAtMs: $lastConnectedAtMs, ')
-          ..write('moduleSerial: $moduleSerial')
+          ..write('moduleSerial: $moduleSerial, ')
+          ..write('odometerMeters: $odometerMeters, ')
+          ..write('odometerReadAtMs: $odometerReadAtMs')
           ..write(')'))
         .toString();
   }
@@ -513,6 +599,8 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
     updatedAtMs,
     lastConnectedAtMs,
     moduleSerial,
+    odometerMeters,
+    odometerReadAtMs,
   );
   @override
   bool operator ==(Object other) =>
@@ -528,7 +616,9 @@ class BikeRow extends DataClass implements Insertable<BikeRow> {
           other.createdAtMs == this.createdAtMs &&
           other.updatedAtMs == this.updatedAtMs &&
           other.lastConnectedAtMs == this.lastConnectedAtMs &&
-          other.moduleSerial == this.moduleSerial);
+          other.moduleSerial == this.moduleSerial &&
+          other.odometerMeters == this.odometerMeters &&
+          other.odometerReadAtMs == this.odometerReadAtMs);
 }
 
 class BikesCompanion extends UpdateCompanion<BikeRow> {
@@ -543,6 +633,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
   final Value<int> updatedAtMs;
   final Value<int?> lastConnectedAtMs;
   final Value<String?> moduleSerial;
+  final Value<int?> odometerMeters;
+  final Value<int?> odometerReadAtMs;
   final Value<int> rowid;
   const BikesCompanion({
     this.deviceId = const Value.absent(),
@@ -556,6 +648,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     this.updatedAtMs = const Value.absent(),
     this.lastConnectedAtMs = const Value.absent(),
     this.moduleSerial = const Value.absent(),
+    this.odometerMeters = const Value.absent(),
+    this.odometerReadAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BikesCompanion.insert({
@@ -570,6 +664,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     required int updatedAtMs,
     this.lastConnectedAtMs = const Value.absent(),
     this.moduleSerial = const Value.absent(),
+    this.odometerMeters = const Value.absent(),
+    this.odometerReadAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : deviceId = Value(deviceId),
        displayName = Value(displayName),
@@ -591,6 +687,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     Expression<int>? updatedAtMs,
     Expression<int>? lastConnectedAtMs,
     Expression<String>? moduleSerial,
+    Expression<int>? odometerMeters,
+    Expression<int>? odometerReadAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -605,6 +703,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
       if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (lastConnectedAtMs != null) 'last_connected_at_ms': lastConnectedAtMs,
       if (moduleSerial != null) 'module_serial': moduleSerial,
+      if (odometerMeters != null) 'odometer_meters': odometerMeters,
+      if (odometerReadAtMs != null) 'odometer_read_at_ms': odometerReadAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -621,6 +721,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     Value<int>? updatedAtMs,
     Value<int?>? lastConnectedAtMs,
     Value<String?>? moduleSerial,
+    Value<int?>? odometerMeters,
+    Value<int?>? odometerReadAtMs,
     Value<int>? rowid,
   }) {
     return BikesCompanion(
@@ -635,6 +737,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
       updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       lastConnectedAtMs: lastConnectedAtMs ?? this.lastConnectedAtMs,
       moduleSerial: moduleSerial ?? this.moduleSerial,
+      odometerMeters: odometerMeters ?? this.odometerMeters,
+      odometerReadAtMs: odometerReadAtMs ?? this.odometerReadAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -677,6 +781,12 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
     if (moduleSerial.present) {
       map['module_serial'] = Variable<String>(moduleSerial.value);
     }
+    if (odometerMeters.present) {
+      map['odometer_meters'] = Variable<int>(odometerMeters.value);
+    }
+    if (odometerReadAtMs.present) {
+      map['odometer_read_at_ms'] = Variable<int>(odometerReadAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -697,6 +807,8 @@ class BikesCompanion extends UpdateCompanion<BikeRow> {
           ..write('updatedAtMs: $updatedAtMs, ')
           ..write('lastConnectedAtMs: $lastConnectedAtMs, ')
           ..write('moduleSerial: $moduleSerial, ')
+          ..write('odometerMeters: $odometerMeters, ')
+          ..write('odometerReadAtMs: $odometerReadAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();

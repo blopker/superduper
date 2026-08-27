@@ -135,6 +135,7 @@ typedef ConfigurationConfirmed = Future<void> Function(
   BikeConfiguration configuration,
 );
 typedef VersionsRead = Future<void> Function(BikeVersionInfo versions);
+typedef OdometerRead = Future<void> Function(int meters);
 
 final class BikeSession {
   BikeSession({
@@ -145,6 +146,7 @@ final class BikeSession {
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     ConfigurationConfirmed? onConfigurationConfirmed,
     VersionsRead? onVersionsRead,
+    OdometerRead? onOdometerRead,
     Duration commandTimeout = const Duration(seconds: 15),
     Duration? pollInterval = const Duration(seconds: 30),
     List<Duration> reconnectDelays = const [
@@ -177,6 +179,9 @@ final class BikeSession {
        // The public named parameter keeps the callback implementation private.
        // ignore: prefer_initializing_formals
        _onVersionsRead = onVersionsRead,
+       // The public named parameter keeps the callback implementation private.
+       // ignore: prefer_initializing_formals
+       _onOdometerRead = onOdometerRead,
        // The public named parameter keeps connection policy private.
        // ignore: prefer_initializing_formals
        _commandTimeout = commandTimeout,
@@ -227,6 +232,7 @@ final class BikeSession {
   final BikeConnection connection;
   final ConfigurationConfirmed? _onConfigurationConfirmed;
   final VersionsRead? _onVersionsRead;
+  final OdometerRead? _onOdometerRead;
   final Duration _commandTimeout;
   final Duration? _pollInterval;
   final List<Duration> _reconnectDelays;
@@ -251,6 +257,10 @@ final class BikeSession {
   final Signal<BikeVersionInfo?> _versions = signal(
     null,
     options: const SignalOptions(name: 'bikeSession.versions'),
+  );
+  final Signal<int?> _odometerMeters = signal(
+    null,
+    options: const SignalOptions(name: 'bikeSession.odometerMeters'),
   );
 
   late final StreamSubscription<BikeConnectionState> _connectionSubscription;
@@ -281,6 +291,7 @@ final class BikeSession {
   ReadonlySignal<BikeConfiguration?> get observed => _observed.readonly();
   ReadonlySignal<BikeConfiguration?> get pending => _pending.readonly();
   ReadonlySignal<BikeVersionInfo?> get versions => _versions.readonly();
+  ReadonlySignal<int?> get odometerMeters => _odometerMeters.readonly();
   bool get manualReconnectPaused => _manualReconnectPaused;
   BikeProtocolVersion get protocolVersion => _protocolVersion;
   bool get canChangeConfiguration {
@@ -462,6 +473,7 @@ final class BikeSession {
     _observed.dispose();
     _pending.dispose();
     _versions.dispose();
+    _odometerMeters.dispose();
   }
 
   Future<void> _startConnect() {
@@ -504,6 +516,7 @@ final class BikeSession {
       _pending.value = null;
       await _disableNotifications(updatePeripheral: false);
       _versions.value = null;
+      _odometerMeters.value = null;
       _state.value = const SessionConnecting();
       try {
         _platformConnectGeneration = generation;
@@ -535,6 +548,7 @@ final class BikeSession {
         await _synchronizeNow(forceLockedWrite: true);
         _reconnectAttempt = 0;
         if (_isCurrent(generation) && _hasObservedConnection) {
+          await _refreshOdometer();
           await _refreshVersions();
         }
       } on Object catch (error) {
@@ -618,6 +632,31 @@ final class BikeSession {
       }
     } on Object {
       // Some bikes omit version data. Keep the last cache and continue setup.
+    }
+  }
+
+  Future<void> _refreshOdometer() async {
+    try {
+      final meters = switch (_protocolVersion) {
+        BikeProtocolVersion.v1 => BikeProtocol.decodeOdometerMeters(
+          version: _protocolVersion,
+          packet: await _readHistoryRecord(BikeGatt.v1OdometerSelector),
+        ),
+        BikeProtocolVersion.v2 =>
+          _odometerMeters.peek() ??
+              BikeProtocol.decodeOdometerMeters(
+                version: _protocolVersion,
+                packet: await _readHistoryRecord(BikeGatt.v2ControlSelector),
+              ),
+      };
+      _odometerMeters.value = meters;
+      try {
+        await _onOdometerRead?.call(meters);
+      } on Object {
+        // A cached odometer write must not prevent the bike becoming ride-ready.
+      }
+    } on Object {
+      // Missing odometer history is optional metadata, not a connection failure.
     }
   }
 
@@ -998,11 +1037,17 @@ final class BikeSession {
             : decoded.copyWith(region: preferredRegion);
       case BikeProtocolVersion.v2:
         _lastV1WireRegion = null;
-        return BikeProtocol.decodeV2State(
-          d0: await _readHistoryRecord(BikeGatt.v2ControlSelector),
+        final d0 = await _readHistoryRecord(BikeGatt.v2ControlSelector);
+        final decoded = BikeProtocol.decodeV2State(
+          d0: d0,
           d9: await _readHistoryRecord(BikeGatt.v2ModeSelector),
           region: _preferredRegion ?? _observed.peek()?.region ?? BikeRegion.us,
         );
+        _odometerMeters.value = BikeProtocol.decodeOdometerMeters(
+          version: _protocolVersion,
+          packet: d0,
+        );
+        return decoded;
     }
   }
 

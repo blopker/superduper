@@ -64,6 +64,7 @@ final class AddBikeConfirming extends AddBikeState {
     required this.configuration,
     required this.suggestedName,
     required this.versions,
+    required this.odometerMeters,
   });
 
   final DiscoveredBike candidate;
@@ -71,6 +72,7 @@ final class AddBikeConfirming extends AddBikeState {
   final BikeConfiguration configuration;
   final String suggestedName;
   final BikeVersionInfo? versions;
+  final int? odometerMeters;
 }
 
 final class AddBikeSaving extends AddBikeState {
@@ -248,6 +250,7 @@ final class AddBikeController {
         configuration: configuration,
         suggestedName: defaultBikeName(candidate.deviceId),
         versions: session.versions.peek(),
+        odometerMeters: session.odometerMeters.peek(),
       );
     } on Object catch (error) {
       if (_isCurrent(generation)) {
@@ -307,6 +310,7 @@ final class AddBikeController {
           keepAssist: false,
         ),
         versions: current.versions,
+        odometerMeters: current.odometerMeters,
       );
       await _resumeCoordinator(temporarilySelect: saved);
       if (!_disposed) {

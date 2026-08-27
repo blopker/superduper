@@ -24,6 +24,7 @@ abstract final class BikeGatt {
   static const softwareRevision = '00002a28-0000-1000-8000-00805f9b34fb';
 
   static const v1StateSelector = <int>[0x03, 0x00];
+  static const v1OdometerSelector = <int>[0x02, 0x02];
   static const v2ControlSelector = <int>[0x00, 0xd0];
   static const v2ModeSelector = <int>[0x00, 0xd9];
   static const displayVersionSelector = <int>[0xfc, 0xfc];
@@ -191,6 +192,21 @@ abstract final class BikeProtocol {
       assist: assist,
       region: region,
     );
+  }
+
+  static List<int> odometerSelector(BikeProtocolVersion version) {
+    return switch (version) {
+      BikeProtocolVersion.v1 => BikeGatt.v1OdometerSelector,
+      BikeProtocolVersion.v2 => BikeGatt.v2ControlSelector,
+    };
+  }
+
+  static int decodeOdometerMeters({
+    required BikeProtocolVersion version,
+    required List<int> packet,
+  }) {
+    _validatePacket(packet, odometerSelector(version));
+    return _readLittleEndian(packet, 6, 4);
   }
 
   static BikeConfiguration? applyTelemetry({
@@ -375,6 +391,14 @@ abstract final class BikeProtocol {
   static int _readBigEndian(List<int> bytes, int offset, int length) {
     var value = 0;
     for (var index = offset; index < offset + length; index++) {
+      value = (value << 8) | bytes[index];
+    }
+    return value;
+  }
+
+  static int _readLittleEndian(List<int> bytes, int offset, int length) {
+    var value = 0;
+    for (var index = offset + length - 1; index >= offset; index--) {
       value = (value << 8) | bytes[index];
     }
     return value;
