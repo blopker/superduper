@@ -253,7 +253,7 @@ final class RidePreferences {
   );
 }
 
-const backgroundSyncConsentVersion = 1;
+const backgroundSyncConsentVersion = 2;
 
 final class BackgroundPreference {
   const BackgroundPreference({

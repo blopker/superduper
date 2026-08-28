@@ -1,6 +1,6 @@
 # Background locked-setting synchronization
 
-Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android filtered-scan prototype is implemented but has not yet passed the physical-device matrix below.
+Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android Companion Device Manager implementation is ready for physical-device validation.
 
 ## Goal
 
@@ -22,7 +22,7 @@ Proceed with platform feasibility prototypes, starting with iOS. Do not replace 
 The first implementation should keep FlutterBluePlus as the sole GATT connection owner and add narrow native integrations for the operating-system features it does not provide:
 
 - iOS: AccessorySetupKit setup or migration, Core Bluetooth background configuration, and state restoration.
-- Android: Companion Device Manager presence and/or a filtered `BluetoothLeScanner` `PendingIntent` that wakes background Dart work.
+- Android: Companion Device Manager presence wakes background Dart work.
 
 Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, write, and confirmation path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
 
@@ -54,8 +54,8 @@ This shape has opposite consequences on the two platforms:
 
 | Condition | iOS | Android |
 | --- | --- | --- |
-| App backgrounded and screen off | Supported through a pending connection to a known peripheral | Supported through companion presence or a filtered scan `PendingIntent` |
-| App process removed by the OS | Supported through Core Bluetooth state restoration | Supported through companion presence or a scan `PendingIntent` |
+| App backgrounded and screen off | Supported through a pending connection to a known peripheral | Supported through companion presence |
+| App process removed by the OS | Supported through Core Bluetooth state restoration | Supported through companion presence |
 | Device reboot | Restored after the first unlock, subject to Apple’s restoration rules | Re-register work at boot, unless the app is stopped, restricted, or hibernated |
 | User force-quit or Force Stop | AccessorySetupKit improves iOS 26 relaunch eligibility, but this must be proven | Not supported until the user interacts with the app again |
 | Months without opening the app | Normally possible while authorization remains intact | App hibernation must be addressed during opt-in |
@@ -135,12 +135,12 @@ Source: [Android background BLE guidance](https://developer.android.com/develop/
 
 ### Implemented Android prototype
 
-The first Android vertical slice now follows this lifecycle:
+The Android implementation follows this lifecycle:
 
 ```text
-exact manufacturer-serial advertisement
-  -> scan PendingIntent
-  -> private BroadcastReceiver
+stable bike Bluetooth address
+  -> Companion Device Manager association
+  -> CompanionDeviceService presence callback
   -> unique expedited WorkManager request
   -> existing Flutter engine, or a headless engine only when no engine exists
   -> one-shot Dart BackgroundBikeSynchronizer
@@ -148,21 +148,21 @@ exact manufacturer-serial advertisement
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
-The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it registers only the active bike's exact module serial. If an imported bike does not have a saved serial, enablement briefly scans for that active bike and stores the serial before registering background work. The preference is not saved if the bike cannot be identified or permission, Bluetooth, or scanner state prevents registration. Disabling it, changing the active bike, or forgetting the bike reconciles the native registration; the first disabled refresh also cancels any stale native registration left by an interrupted opt-out.
+The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it pauses the foreground bike connection and opens Android's system association flow for the active bike's stable Bluetooth address. If an imported bike does not have a saved module serial, enablement first briefly scans for that active bike and stores the serial. The preference is saved only after association and presence observation succeed. Disabling the feature, changing the active bike, or forgetting the bike stops observation and removes the association.
 
-Android restores a saved registration after boot, package replacement, and the next app open. It also re-registers when Bluetooth is turned back on while the app process is alive. A manifest receiver cannot reliably receive `ACTION_STATE_CHANGED` for a dead process on modern Android, so Bluetooth-toggle recovery with a dead process is deliberately not claimed. In that case the next app open is the recovery point unless the device retains the original scan registration.
+Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
 
-Restore attempts are idempotent and never crash the app when the Bluetooth stack rejects a scan start. A scan callback error invalidates the process-local registration and schedules bounded recovery work. Every actual new registration clears the presence debounce, preventing a missed `MATCH_LOST` callback from suppressing the next power-on event.
+Presence callbacks enqueue unique work, so concurrent duplicate callbacks cannot start duplicate synchronization transactions. The implementation does not maintain its own sticky present/lost debounce; Android owns the association presence epoch.
 
 The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
 
-The prototype still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung hardware matrix. Companion Device Manager has not been added because exact manufacturer filtering is the stronger first feasibility test.
+The implementation still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung/Xiaomi hardware matrix.
 
 ### Android hardware smoke test
 
 Use a debug build and a physical bike whose module serial appears under Bike information:
 
-1. Choose at least one Set on connect value, make the bike active, and enable Background Sync.
+1. Choose at least one Set on connect value, make the bike active, enable Background Sync, and approve Android's association dialog while the bike remains on.
 2. Turn the bike off and allow Android to observe its disappearance.
 3. Background the app and remove its task without using Force Stop.
 4. Turn the screen off, then power on the bike.
@@ -172,44 +172,28 @@ Use a debug build and a physical bike whose module serial appears under Bike inf
    adb shell run-as io.kbl.superduper cat shared_prefs/background_sync.xml
    ```
 
-   `last_outcome` should be `confirmed`, and `last_completed_at_ms` should be recent. If registration failed, `registration_error_detail` records the native reason.
+   `last_presence_source` should be `companion`, `last_presence_at_ms` and `last_worker_started_at_ms` should be recent, and `last_outcome` should be `confirmed`. If restoration failed, `registration_error_detail` records the native reason.
 6. Open the app and confirm the locked value was applied while every unlocked value remained unchanged.
 
 For the cold-process case, `adb shell am kill io.kbl.superduper` may be used only after the app is backgrounded. Do not use `am force-stop`: Force Stop intentionally cancels this path until the user opens the app again.
 
-### Discovery
-
-The strongest scan filter is the exact active bike:
-
-```text
-manufacturer ID = 0x020f
-manufacturer bytes = saved 8-byte module serial
-mask = all bytes significant
-```
-
-Android supports manufacturer-data filters and masks in `ScanFilter`. Filtered scans continue when the screen is off, unlike unfiltered scans. The bike’s stable serial also avoids waking Superduper for every nearby SUPER73 bike.
-
-Sources: [ScanFilter builder](https://developer.android.com/reference/android/bluetooth/le/ScanFilter.Builder), [BluetoothLeScanner](https://developer.android.com/reference/android/bluetooth/le/BluetoothLeScanner).
-
 ### Companion association
 
-The preferred Android 12-and-later path is:
+The Android 12-and-later path is:
 
 1. Associate the bike through Companion Device Manager during initial setup.
 2. Observe presence through `CompanionDeviceService`.
 3. When the bike appears, run the short connection and synchronization transaction.
-4. Mark it synchronized for the current presence epoch.
-5. Clear that marker when the bike disappears.
 
 Companion Device Manager does not establish the GATT connection and does not replace the custom authentication protocol. It supplies the association, background privileges, and presence lifecycle.
 
-Android warns that companion presence has limited filtering and does not support unresolved random MAC addresses. We need to test the display’s address behavior. The exact manufacturer-serial `PendingIntent` scan is the fallback if address-based presence is unreliable.
+The association request filters on the exact saved Bluetooth address. Physical testing has established that the bike address is stable across power cycles. The module serial remains a second identity check inside Dart before any connection or setting write.
 
 Source: [Companion-device pairing](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing).
 
 ### Executing the synchronization
 
-The first prototype should enqueue short-lived background Dart work and run the existing `BikeSession` through FlutterBluePlus. Android explicitly recommends a Worker or Job for short communication following a scan `PendingIntent`.
+The presence service enqueues short-lived background Dart work and runs the existing `BikeSession` through FlutterBluePlus. Android recommends a Worker or Job for short companion-device communication.
 
 If the operation cannot reliably finish as short work, a `connectedDevice` foreground service is the supported fallback. That introduces a user-visible notification and should not be the default unless testing proves it necessary.
 
@@ -223,7 +207,7 @@ Android can hibernate an app that the user has not opened for several months. On
 - check the unused-app restrictions status; and
 - offer the system settings flow to disable “Pause app activity if unused.”
 
-A manual Force Stop remains terminal until the user interacts with the app. Android 15 also cancels pending intents when the app enters the stopped state. The app must re-register its scan and presence work after the next launch or other permitted user interaction.
+A manual Force Stop remains terminal until the user interacts with the app. The app restores presence observation after the next launch or other permitted user interaction.
 
 Sources: [Android app hibernation](https://developer.android.com/topic/performance/app-hibernation), [Android 15 stopped-state behavior](https://developer.android.com/about/versions/15/behavior-changes-all).
 
@@ -246,7 +230,7 @@ This narrow dependency is already isolated behind [`BikeTransport`](../lib/src/b
 
 FlutterBluePlus already offers `restoreState: true` on Darwin and its native implementation handles Core Bluetooth’s `willRestoreState` callback for pending and connected peripherals. Superduper does not currently enable that option. This existing support should be tested before any native GATT replacement is written.
 
-FlutterBluePlus describes background BLE as an advanced use case that may require a fork, and it does not provide AccessorySetupKit, Android companion presence, or Android scan-`PendingIntent` orchestration. Those missing pieces are operating-system wake mechanisms rather than replacements for its GATT implementation.
+FlutterBluePlus describes background BLE as an advanced use case that may require a fork, and it does not provide AccessorySetupKit or Android companion-presence orchestration. Those missing pieces are operating-system wake mechanisms rather than replacements for its GATT implementation.
 
 Source: [FlutterBluePlus background documentation](https://pub.dev/packages/flutter_blue_plus#using-ble-in-app-background).
 
@@ -257,7 +241,7 @@ Source: [FlutterBluePlus background documentation](https://pub.dev/packages/flut
 Add a small platform integration that only performs setup and wake orchestration:
 
 - iOS native code owns AccessorySetupKit presentation and migration. After migration, FlutterBluePlus owns Core Bluetooth and uses state restoration.
-- Android native code owns companion presence and scan-`PendingIntent` registration. It wakes registered background Dart work but does not open a GATT connection.
+- Android native code owns companion association and presence observation. It wakes registered background Dart work but does not open a GATT connection.
 - Dart opens the database and runs the existing production `BikeSession` path.
 
 This keeps a single connection owner and tests whether a cold Flutter launch is sufficiently fast and reliable.
@@ -335,11 +319,10 @@ Test on physical devices with the screen off:
 Test at least a current Pixel and Samsung device:
 
 - Companion association and presence callbacks.
-- Exact manufacturer-serial `PendingIntent` filtering.
 - Screen off and Doze.
 - Process removal and task dismissal.
 - Reboot and application upgrade.
-- BLE address stability or rotation.
+- Stable-address association across bike power cycles.
 - Default and restricted battery modes.
 - Simulated app hibernation and recovery.
 - Manual Force Stop as an expected failure.
@@ -372,7 +355,7 @@ Do not promise unconditional operation after Force Stop, permission revocation, 
 
 ## Decision gates
 
-The feature is recommended for production on Android if companion presence or exact filtered scanning reliably wakes short background work across the device test matrix.
+The feature is recommended for production on Android if companion presence reliably wakes short background work across the device test matrix.
 
 The feature is recommended for production on iOS only if all of the following are true:
 

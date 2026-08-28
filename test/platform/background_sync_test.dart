@@ -88,7 +88,13 @@ void main() {
 
       await coordinator.start();
 
-      expect(platform.configuredSerials, ['00112233aabbccdd']);
+      expect(platform.configurations, [
+        const _Configuration(
+          deviceId: 'bike',
+          moduleSerial: '00112233aabbccdd',
+          requestAssociation: false,
+        ),
+      ]);
       expect(platform.handler, isNotNull);
 
       await bikes.setBackgroundPreference(
@@ -106,7 +112,7 @@ void main() {
     await coordinator.start();
 
     expect(platform.cancelCount, 1);
-    expect(platform.configuredSerials, isEmpty);
+    expect(platform.configurations, isEmpty);
   });
 
   test('does not opt in when native registration fails', () async {
@@ -144,9 +150,50 @@ void main() {
     final saved = (await bikes.getBikes()).single;
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
     expect(saved.backgroundPreference.requested, isTrue);
-    expect(platform.configuredSerials, ['00112233aabbccdd']);
+    expect(platform.configurations, [
+      const _Configuration(
+        deviceId: 'bike',
+        moduleSerial: '00112233aabbccdd',
+        requestAssociation: true,
+      ),
+    ]);
     expect(transport.scanStarts, 1);
     expect(transport.scanStops, 1);
+  });
+
+  test(
+    'pauses the foreground connection during companion association',
+    () async {
+      await bikes.addBike(
+        deviceId: 'bike',
+        moduleSerial: '00112233aabbccdd',
+      );
+      await coordinator.start();
+      platform.onConfigure = () {
+        expect(activeBike.isDiscoveryPaused, isTrue);
+      };
+
+      await coordinator.setAutomaticSetup('bike', enabled: true);
+
+      expect(activeBike.isDiscoveryPaused, isFalse);
+      expect(platform.configurations.single.requestAssociation, isTrue);
+    },
+  );
+
+  test('stale scan consent is cancelled instead of restored', () async {
+    await bikes.addBike(
+      deviceId: 'bike',
+      moduleSerial: '00112233aabbccdd',
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: 1,
+      ),
+    );
+
+    await coordinator.start();
+
+    expect(platform.cancelCount, 1);
+    expect(platform.configurations, isEmpty);
   });
 
   test('does not release an exclusive operation it did not acquire', () async {
@@ -172,14 +219,20 @@ void main() {
     expect(activeBike.isDiscoveryPaused, isTrue);
   });
 
-  test('preserves the native scan registration error', () async {
+  test('preserves the native companion association error', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     const channel = MethodChannel(backgroundSyncChannelName);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'configure');
+          expect(call.arguments, {
+            'deviceId': 'AA:BB:CC:DD:EE:FF',
+            'moduleSerial': '00112233aabbccdd',
+            'requestAssociation': true,
+          });
           throw PlatformException(
             code: 'background_sync',
-            message: 'Bluetooth scan registration failed with code 4',
+            message: 'Android could not associate this bike',
           );
         });
     addTearDown(() {
@@ -190,13 +243,15 @@ void main() {
 
     await expectLater(
       SystemBackgroundSyncPlatformGateway().configure(
+        deviceId: 'AA:BB:CC:DD:EE:FF',
         moduleSerial: '00112233aabbccdd',
+        requestAssociation: true,
       ),
       throwsA(
         isA<BackgroundSyncConfigurationFailure>().having(
           (error) => error.message,
           'message',
-          'Bluetooth scan registration failed with code 4',
+          'Android could not associate this bike',
         ),
       ),
     );
@@ -216,25 +271,52 @@ void main() {
     await expectLater(
       SystemBackgroundSyncPlatformGateway(
         configurationTimeout: Duration.zero,
-      ).configure(moduleSerial: '00112233aabbccdd'),
+      ).configure(
+        deviceId: 'AA:BB:CC:DD:EE:FF',
+        moduleSerial: '00112233aabbccdd',
+        requestAssociation: true,
+      ),
       throwsA(
         isA<BackgroundSyncConfigurationFailure>().having(
           (error) => error.message,
           'message',
-          contains('did not respond'),
+          contains('did not finish associating'),
         ),
       ),
     );
   });
 }
 
+final class _Configuration {
+  const _Configuration({
+    required this.deviceId,
+    required this.moduleSerial,
+    required this.requestAssociation,
+  });
+
+  final String deviceId;
+  final String moduleSerial;
+  final bool requestAssociation;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _Configuration &&
+      other.deviceId == deviceId &&
+      other.moduleSerial == moduleSerial &&
+      other.requestAssociation == requestAssociation;
+
+  @override
+  int get hashCode => Object.hash(deviceId, moduleSerial, requestAssociation);
+}
+
 final class _FakeBackgroundSyncPlatform
     implements BackgroundSyncPlatformGateway {
-  final List<String> configuredSerials = [];
+  final List<_Configuration> configurations = [];
   final Completer<void> cancelled = Completer<void>();
   int cancelCount = 0;
   BackgroundWakeHandler? handler;
   Error? configureError;
+  void Function()? onConfigure;
 
   @override
   Future<void> cancel() async {
@@ -245,11 +327,22 @@ final class _FakeBackgroundSyncPlatform
   }
 
   @override
-  Future<void> configure({required String moduleSerial}) async {
+  Future<void> configure({
+    required String deviceId,
+    required String moduleSerial,
+    required bool requestAssociation,
+  }) async {
     if (configureError case final error?) {
       throw error;
     }
-    configuredSerials.add(moduleSerial);
+    onConfigure?.call();
+    configurations.add(
+      _Configuration(
+        deviceId: deviceId,
+        moduleSerial: moduleSerial,
+        requestAssociation: requestAssociation,
+      ),
+    );
   }
 
   @override

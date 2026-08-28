@@ -2,7 +2,6 @@ package io.kbl.superduper
 
 import android.content.Context
 import androidx.work.CoroutineWorker
-import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import io.flutter.FlutterInjector
@@ -51,6 +50,10 @@ class BackgroundSyncWorker(
     override suspend fun doWork(): Result {
         val deviceId = inputData.getString(deviceIdKey) ?: return Result.failure()
         val moduleSerial = inputData.getString(moduleSerialKey) ?: return Result.failure()
+        applicationContext.getSharedPreferences(
+            BackgroundCompanionManager.preferencesName,
+            Context.MODE_PRIVATE,
+        ).edit().putLong("last_worker_started_at_ms", System.currentTimeMillis()).apply()
         if (BackgroundSyncEngineRegistry.isActivityForeground) {
             return finish(mapOf("outcome" to "skippedForeground", "detail" to null))
         }
@@ -164,7 +167,7 @@ class BackgroundSyncWorker(
         val name = outcome["outcome"]?.toString() ?: "failed"
         val detail = outcome["detail"]?.toString()
         applicationContext.getSharedPreferences(
-            BackgroundScanManager.preferencesName,
+            BackgroundCompanionManager.preferencesName,
             Context.MODE_PRIVATE,
         ).edit()
             .putString("last_outcome", name)
@@ -182,17 +185,5 @@ class BackgroundSyncWorker(
     companion object {
         const val deviceIdKey = "device_id"
         const val moduleSerialKey = "module_serial"
-    }
-}
-
-class BackgroundScanRecoveryWorker(
-    context: Context,
-    parameters: WorkerParameters,
-) : Worker(context, parameters) {
-    override fun doWork(): Result {
-        if (BackgroundScanManager.registerStored(applicationContext)) {
-            return Result.success()
-        }
-        return if (runAttemptCount < 3) Result.retry() else Result.success()
     }
 }
