@@ -128,7 +128,6 @@ final class ActiveBikeCoordinator {
   var _started = false;
   var _disposed = false;
   ActiveBikeDiscoveryPause? _discoveryPause;
-  ActiveBikeDiscoveryPause? _manualDiscoveryPause;
   var _foreground = true;
   var _readyRecorded = false;
 
@@ -139,7 +138,6 @@ final class ActiveBikeCoordinator {
   ReadonlySignal<String?> get activeBikeId => _activeBikeId.readonly();
   ReadonlySignal<bool> get migrationNoticePending =>
       _migrationNoticePending.readonly();
-  bool get isDiscoveryPaused => _discoveryPaused;
 
   Future<void> start() async {
     if (_started || _disposed) {
@@ -301,10 +299,6 @@ final class ActiveBikeCoordinator {
     return settingsRepository.dismissMigrationNotice();
   }
 
-  Future<void> pauseForDiscovery() async {
-    _manualDiscoveryPause ??= await acquireDiscoveryPause();
-  }
-
   Future<ActiveBikeDiscoveryPause?> acquireDiscoveryPause() async {
     if (_disposed || _discoveryPause != null) {
       return null;
@@ -324,15 +318,6 @@ final class ActiveBikeCoordinator {
     }
   }
 
-  Future<void> resumeAfterDiscovery({SavedBike? temporarilySelect}) async {
-    final pause = _manualDiscoveryPause;
-    if (pause == null) {
-      return;
-    }
-    _manualDiscoveryPause = null;
-    await pause.release(temporarilySelect: temporarilySelect);
-  }
-
   Future<void> _releaseDiscoveryPause(
     ActiveBikeDiscoveryPause pause, {
     SavedBike? temporarilySelect,
@@ -340,15 +325,19 @@ final class ActiveBikeCoordinator {
     if (!identical(_discoveryPause, pause)) {
       return;
     }
-    if (temporarilySelect != null) {
-      _acceptBikes(await bikeRepository.getBikes());
-      if (_disposed) {
-        _discoveryPause = null;
-        return;
+    try {
+      if (temporarilySelect != null) {
+        _acceptBikes(await bikeRepository.getBikes());
+        if (_disposed) {
+          return;
+        }
+        _temporaryBikeId = temporarilySelect.bike.deviceId;
       }
-      _temporaryBikeId = temporarilySelect.bike.deviceId;
+    } finally {
+      if (identical(_discoveryPause, pause)) {
+        _discoveryPause = null;
+      }
     }
-    _discoveryPause = null;
     if (_foreground) {
       await _reconcile(force: true);
     }
@@ -378,7 +367,6 @@ final class ActiveBikeCoordinator {
       return;
     }
     _disposed = true;
-    _manualDiscoveryPause = null;
     _discoveryPause?._detach();
     _discoveryPause = null;
     if (!_disposeSignal.isCompleted) {

@@ -287,6 +287,7 @@ final class BikeSession {
   Future<BikeConfiguration>? _configurationChangeFuture;
   int? _configurationChangeGeneration;
   BikeRegion? _lastV1WireRegion;
+  List<int>? _lastLatchedHistorySelector;
 
   String get deviceId => connection.deviceId;
   ReadonlySignal<BikeSessionState> get state => _state.readonly();
@@ -294,7 +295,6 @@ final class BikeSession {
   ReadonlySignal<BikeConfiguration?> get pending => _pending.readonly();
   ReadonlySignal<BikeVersionInfo?> get versions => _versions.readonly();
   ReadonlySignal<int?> get odometerMeters => _odometerMeters.readonly();
-  bool get manualReconnectPaused => _manualReconnectPaused;
   BikeProtocolVersion get protocolVersion => _protocolVersion;
   bool get canChangeConfiguration {
     if (_disposed ||
@@ -1021,9 +1021,9 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> _readConfiguration() async {
-    await _invalidateHistoryResultCache();
     switch (_protocolVersion) {
       case BikeProtocolVersion.v1:
+        await _prepareHistoryRead(BikeGatt.v1StateSelector);
         final decoded = BikeProtocol.decodeV1State(
           await _readHistoryRecord(BikeGatt.v1StateSelector),
         );
@@ -1034,6 +1034,7 @@ final class BikeSession {
             : decoded.copyWith(region: preferredRegion);
       case BikeProtocolVersion.v2:
         _lastV1WireRegion = null;
+        await _prepareHistoryRead(BikeGatt.v2ControlSelector);
         final d0 = await _readHistoryRecord(BikeGatt.v2ControlSelector);
         final decoded = BikeProtocol.decodeV2State(
           d0: d0,
@@ -1048,8 +1049,11 @@ final class BikeSession {
     }
   }
 
-  Future<void> _invalidateHistoryResultCache() async {
-    await _readHistoryRecord(BikeGatt.displayVersionSelector);
+  Future<void> _prepareHistoryRead(List<int> selector) async {
+    final previous = _lastLatchedHistorySelector;
+    if (previous == null || _sameSelector(previous, selector)) {
+      await _tryReadHistoryRecord(BikeGatt.displayVersionSelector);
+    }
   }
 
   Future<List<int>?> _tryReadHistoryRecord(List<int> selector) async {
@@ -1073,6 +1077,7 @@ final class BikeSession {
         'Reading bike state',
       );
       if (BikeProtocol.hasPacketId(frame, selector)) {
+        _lastLatchedHistorySelector = List<int>.unmodifiable(selector);
         return frame;
       }
     }
@@ -1343,6 +1348,7 @@ final class BikeSession {
     _pending.value = null;
     _observed.value = null;
     _lastV1WireRegion = null;
+    _lastLatchedHistorySelector = null;
   }
 
   void _ensureNotDisposed() {
@@ -1356,6 +1362,13 @@ final class BikeSession {
         .take(2)
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
         .join();
+  }
+
+  static bool _sameSelector(List<int> left, List<int> right) {
+    return left.length == 2 &&
+        right.length == 2 &&
+        left[0] == right[0] &&
+        left[1] == right[1];
   }
 
   static const List<Duration> _historyResultRetryDelays = [

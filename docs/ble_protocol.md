@@ -584,11 +584,15 @@ into RX/result characteristic `0x155f`. Read `0x155f` and verify that its first
 two bytes match the requested ID. If the ID is absent, `0x155f` remains unchanged,
 so validation is mandatory. The selector does not request a notification.
 
-The result characteristic retains its previous value. A fresh read of the same
-packet ID therefore needs an explicit cache barrier: select and observe a known
-record with a different ID, select the target ID, then poll for the target within
-a bounded deadline. Matching only the target ID can accept the previous copy
-while the new selector write is still being processed.
+The result characteristic retains its previous value. Clients should track the
+last selector that produced a matching result for the current connection. When
+that selector is unknown or matches the next target, first try to select and
+observe a known record with a different ID as a cache barrier, then select the
+target and poll for it within a bounded deadline. The barrier is best-effort
+because some bikes omit optional history records. Different consecutive target
+IDs do not need the extra operation. Matching only the target ID after selecting
+the same record can accept the previous copy while the new selector write is
+still being processed.
 
 Example for the latest protocol v2 `00D1` telemetry record:
 

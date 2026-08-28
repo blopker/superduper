@@ -240,6 +240,7 @@ final class FakeBikeConnection implements BikeConnection {
   List<int>? selectedHistoryId;
   bool delayHistorySelectionUntilRead = false;
   List<int>? _pendingHistoryId;
+  List<int>? _retainedHistoryFrame;
 
   @override
   Stream<BikeConnectionState> get states => _states.stream;
@@ -366,12 +367,15 @@ final class FakeBikeConnection implements BikeConnection {
           ]);
         }
         if (readFrames.isEmpty) {
+          if (_retainedHistoryFrame case final retained?) {
+            return List<int>.unmodifiable(retained);
+          }
           throw StateError('No fake read frame is queued.');
         }
         final frame = readFrames.removeAt(0);
         if (frame.length == 6 &&
             _sameBytes(selectedHistoryId, BikeGatt.v1StateSelector)) {
-          return List<int>.unmodifiable([
+          final expanded = [
             3,
             0,
             frame[2],
@@ -382,8 +386,11 @@ final class FakeBikeConnection implements BikeConnection {
             0,
             0,
             0,
-          ]);
+          ];
+          _retainedHistoryFrame = expanded;
+          return List<int>.unmodifiable(expanded);
         }
+        _retainedHistoryFrame = List<int>.from(frame);
         return List<int>.unmodifiable(frame);
       } finally {
         if (_pendingHistoryId case final pending?) {

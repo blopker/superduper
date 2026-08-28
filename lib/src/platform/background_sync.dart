@@ -261,7 +261,7 @@ final class BackgroundSyncCoordinator {
         );
       } on ExclusiveBluetoothOperationBusy {
         throw const BackgroundSyncConfigurationFailure(
-          'Another Bluetooth operation is in progress. Wait a moment and try again.',
+          ExclusiveBluetoothOperationBusy.message,
         );
       } on Object {
         await _exclusiveBluetooth.release(stopScan: false);
@@ -312,7 +312,10 @@ final class BackgroundSyncCoordinator {
   }
 
   Future<void> reconcileNativeRegistration() {
-    if (!_started || _disposed || _exclusiveBluetooth.isAcquired) {
+    if (!_started ||
+        _disposed ||
+        _exclusiveBluetooth.isAcquired ||
+        _configurationKnown && _configured == null) {
       return Future.value();
     }
     _configurationKnown = false;

@@ -115,6 +115,14 @@ void main() {
     expect(platform.configurations, isEmpty);
   });
 
+  test('does not repeat native teardown when disabled and resumed', () async {
+    await coordinator.start();
+
+    await coordinator.reconcileNativeRegistration();
+
+    expect(platform.cancelCount, 1);
+  });
+
   test('does not fail startup when native reconciliation throws', () async {
     await bikes.addBike(
       deviceId: 'bike',
@@ -254,13 +262,15 @@ void main() {
         moduleSerial: '00112233aabbccdd',
       );
       await coordinator.start();
-      platform.onConfigure = () {
-        expect(activeBike.isDiscoveryPaused, isTrue);
+      platform.onConfigure = () async {
+        expect(await activeBike.acquireDiscoveryPause(), isNull);
       };
 
       await coordinator.setAutomaticSetup('bike', enabled: true);
 
-      expect(activeBike.isDiscoveryPaused, isFalse);
+      final releasedPause = await activeBike.acquireDiscoveryPause();
+      expect(releasedPause, isNotNull);
+      await releasedPause!.release();
       expect(platform.configurations.single.requestAssociation, isTrue);
     },
   );
@@ -271,7 +281,8 @@ void main() {
       moduleSerial: '00112233aabbccdd',
     );
     await coordinator.start();
-    await activeBike.pauseForDiscovery();
+    final pause = await activeBike.acquireDiscoveryPause();
+    expect(pause, isNotNull);
     final cancelCount = platform.cancelCount;
 
     await expectLater(
@@ -279,9 +290,10 @@ void main() {
       throwsA(isA<BackgroundSyncConfigurationFailure>()),
     );
 
-    expect(activeBike.isDiscoveryPaused, isTrue);
+    expect(await activeBike.acquireDiscoveryPause(), isNull);
     expect(platform.configurations, isEmpty);
     expect(platform.cancelCount, cancelCount);
+    await pause!.release();
   });
 
   test('stale scan consent is cancelled instead of restored', () async {
@@ -310,7 +322,8 @@ void main() {
       ),
     );
     await coordinator.start();
-    await activeBike.pauseForDiscovery();
+    final pause = await activeBike.acquireDiscoveryPause();
+    expect(pause, isNotNull);
 
     final result = await platform.handler!(
       const BackgroundSyncRequest(
@@ -320,7 +333,8 @@ void main() {
     );
 
     expect(result.outcome, BackgroundSyncOutcome.skippedBusy);
-    expect(activeBike.isDiscoveryPaused, isTrue);
+    expect(await activeBike.acquireDiscoveryPause(), isNull);
+    await pause!.release();
   });
 
   test('preserves the native companion association error', () async {
@@ -480,7 +494,7 @@ final class _FakeBackgroundSyncPlatform
   Error? configureError;
   BackgroundSyncRegistration configureResult =
       BackgroundSyncRegistration.configured;
-  void Function()? onConfigure;
+  FutureOr<void> Function()? onConfigure;
 
   @override
   Future<void> cancel() async {
@@ -499,7 +513,7 @@ final class _FakeBackgroundSyncPlatform
     if (configureError case final error?) {
       throw error;
     }
-    onConfigure?.call();
+    await onConfigure?.call();
     configurations.add(
       _Configuration(
         deviceId: deviceId,

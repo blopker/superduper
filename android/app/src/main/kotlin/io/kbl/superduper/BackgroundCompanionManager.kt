@@ -109,26 +109,22 @@ internal object BackgroundCompanionManager {
         return true
     }
 
-    fun restoreStored(context: Context): Boolean {
+    fun restoreStored(context: Context) {
         val preferences = preferences(context)
         val address = preferences.getString(deviceIdKey, null) ?: run {
             cancelLegacyScan(context)
-            return true
+            return
         }
-        val serial = preferences.getString(serialKey, null) ?: return true
-        return try {
+        val serial = preferences.getString(serialKey, null) ?: return
+        try {
             if (!configureIfAssociated(context, address, serial)) {
                 recordFailure(
                     context,
                     "Background Sync needs this bike to be associated again",
                 )
-                false
-            } else {
-                true
             }
         } catch (error: RuntimeException) {
             recordFailure(context, error.message ?: error.javaClass.simpleName)
-            false
         }
     }
 
@@ -168,8 +164,10 @@ internal object BackgroundCompanionManager {
         val scanner = context.getSystemService(BluetoothManager::class.java)
             ?.adapter
             ?.bluetoothLeScanner ?: return
+        val pendingIntent = legacyPendingIntent(context) ?: return
         try {
-            scanner.stopScan(legacyPendingIntent(context))
+            scanner.stopScan(pendingIntent)
+            pendingIntent.cancel()
         } catch (_: RuntimeException) {
             // The legacy registration may not exist or Bluetooth may be changing state.
         }
@@ -209,7 +207,7 @@ internal object BackgroundCompanionManager {
         }
     }
 
-    private fun legacyPendingIntent(context: Context): PendingIntent {
+    private fun legacyPendingIntent(context: Context): PendingIntent? {
         // These values must remain identical to the scan registration shipped
         // before CompanionDeviceManager so upgrades can cancel that PendingIntent.
         val intent = Intent(context, BackgroundScanReceiver::class.java)
@@ -218,7 +216,7 @@ internal object BackgroundCompanionManager {
             context,
             0,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_MUTABLE,
         )
     }
 

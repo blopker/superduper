@@ -23,6 +23,7 @@ void main() {
   late Map<String, List<FakeBikeConnection>> connections;
   late Map<String, List<List<int>>> connectionFrames;
   late bool throwWhenBuildingSession;
+  late bool databaseClosed;
 
   setUp(() async {
     database = AppDatabase(NativeDatabase.memory());
@@ -32,6 +33,7 @@ void main() {
     connections = {};
     connectionFrames = {};
     throwWhenBuildingSession = false;
+    databaseClosed = false;
     await settings.initialize();
     await bikes.addBike(deviceId: 'first', displayName: 'First');
     await bikes.addBike(deviceId: 'second', displayName: 'Second');
@@ -65,7 +67,9 @@ void main() {
 
   tearDown(() async {
     await coordinator.dispose();
-    await database.close();
+    if (!databaseClosed) {
+      await database.close();
+    }
   });
 
   test('automatically connects the persisted active bike at startup', () async {
@@ -357,14 +361,15 @@ void main() {
           state.sessionState is SessionReady,
     );
 
-    await coordinator.pauseForDiscovery();
+    final pause = await coordinator.acquireDiscoveryPause();
+    expect(pause, isNotNull);
     expect(coordinator.state.value, isA<ActiveBikeLoading>());
     await settings.makeBikeActive('second');
     await _waitUntil(() => coordinator.activeBikeId.peek() == 'second');
 
     expect(connections['second'], isNull);
 
-    await coordinator.resumeAfterDiscovery();
+    await pause!.release();
     final resumed = await _waitFor(
       coordinator.state,
       (state) =>
@@ -377,6 +382,23 @@ void main() {
     expect(connections['second'], hasLength(1));
   });
 
+  test('a failed temporary selection still releases its pause', () async {
+    final temporaryBike = (await bikes.getBikes()).last;
+    final pause = await coordinator.acquireDiscoveryPause();
+    expect(pause, isNotNull);
+    await database.close();
+    databaseClosed = true;
+
+    await expectLater(
+      pause!.release(temporarilySelect: temporaryBike),
+      throwsA(anything),
+    );
+
+    final nextPause = await coordinator.acquireDiscoveryPause();
+    expect(nextPause, isNotNull);
+    await nextPause!.release();
+  });
+
   test(
     'discovery pause invalidates permission work already in flight',
     () async {
@@ -387,12 +409,14 @@ void main() {
         await Future<void>.delayed(Duration.zero);
       }
 
-      await coordinator.pauseForDiscovery();
+      final pause = await coordinator.acquireDiscoveryPause();
+      expect(pause, isNotNull);
       permissionGate.complete();
       await _waitUntil(() => permissions.concurrentChecks == 0);
 
       expect(connections, isEmpty);
       expect(_sessionOf(coordinator), isNull);
+      await pause!.release();
     },
   );
 

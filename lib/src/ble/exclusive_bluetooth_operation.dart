@@ -11,6 +11,12 @@ typedef ExclusiveBluetoothAccess = ({
 
 final class ExclusiveBluetoothOperationBusy implements Exception {
   const ExclusiveBluetoothOperationBusy();
+
+  static const message =
+      'Another Bluetooth operation is in progress. Wait a moment and try again.';
+
+  @override
+  String toString() => message;
 }
 
 final class ExclusiveBluetoothOperation {

@@ -1,13 +1,18 @@
 package io.kbl.superduper
 
 import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.le.ScanResult
+import android.companion.AssociationInfo
 import android.companion.CompanionDeviceManager
 import android.content.Intent
 import android.content.IntentSender
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Parcelable
 import android.util.Log
+import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -23,6 +28,14 @@ class MainActivity : FlutterActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingAssociation: PendingAssociation? = null
     private var cancelledAssociationDeviceId: String? = null
+    private val associationDiscoveryTimeout = Runnable {
+        val pending = pendingAssociation ?: return@Runnable
+        if (!pending.chooserLaunched) {
+            failAssociation(
+                "Android could not find this bike. Keep it on and nearby, then try again.",
+            )
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -75,11 +88,6 @@ class MainActivity : FlutterActivity() {
         BackgroundSyncEngineRegistry.isActivityForeground = true
     }
 
-    override fun onResume() {
-        super.onResume()
-        BackgroundCompanionManager.restoreStored(applicationContext)
-    }
-
     override fun onStop() {
         BackgroundSyncEngineRegistry.isActivityForeground = false
         super.onStop()
@@ -95,6 +103,19 @@ class MainActivity : FlutterActivity() {
             return
         }
         if (resultCode == Activity.RESULT_OK) {
+            val approvedAddress = associationResultAddress(data)
+            val expectedAddress = pendingAssociation?.deviceId
+            if (approvedAddress != null &&
+                expectedAddress != null &&
+                !approvedAddress.equals(expectedAddress, ignoreCase = true)
+            ) {
+                BackgroundCompanionManager.removeAssociation(
+                    applicationContext,
+                    approvedAddress,
+                )
+                failAssociation("Android associated a different Bluetooth device")
+                return
+            }
             completeAssociation()
         } else {
             failAssociation("Bike association was cancelled")
@@ -143,22 +164,51 @@ class MainActivity : FlutterActivity() {
         try {
             val manager = getSystemService(CompanionDeviceManager::class.java)
             val request = BackgroundCompanionManager.associationRequest(address)
-            val callback = associationCallback()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                manager.associate(request, mainExecutor, callback)
+                manager.associate(request, mainExecutor, modernAssociationCallback())
             } else {
                 @Suppress("DEPRECATION")
-                manager.associate(request, callback, mainHandler)
+                manager.associate(request, legacyAssociationCallback(), mainHandler)
+            }
+            if (pendingAssociation?.chooserLaunched == false) {
+                mainHandler.postDelayed(
+                    associationDiscoveryTimeout,
+                    associationDiscoveryTimeoutMs,
+                )
             }
         } catch (error: Exception) {
             failAssociation(error.message ?: error.javaClass.simpleName)
         }
     }
 
-    private fun associationCallback() = object : CompanionDeviceManager.Callback() {
+    private fun legacyAssociationCallback() = object : CompanionDeviceManager.Callback() {
         @Deprecated("Called by Android's association callback on all supported versions")
         override fun onDeviceFound(intentSender: IntentSender) {
             launchAssociationChooser(intentSender)
+        }
+
+        override fun onFailure(error: CharSequence?) {
+            failAssociation(error?.toString() ?: "Android could not associate this bike")
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun modernAssociationCallback() = object : CompanionDeviceManager.Callback() {
+        override fun onAssociationPending(intentSender: IntentSender) {
+            launchAssociationChooser(intentSender)
+        }
+
+        override fun onAssociationCreated(associationInfo: AssociationInfo) {
+            val pending = pendingAssociation ?: return
+            val address = associationInfo.deviceMacAddress?.toString()
+            if (address == null || !address.equals(pending.deviceId, ignoreCase = true)) {
+                address?.let {
+                    BackgroundCompanionManager.removeAssociation(applicationContext, it)
+                }
+                failAssociation("Android associated a different Bluetooth device")
+                return
+            }
+            completeAssociation()
         }
 
         override fun onFailure(error: CharSequence?) {
@@ -170,6 +220,7 @@ class MainActivity : FlutterActivity() {
         val pending = pendingAssociation ?: return
         if (pending.chooserLaunched) return
         pending.chooserLaunched = true
+        clearAssociationDiscoveryTimeout()
         try {
             startIntentSenderForResult(
                 intentSender,
@@ -187,6 +238,7 @@ class MainActivity : FlutterActivity() {
     private fun cancelPendingAssociation(message: String) {
         val pending = pendingAssociation ?: return
         pendingAssociation = null
+        clearAssociationDiscoveryTimeout()
         if (pending.chooserLaunched) {
             cancelledAssociationDeviceId = pending.deviceId
             try {
@@ -206,11 +258,12 @@ class MainActivity : FlutterActivity() {
                 },
                 cancelledAssociationCleanupMs,
             )
+        } else {
+            BackgroundCompanionManager.removeAssociation(
+                applicationContext,
+                pending.deviceId,
+            )
         }
-        BackgroundCompanionManager.removeAssociation(
-            applicationContext,
-            pending.deviceId,
-        )
         replyError(pending, message)
     }
 
@@ -239,10 +292,6 @@ class MainActivity : FlutterActivity() {
                 pending.moduleSerial,
             )
         } catch (error: Exception) {
-            BackgroundCompanionManager.removeAssociation(
-                applicationContext,
-                pending.deviceId,
-            )
             failAssociation(error.message ?: error.javaClass.simpleName)
             return
         }
@@ -258,28 +307,54 @@ class MainActivity : FlutterActivity() {
                 )
                 return
             }
-            BackgroundCompanionManager.removeAssociation(
-                applicationContext,
-                pending.deviceId,
+            failAssociation(
+                "Android is still saving the bike association. Try enabling Background Sync again.",
             )
-            failAssociation("Android did not save the bike association")
             return
         }
         pendingAssociation = null
+        clearAssociationDiscoveryTimeout()
         replySuccess(pending)
     }
 
     private fun failAssociation(message: String) {
         val pending = pendingAssociation ?: return
         pendingAssociation = null
+        clearAssociationDiscoveryTimeout()
         replyError(pending, message)
+    }
+
+    private fun clearAssociationDiscoveryTimeout() {
+        mainHandler.removeCallbacks(associationDiscoveryTimeout)
+    }
+
+    private fun associationResultAddress(data: Intent?): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return data
+                ?.getParcelableExtra(
+                    CompanionDeviceManager.EXTRA_ASSOCIATION,
+                    AssociationInfo::class.java,
+                )
+                ?.deviceMacAddress
+                ?.toString()
+        }
+        @Suppress("DEPRECATION")
+        val device = data?.getParcelableExtra<Parcelable>(
+            CompanionDeviceManager.EXTRA_DEVICE,
+        )
+        return when (device) {
+            is BluetoothDevice -> device.address
+            is ScanResult -> device.device.address
+            else -> null
+        }
     }
 
     companion object {
         private const val logTag = "BackgroundSync"
         private const val companionAssociationRequestCode = 8107
-        private const val associationPersistenceAttempts = 20
+        private const val associationPersistenceAttempts = 100
         private const val associationPersistenceRetryMs = 50L
+        private const val associationDiscoveryTimeoutMs = 45_000L
         private const val cancelledAssociationCleanupMs = 1_000L
     }
 }

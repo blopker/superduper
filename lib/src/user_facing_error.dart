@@ -1,5 +1,6 @@
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
+import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 enum UserErrorContext {
@@ -50,6 +51,8 @@ String userFacingError(
     BikeConnectionFailure(:final operation, :final message) =>
       _connectionMessage(operation, message, context),
     BikeHardwareTestFailure(:final message) => message,
+    ExclusiveBluetoothOperationBusy() =>
+      ExclusiveBluetoothOperationBusy.message,
     BikeAlreadyExistsException() => 'This bike is already saved.',
     BikeNotFoundException() => 'This bike is no longer saved.',
     _ => null,

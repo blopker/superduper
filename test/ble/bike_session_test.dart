@@ -140,6 +140,65 @@ void main() {
     },
   );
 
+  test('continues when the optional cache-barrier record is absent', () async {
+    connection
+      ..displayVersionFrame = [0xaa, 0xaa, 0, 0, 0, 0, 0, 0, 0, 0]
+      ..readFrames.add([0, 0, 2, 0, 1, 3]);
+    session = createSession(readDiagnosticsOnConnect: false);
+
+    await session.connect();
+
+    expect(session.state.value, isA<SessionReady>());
+    expect(session.observed.value?.light, isTrue);
+  });
+
+  test('does not add a barrier between different V2 selectors', () async {
+    connection.readFrames.addAll([
+      [0, 0xd0, 2, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+      [0, 0xd0, 2, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
+    ]);
+    session = createSession(
+      protocol: BikeProtocolVersion.v2,
+      readDiagnosticsOnConnect: false,
+    );
+    await session.connect();
+    final initialBarriers = connection.writes
+        .where(
+          (write) =>
+              write.characteristicUuid == BikeGatt.registerSelector &&
+              _sameBytes(write.value, BikeGatt.displayVersionSelector),
+        )
+        .length;
+
+    await session.setMode(2);
+
+    final barriers = connection.writes.where(
+      (write) =>
+          write.characteristicUuid == BikeGatt.registerSelector &&
+          _sameBytes(write.value, BikeGatt.displayVersionSelector),
+    );
+    expect(initialBarriers, 1);
+    expect(barriers, hasLength(1));
+  });
+
+  test('a retained wrong history record fails the session', () async {
+    connection.readFrames.add([0xaa, 0xaa, 0, 0, 0, 0, 0, 0, 0, 0]);
+    session = createSession(readDiagnosticsOnConnect: false);
+
+    await session.connect();
+
+    expect(
+      session.state.value,
+      isA<SessionFailed>().having(
+        (state) => state.failure.message,
+        'failure message',
+        contains('invalid data'),
+      ),
+    );
+  });
+
   test('invalidates observed configuration when the connection ends', () async {
     connection.readFrames.add([0, 0, 2, 0, 1, 3]);
     session = createSession(readDiagnosticsOnConnect: false);
@@ -948,7 +1007,7 @@ void main() {
       connection.reads
           .where((read) => read.characteristicUuid == BikeGatt.stateRegister)
           .length,
-      initialStateReads + 3,
+      initialStateReads + 2,
     );
   });
 
@@ -1024,7 +1083,6 @@ void main() {
 
       await session.disconnect();
 
-      expect(session.manualReconnectPaused, isTrue);
       expect(
         session.state.value,
         isA<SessionDisconnected>().having(
@@ -1194,7 +1252,6 @@ void main() {
 
       expect(connection.connectCalls, 2);
       expect(session.state.value, isA<SessionReady>());
-      expect(session.manualReconnectPaused, isFalse);
     },
   );
 
@@ -1239,7 +1296,6 @@ void main() {
 
     expect(connection.connectCalls, 2);
     expect(session.state.value, isA<SessionReady>());
-    expect(session.manualReconnectPaused, isFalse);
   });
 
   test('a failed synchronization clears its optimistic value', () async {
@@ -1277,4 +1333,16 @@ Future<void> _waitUntil(bool Function() condition) async {
     }
     await Future<void>.delayed(Duration.zero);
   }
+}
+
+bool _sameBytes(List<int> left, List<int> right) {
+  if (left.length != right.length) {
+    return false;
+  }
+  for (var index = 0; index < left.length; index++) {
+    if (left[index] != right[index]) {
+      return false;
+    }
+  }
+  return true;
 }
