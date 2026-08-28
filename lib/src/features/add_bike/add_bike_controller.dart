@@ -187,6 +187,10 @@ final class AddBikeController {
           _state.value = AddBikeFailure(error.toString());
         }
       }
+    } on ExclusiveBluetoothOperationBusy catch (error) {
+      if (_isCurrent(generation)) {
+        _state.value = AddBikeFailure(error.toString());
+      }
     } on Object {
       if (_isCurrent(generation)) {
         _state.value = const AddBikeFailure(

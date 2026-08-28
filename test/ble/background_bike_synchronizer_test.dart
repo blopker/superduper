@@ -57,7 +57,7 @@ void main() {
       moduleSerial: '00112233aabbccdd',
       backgroundPreference: const BackgroundPreference(
         requested: true,
-        consentVersion: 1,
+        consentVersion: backgroundSyncConsentVersion,
       ),
     );
 
@@ -107,7 +107,7 @@ void main() {
       ),
       backgroundPreference: const BackgroundPreference(
         requested: true,
-        consentVersion: 1,
+        consentVersion: backgroundSyncConsentVersion,
       ),
     );
     transport.readFramesOnOpen['observed-address'] = [

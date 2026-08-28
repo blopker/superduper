@@ -48,6 +48,28 @@ final class ActiveBikeCoordinatorFailure extends ActiveBikeState {
 
 typedef BikeSessionBuilder = BikeSession Function(SavedBike bike);
 
+final class ActiveBikeDiscoveryPause {
+  ActiveBikeDiscoveryPause._(this._coordinator);
+
+  ActiveBikeCoordinator? _coordinator;
+
+  Future<void> release({SavedBike? temporarilySelect}) async {
+    final coordinator = _coordinator;
+    if (coordinator == null) {
+      return;
+    }
+    _coordinator = null;
+    await coordinator._releaseDiscoveryPause(
+      this,
+      temporarilySelect: temporarilySelect,
+    );
+  }
+
+  void _detach() {
+    _coordinator = null;
+  }
+}
+
 final class _CoordinatorInputs {
   const _CoordinatorInputs({this.bikes, this.settings});
 
@@ -105,16 +127,17 @@ final class ActiveBikeCoordinator {
   var _switchGeneration = 0;
   var _started = false;
   var _disposed = false;
-  var _discoveryPaused = false;
+  ActiveBikeDiscoveryPause? _discoveryPause;
   var _foreground = true;
   var _readyRecorded = false;
+
+  bool get _discoveryPaused => _discoveryPause != null;
 
   ReadonlySignal<ActiveBikeState> get state => _state.readonly();
   ReadonlySignal<List<SavedBike>> get bikes => _bikes.readonly();
   ReadonlySignal<String?> get activeBikeId => _activeBikeId.readonly();
   ReadonlySignal<bool> get migrationNoticePending =>
       _migrationNoticePending.readonly();
-  bool get isDiscoveryPaused => _discoveryPaused;
 
   Future<void> start() async {
     if (_started || _disposed) {
@@ -276,38 +299,45 @@ final class ActiveBikeCoordinator {
     return settingsRepository.dismissMigrationNotice();
   }
 
-  Future<void> pauseForDiscovery() async {
-    _discoveryPaused = true;
+  Future<ActiveBikeDiscoveryPause?> acquireDiscoveryPause() async {
+    if (_disposed || _discoveryPause != null) {
+      return null;
+    }
+    final pause = ActiveBikeDiscoveryPause._(this);
+    _discoveryPause = pause;
     _switchGeneration++;
-    await _clearSession();
-  }
-
-  Future<bool> pauseForBackgroundSynchronization() async {
-    if (_discoveryPaused) {
-      return false;
-    }
-    await pauseForDiscovery();
-    return true;
-  }
-
-  Future<void> resumeAfterBackgroundSynchronization() async {
-    if (_discoveryPaused) {
-      await resumeAfterDiscovery();
+    try {
+      await _clearSession();
+      return pause;
+    } on Object {
+      if (identical(_discoveryPause, pause)) {
+        _discoveryPause = null;
+      }
+      pause._detach();
+      rethrow;
     }
   }
 
-  Future<void> resumeAfterDiscovery({SavedBike? temporarilySelect}) async {
-    if (!_discoveryPaused) {
+  Future<void> _releaseDiscoveryPause(
+    ActiveBikeDiscoveryPause pause, {
+    SavedBike? temporarilySelect,
+  }) async {
+    if (!identical(_discoveryPause, pause)) {
       return;
     }
-    if (temporarilySelect != null) {
-      _acceptBikes(await bikeRepository.getBikes());
-      if (_disposed) {
-        return;
+    try {
+      if (temporarilySelect != null) {
+        _acceptBikes(await bikeRepository.getBikes());
+        if (_disposed) {
+          return;
+        }
+        _temporaryBikeId = temporarilySelect.bike.deviceId;
       }
-      _temporaryBikeId = temporarilySelect.bike.deviceId;
+    } finally {
+      if (identical(_discoveryPause, pause)) {
+        _discoveryPause = null;
+      }
     }
-    _discoveryPaused = false;
     if (_foreground) {
       await _reconcile(force: true);
     }
@@ -337,6 +367,8 @@ final class ActiveBikeCoordinator {
       return;
     }
     _disposed = true;
+    _discoveryPause?._detach();
+    _discoveryPause = null;
     if (!_disposeSignal.isCompleted) {
       _disposeSignal.complete();
     }

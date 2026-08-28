@@ -181,6 +181,13 @@ final class _SuperduperAppState extends State<SuperduperApp>
           .setForeground(foreground)
           .catchError((Object _) {}),
     );
+    if (foreground) {
+      unawaited(
+        widget.services.backgroundSyncCoordinator
+            .reconcileNativeRegistration()
+            .catchError((Object _) {}),
+      );
+    }
   }
 
   @override

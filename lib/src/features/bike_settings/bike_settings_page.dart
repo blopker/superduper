@@ -261,7 +261,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                         ? 'Turn this bike on. Enabling Background Sync will identify it.'
                         : isActive
                         ? 'Android will attempt to apply Set on connect values when this bike turns on.'
-                        : 'Make this the active bike to use Background Sync.',
+                        : 'Turn on Auto connect for this bike to use Background Sync.',
                   ),
                   value: automaticSetupEnabled,
                   onChanged:
@@ -508,7 +508,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
         builder: (context) => AlertDialog(
           title: const Text('Enable Background Sync?'),
           content: const Text(
-            'Android will scan for this bike in the background and briefly connect when it turns on. It cannot work after Force Stop, permission removal, or Bluetooth being turned off.',
+            'Android will ask you to associate this bike with Superduper, then briefly connect when it turns on. Keep the bike on until the association finishes. Background Sync cannot work after Force Stop, permission removal, or Bluetooth being turned off.',
           ),
           actions: [
             TextButton(

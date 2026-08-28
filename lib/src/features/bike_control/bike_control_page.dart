@@ -93,13 +93,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final pendingConfiguration = session?.pending.value;
     final observedConfiguration = session?.observed.value;
     final configuration = pendingConfiguration ?? observedConfiguration;
-    final valuesAreStale =
-        observedConfiguration != null &&
-        sessionState is! SessionReady &&
-        sessionState is! SessionSynchronizing &&
-        sessionState is! SessionDegraded;
-    String settingValue(String value) =>
-        valuesAreStale ? '$value · last known' : value;
     final canControl =
         session?.canChangeConfiguration == true && configuration != null;
     final canChangeLocks =
@@ -180,7 +173,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Light',
           value: configuration == null
               ? 'Waiting for bike'
-              : settingValue(configuration.light ? 'On' : 'Off'),
+              : configuration.light
+              ? 'On'
+              : 'Off',
           toggleValue: configuration?.light ?? false,
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
@@ -202,7 +197,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Mode',
           value: configuration == null
               ? 'Waiting for bike'
-              : settingValue('Mode ${configuration.mode + 1}'),
+              : 'Mode ${configuration.mode + 1}',
           control: _ValueSelector(
             values: const [0, 1, 2, 3],
             selected: configuration?.mode,
@@ -228,7 +223,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           title: 'Assist',
           value: configuration == null
               ? 'Waiting for bike'
-              : settingValue('Level ${configuration.assist}'),
+              : 'Level ${configuration.assist}',
           control: _ValueSelector(
             values: const [0, 1, 2, 3, 4],
             selected: configuration?.assist,

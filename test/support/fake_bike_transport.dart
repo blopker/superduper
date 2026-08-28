@@ -238,6 +238,9 @@ final class FakeBikeConnection implements BikeConnection {
   bool notificationsEnabled = false;
   bool authenticated = false;
   List<int>? selectedHistoryId;
+  bool delayHistorySelectionUntilRead = false;
+  List<int>? _pendingHistoryId;
+  List<int>? _retainedHistoryFrame;
 
   @override
   Stream<BikeConnectionState> get states => _states.stream;
@@ -343,45 +346,58 @@ final class FakeBikeConnection implements BikeConnection {
       if (!authenticated) {
         throw StateError('The fake bike is not authenticated.');
       }
-      if (_sameBytes(selectedHistoryId, BikeGatt.displayVersionSelector)) {
-        return List<int>.unmodifiable(displayVersionFrame);
+      try {
+        if (_sameBytes(selectedHistoryId, BikeGatt.displayVersionSelector)) {
+          return List<int>.unmodifiable(displayVersionFrame);
+        }
+        if (_sameBytes(selectedHistoryId, BikeGatt.componentVersionsSelector)) {
+          return List<int>.unmodifiable(componentVersionsFrame);
+        }
+        if (_sameBytes(selectedHistoryId, BikeGatt.v1OdometerSelector)) {
+          return List<int>.unmodifiable([
+            ...BikeGatt.v1OdometerSelector,
+            0,
+            0,
+            0,
+            0,
+            odometerMeters & 0xff,
+            (odometerMeters >> 8) & 0xff,
+            (odometerMeters >> 16) & 0xff,
+            (odometerMeters >> 24) & 0xff,
+          ]);
+        }
+        if (readFrames.isEmpty) {
+          if (_retainedHistoryFrame case final retained?) {
+            return List<int>.unmodifiable(retained);
+          }
+          throw StateError('No fake read frame is queued.');
+        }
+        final frame = readFrames.removeAt(0);
+        if (frame.length == 6 &&
+            _sameBytes(selectedHistoryId, BikeGatt.v1StateSelector)) {
+          final expanded = [
+            3,
+            0,
+            frame[2],
+            frame[3],
+            frame[4],
+            frame[5],
+            0,
+            0,
+            0,
+            0,
+          ];
+          _retainedHistoryFrame = expanded;
+          return List<int>.unmodifiable(expanded);
+        }
+        _retainedHistoryFrame = List<int>.from(frame);
+        return List<int>.unmodifiable(frame);
+      } finally {
+        if (_pendingHistoryId case final pending?) {
+          selectedHistoryId = pending;
+          _pendingHistoryId = null;
+        }
       }
-      if (_sameBytes(selectedHistoryId, BikeGatt.componentVersionsSelector)) {
-        return List<int>.unmodifiable(componentVersionsFrame);
-      }
-      if (_sameBytes(selectedHistoryId, BikeGatt.v1OdometerSelector)) {
-        return List<int>.unmodifiable([
-          ...BikeGatt.v1OdometerSelector,
-          0,
-          0,
-          0,
-          0,
-          odometerMeters & 0xff,
-          (odometerMeters >> 8) & 0xff,
-          (odometerMeters >> 16) & 0xff,
-          (odometerMeters >> 24) & 0xff,
-        ]);
-      }
-      if (readFrames.isEmpty) {
-        throw StateError('No fake read frame is queued.');
-      }
-      final frame = readFrames.removeAt(0);
-      if (frame.length == 6 &&
-          _sameBytes(selectedHistoryId, BikeGatt.v1StateSelector)) {
-        return List<int>.unmodifiable([
-          3,
-          0,
-          frame[2],
-          frame[3],
-          frame[4],
-          frame[5],
-          0,
-          0,
-          0,
-          0,
-        ]);
-      }
-      return List<int>.unmodifiable(frame);
     });
   }
 
@@ -418,7 +434,11 @@ final class FakeBikeConnection implements BikeConnection {
         throw StateError('The fake bike is not authenticated.');
       }
       if (characteristicUuid == BikeGatt.registerSelector) {
-        selectedHistoryId = List<int>.from(value);
+        if (delayHistorySelectionUntilRead) {
+          _pendingHistoryId = List<int>.from(value);
+        } else {
+          selectedHistoryId = List<int>.from(value);
+        }
       }
     });
   }

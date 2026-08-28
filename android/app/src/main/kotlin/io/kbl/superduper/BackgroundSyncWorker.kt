@@ -2,7 +2,6 @@ package io.kbl.superduper
 
 import android.content.Context
 import androidx.work.CoroutineWorker
-import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import io.flutter.FlutterInjector
@@ -49,8 +48,19 @@ class BackgroundSyncWorker(
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
-        val deviceId = inputData.getString(deviceIdKey) ?: return Result.failure()
-        val moduleSerial = inputData.getString(moduleSerialKey) ?: return Result.failure()
+        val deviceId = inputData.getString(
+            BackgroundCompanionManager.deviceIdKey,
+        ) ?: return Result.failure()
+        val moduleSerial = inputData.getString(
+            BackgroundCompanionManager.serialKey,
+        ) ?: return Result.failure()
+        BackgroundCompanionManager.preferences(applicationContext)
+            .edit()
+            .putLong(
+                BackgroundCompanionManager.lastWorkerStartedAtKey,
+                System.currentTimeMillis(),
+            )
+            .apply()
         if (BackgroundSyncEngineRegistry.isActivityForeground) {
             return finish(mapOf("outcome" to "skippedForeground", "detail" to null))
         }
@@ -163,13 +173,13 @@ class BackgroundSyncWorker(
     private fun finish(outcome: Map<String, Any?>): Result {
         val name = outcome["outcome"]?.toString() ?: "failed"
         val detail = outcome["detail"]?.toString()
-        applicationContext.getSharedPreferences(
-            BackgroundScanManager.preferencesName,
-            Context.MODE_PRIVATE,
-        ).edit()
-            .putString("last_outcome", name)
-            .putString("last_detail", detail)
-            .putLong("last_completed_at_ms", System.currentTimeMillis())
+        BackgroundCompanionManager.preferences(applicationContext).edit()
+            .putString(BackgroundCompanionManager.lastOutcomeKey, name)
+            .putString(BackgroundCompanionManager.lastDetailKey, detail)
+            .putLong(
+                BackgroundCompanionManager.lastCompletedAtKey,
+                System.currentTimeMillis(),
+            )
             .apply()
         val output = if (detail == null) {
             workDataOf("outcome" to name)
@@ -177,22 +187,5 @@ class BackgroundSyncWorker(
             workDataOf("outcome" to name, "detail" to detail)
         }
         return Result.success(output)
-    }
-
-    companion object {
-        const val deviceIdKey = "device_id"
-        const val moduleSerialKey = "module_serial"
-    }
-}
-
-class BackgroundScanRecoveryWorker(
-    context: Context,
-    parameters: WorkerParameters,
-) : Worker(context, parameters) {
-    override fun doWork(): Result {
-        if (BackgroundScanManager.registerStored(applicationContext)) {
-            return Result.success()
-        }
-        return if (runAttemptCount < 3) Result.retry() else Result.success()
     }
 }

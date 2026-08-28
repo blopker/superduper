@@ -9,6 +9,16 @@ typedef ExclusiveBluetoothAccess = ({
   BluetoothScanPrerequisite scanPrerequisite,
 });
 
+final class ExclusiveBluetoothOperationBusy implements Exception {
+  const ExclusiveBluetoothOperationBusy();
+
+  static const message =
+      'Another Bluetooth operation is in progress. Wait a moment and try again.';
+
+  @override
+  String toString() => message;
+}
+
 final class ExclusiveBluetoothOperation {
   ExclusiveBluetoothOperation({
     required this.transport,
@@ -19,17 +29,20 @@ final class ExclusiveBluetoothOperation {
   final BikeTransport transport;
   final BluetoothPermissionGateway permissions;
   final ActiveBikeCoordinator activeBikeCoordinator;
-  var _acquired = false;
+  ActiveBikeDiscoveryPause? _pause;
 
-  bool get isAcquired => _acquired;
+  bool get isAcquired => _pause != null;
 
   Future<ExclusiveBluetoothAccess> acquire({
     required bool requestPermission,
     required Duration adapterTimeout,
   }) async {
-    if (!_acquired) {
-      _acquired = true;
-      await activeBikeCoordinator.pauseForDiscovery();
+    if (_pause == null) {
+      final pause = await activeBikeCoordinator.acquireDiscoveryPause();
+      if (pause == null) {
+        throw const ExclusiveBluetoothOperationBusy();
+      }
+      _pause = pause;
     }
     final permission = await permissions.ensureAccess(
       request: requestPermission,
@@ -67,7 +80,8 @@ final class ExclusiveBluetoothOperation {
     SavedBike? temporarilySelect,
     bool stopScan = true,
   }) async {
-    if (!_acquired) {
+    final pause = _pause;
+    if (pause == null) {
       if (temporarilySelect != null) {
         await activeBikeCoordinator.selectTemporarily(
           temporarilySelect.bike.deviceId,
@@ -75,7 +89,7 @@ final class ExclusiveBluetoothOperation {
       }
       return;
     }
-    _acquired = false;
+    _pause = null;
     if (stopScan) {
       try {
         await transport.stopScan();
@@ -83,7 +97,7 @@ final class ExclusiveBluetoothOperation {
         // A scan may have already ended or never started.
       }
     }
-    await activeBikeCoordinator.resumeAfterDiscovery(
+    await pause.release(
       temporarilySelect: temporarilySelect,
     );
   }

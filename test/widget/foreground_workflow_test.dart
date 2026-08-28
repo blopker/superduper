@@ -277,7 +277,7 @@ void main() {
       moduleSerial: '00112233aabbccdd',
     );
     transport.readFramesOnOpen['pending-bike'] = [
-      [1],
+      [3, 0, 0, 0, 2, 0, 0, 0, 0, 0],
     ];
 
     await tester.runAsync(() async {

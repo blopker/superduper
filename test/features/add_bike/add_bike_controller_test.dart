@@ -92,6 +92,22 @@ void main() {
     expect(transport.scanStarts, 0);
   });
 
+  test('an overlapping Bluetooth operation is explained', () async {
+    final pause = await coordinator.acquireDiscoveryPause();
+
+    await controller.start();
+
+    expect(
+      controller.state.value,
+      isA<AddBikeFailure>().having(
+        (state) => state.message,
+        'message',
+        'Another Bluetooth operation is in progress. Wait a moment and try again.',
+      ),
+    );
+    await pause?.release();
+  });
+
   test('adapter off is explicit and scanning never starts', () async {
     transport.currentAdapterState = BikeAdapterState.off;
 

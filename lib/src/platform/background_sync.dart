@@ -30,10 +30,16 @@ final class BackgroundSyncConfigurationFailure implements Exception {
 }
 
 abstract interface class BackgroundSyncPlatformGateway {
-  Future<void> configure({required String moduleSerial});
+  Future<BackgroundSyncRegistration> configure({
+    required String deviceId,
+    required String moduleSerial,
+    required bool requestAssociation,
+  });
   Future<void> cancel();
   void setWakeHandler(BackgroundWakeHandler? handler);
 }
+
+enum BackgroundSyncRegistration { configured, needsAssociation }
 
 final class NoopBackgroundSyncPlatformGateway
     implements BackgroundSyncPlatformGateway {
@@ -43,7 +49,11 @@ final class NoopBackgroundSyncPlatformGateway
   Future<void> cancel() async {}
 
   @override
-  Future<void> configure({required String moduleSerial}) async {}
+  Future<BackgroundSyncRegistration> configure({
+    required String deviceId,
+    required String moduleSerial,
+    required bool requestAssociation,
+  }) async => BackgroundSyncRegistration.configured;
 
   @override
   void setWakeHandler(BackgroundWakeHandler? handler) {}
@@ -53,7 +63,7 @@ final class SystemBackgroundSyncPlatformGateway
     implements BackgroundSyncPlatformGateway {
   SystemBackgroundSyncPlatformGateway({
     this.channel = const MethodChannel(backgroundSyncChannelName),
-    this.configurationTimeout = const Duration(seconds: 10),
+    this.configurationTimeout = const Duration(minutes: 2),
   });
 
   final MethodChannel channel;
@@ -63,23 +73,36 @@ final class SystemBackgroundSyncPlatformGateway
   bool get _isSupported => defaultTargetPlatform == TargetPlatform.android;
 
   @override
-  Future<void> configure({required String moduleSerial}) async {
+  Future<BackgroundSyncRegistration> configure({
+    required String deviceId,
+    required String moduleSerial,
+    required bool requestAssociation,
+  }) async {
     if (!_isSupported) {
-      return;
+      return BackgroundSyncRegistration.configured;
     }
     try {
-      await channel
-          .invokeMethod<void>('configure', {'moduleSerial': moduleSerial})
-          .timeout(configurationTimeout);
+      final pending = channel.invokeMethod<bool>('configure', {
+        'deviceId': deviceId,
+        'moduleSerial': moduleSerial,
+        'requestAssociation': requestAssociation,
+      });
+      final associated = requestAssociation
+          ? await pending
+          : await pending.timeout(configurationTimeout);
+      return associated == false
+          ? BackgroundSyncRegistration.needsAssociation
+          : BackgroundSyncRegistration.configured;
     } on MissingPluginException {
       // Unit tests and non-Android embedders do not install the Android host.
+      return BackgroundSyncRegistration.configured;
     } on PlatformException catch (error) {
       throw BackgroundSyncConfigurationFailure(
-        error.message ?? 'Android could not register the background scan.',
+        error.message ?? 'Android could not associate this bike.',
       );
     } on TimeoutException {
       throw const BackgroundSyncConfigurationFailure(
-        'Android did not respond while registering the background scan. Turn Bluetooth off and back on, then try again.',
+        'Android did not finish associating this bike. Keep the bike on and try again.',
       );
     }
   }
@@ -156,7 +179,7 @@ final class BackgroundSyncCoordinator {
   List<SavedBike>? _bikes;
   AppPreferences? _settings;
   Future<void>? _refreshFuture;
-  String? _configuredSerial;
+  ({String deviceId, String moduleSerial})? _configured;
   var _refreshRequested = false;
   var _configurationKnown = false;
   var _started = false;
@@ -191,15 +214,18 @@ final class BackgroundSyncCoordinator {
     if (_disposed) {
       return;
     }
-    await _scheduleRefresh();
+    try {
+      await _scheduleRefresh();
+    } on Object {
+      // Background Sync is optional and must not prevent the app from starting.
+    }
   }
 
   Future<BackgroundSyncResult> _handleWake(
     BackgroundSyncRequest request,
   ) async {
-    final acquired = await activeBikeCoordinator
-        .pauseForBackgroundSynchronization();
-    if (!acquired) {
+    final pause = await activeBikeCoordinator.acquireDiscoveryPause();
+    if (pause == null) {
       return const BackgroundSyncResult(
         outcome: BackgroundSyncOutcome.skippedBusy,
       );
@@ -207,7 +233,7 @@ final class BackgroundSyncCoordinator {
     try {
       return await synchronizer.synchronize(request);
     } finally {
-      await activeBikeCoordinator.resumeAfterBackgroundSynchronization();
+      await pause.release();
     }
   }
 
@@ -224,23 +250,52 @@ final class BackgroundSyncCoordinator {
       );
       if (matches.isEmpty) {
         throw StateError(
-          'Background Sync requires an active bike.',
+          'Turn on Auto connect for this bike before enabling Background Sync.',
         );
       }
-      final serial = await _moduleSerialFor(matches.single);
-      await platform.configure(moduleSerial: serial);
-      _configuredSerial = serial;
-      _configurationKnown = true;
+      late final ExclusiveBluetoothAccess access;
       try {
+        access = await _exclusiveBluetooth.acquire(
+          requestPermission: true,
+          adapterTimeout: const Duration(seconds: 3),
+        );
+      } on ExclusiveBluetoothOperationBusy {
+        throw const BackgroundSyncConfigurationFailure(
+          ExclusiveBluetoothOperationBusy.message,
+        );
+      } on Object {
+        await _exclusiveBluetooth.release(stopScan: false);
+        rethrow;
+      }
+      try {
+        _requireBluetoothAccess(access);
+        final serial = await _moduleSerialFor(matches.single);
+        final registration = await platform.configure(
+          deviceId: matches.single.bike.deviceId,
+          moduleSerial: serial,
+          requestAssociation: true,
+        );
+        if (registration != BackgroundSyncRegistration.configured) {
+          throw const BackgroundSyncConfigurationFailure(
+            'Android did not save the bike association. Try enabling Background Sync again.',
+          );
+        }
+        _configured = (
+          deviceId: matches.single.bike.deviceId,
+          moduleSerial: serial,
+        );
+        _configurationKnown = true;
         await bikeRepository.setBackgroundPreference(
           deviceId,
           requested: true,
           consentVersion: backgroundSyncConsentVersion,
         );
       } on Object {
-        _configuredSerial = null;
+        _configured = null;
         await platform.cancel();
         rethrow;
+      } finally {
+        await _exclusiveBluetooth.release(stopScan: false);
       }
     } else {
       await bikeRepository.setBackgroundPreference(
@@ -248,7 +303,7 @@ final class BackgroundSyncCoordinator {
         requested: false,
         consentVersion: backgroundSyncConsentVersion,
       );
-      _configuredSerial = null;
+      _configured = null;
       _configurationKnown = true;
       await platform.cancel();
     }
@@ -256,31 +311,22 @@ final class BackgroundSyncCoordinator {
     _settings = await settingsRepository.get();
   }
 
+  Future<void> reconcileNativeRegistration() {
+    if (!_started ||
+        _disposed ||
+        _exclusiveBluetooth.isAcquired ||
+        _configurationKnown && _configured == null) {
+      return Future.value();
+    }
+    _configurationKnown = false;
+    return _scheduleRefresh();
+  }
+
   Future<String> _moduleSerialFor(SavedBike saved) async {
     if (saved.bike.moduleSerial case final serial?) {
       return serial;
     }
     try {
-      final access = await _exclusiveBluetooth.acquire(
-        requestPermission: true,
-        adapterTimeout: const Duration(seconds: 3),
-      );
-      if (access.permission != BluetoothPermissionState.granted) {
-        throw const BackgroundSyncConfigurationFailure(
-          'Bluetooth permission is required to identify this bike for Background Sync.',
-        );
-      }
-      if (access.scanPrerequisite != BluetoothScanPrerequisite.ready) {
-        throw const BackgroundSyncConfigurationFailure(
-          'Bluetooth scanning is disabled in system settings.',
-        );
-      }
-      if (access.adapter != BikeAdapterState.on) {
-        throw const BackgroundSyncConfigurationFailure(
-          'Turn Bluetooth on to identify this bike for Background Sync.',
-        );
-      }
-
       final resolved = await identityResolver.resolve(
         saved,
         timeout: moduleSerialDiscoveryTimeout,
@@ -296,8 +342,24 @@ final class BackgroundSyncCoordinator {
       throw const BackgroundSyncConfigurationFailure(
         'Android could not identify this bike. Turn it on, keep it nearby, and try again.',
       );
-    } finally {
-      await _exclusiveBluetooth.release(stopScan: false);
+    }
+  }
+
+  void _requireBluetoothAccess(ExclusiveBluetoothAccess access) {
+    if (access.permission != BluetoothPermissionState.granted) {
+      throw const BackgroundSyncConfigurationFailure(
+        'Bluetooth permission is required to associate this bike for Background Sync.',
+      );
+    }
+    if (access.scanPrerequisite != BluetoothScanPrerequisite.ready) {
+      throw const BackgroundSyncConfigurationFailure(
+        'Bluetooth scanning is disabled in system settings.',
+      );
+    }
+    if (access.adapter != BikeAdapterState.on) {
+      throw const BackgroundSyncConfigurationFailure(
+        'Turn Bluetooth on to associate this bike for Background Sync.',
+      );
     }
   }
 
@@ -338,6 +400,21 @@ final class BackgroundSyncCoordinator {
       return;
     }
     final activeId = _settings!.activeBikeId;
+    final inactiveRequests = _bikes!.where(
+      (saved) =>
+          saved.bike.deviceId != activeId &&
+          saved.backgroundPreference.requested,
+    );
+    if (inactiveRequests.isNotEmpty) {
+      for (final saved in inactiveRequests.toList(growable: false)) {
+        await bikeRepository.setBackgroundPreference(
+          saved.bike.deviceId,
+          requested: false,
+          consentVersion: backgroundSyncConsentVersion,
+        );
+      }
+      _bikes = await bikeRepository.getBikes();
+    }
     final candidates = _bikes!.where(
       (saved) => saved.bike.deviceId == activeId,
     );
@@ -349,16 +426,34 @@ final class BackgroundSyncCoordinator {
         active.backgroundPreference.consentVersion >=
             backgroundSyncConsentVersion &&
         serial != null;
-    final nextSerial = shouldEnable ? serial : null;
-    if (_configurationKnown && _configuredSerial == nextSerial) {
+    final next = shouldEnable
+        ? (deviceId: active.bike.deviceId, moduleSerial: serial)
+        : null;
+    if (_configurationKnown && _configured == next) {
       return;
     }
-    if (nextSerial == null) {
+    if (next == null) {
       await platform.cancel();
     } else {
-      await platform.configure(moduleSerial: nextSerial);
+      final registration = await platform.configure(
+        deviceId: next.deviceId,
+        moduleSerial: next.moduleSerial,
+        requestAssociation: false,
+      );
+      if (registration == BackgroundSyncRegistration.needsAssociation) {
+        await bikeRepository.setBackgroundPreference(
+          next.deviceId,
+          requested: false,
+          consentVersion: backgroundSyncConsentVersion,
+        );
+        _bikes = await bikeRepository.getBikes();
+        await platform.cancel();
+        _configured = null;
+        _configurationKnown = true;
+        return;
+      }
     }
-    _configuredSerial = nextSerial;
+    _configured = next;
     _configurationKnown = true;
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/bike_session.dart';
+import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/user_facing_error.dart';
 
@@ -43,6 +44,16 @@ void main() {
         context: UserErrorContext.hardwareTest,
       ),
       'Light did not toggle.',
+    );
+  });
+
+  test('explains when another Bluetooth operation owns the radio', () {
+    expect(
+      userFacingError(
+        const ExclusiveBluetoothOperationBusy(),
+        context: UserErrorContext.hardwareTest,
+      ),
+      ExclusiveBluetoothOperationBusy.message,
     );
   });
 
