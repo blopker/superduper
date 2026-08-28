@@ -199,42 +199,20 @@ final class BikeRepository {
     );
   }
 
-  Future<void> setLightOnConnect(String deviceId, {required bool enabled}) {
+  Future<void> setOnConnect(
+    String deviceId,
+    SetOnConnectSettings settings,
+  ) {
+    _validateSetOnConnect(settings);
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
-        desiredLight: Value(enabled),
-        keepLight: Value(enabled),
-      ),
-    );
-  }
-
-  Future<void> setModeOnConnect(
-    String deviceId, {
-    required bool enabled,
-    required int value,
-  }) {
-    _validateMode(value);
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        desiredMode: Value(value),
-        keepMode: Value(enabled),
-      ),
-    );
-  }
-
-  Future<void> setAssistOnConnect(
-    String deviceId, {
-    required bool enabled,
-    required int value,
-  }) {
-    _validateAssist(value);
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        desiredAssist: Value(value),
-        keepAssist: Value(enabled),
+        desiredLight: Value(settings.lightEnabled),
+        desiredMode: Value(settings.mode),
+        desiredAssist: Value(settings.assist),
+        keepLight: Value(settings.lightEnabled),
+        keepMode: Value(settings.modeEnabled),
+        keepAssist: Value(settings.assistEnabled),
       ),
     );
   }

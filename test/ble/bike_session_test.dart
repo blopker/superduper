@@ -26,6 +26,7 @@ void main() {
     List<Duration> synchronizationRetryDelays = const [],
     bool readDiagnosticsOnConnect = true,
     Duration? pollInterval,
+    BikeProtocolDefinition? connectedProtocol,
   }) {
     return BikeSession(
       connection: connection,
@@ -41,6 +42,7 @@ void main() {
       synchronizationRetryDelays: synchronizationRetryDelays,
       correctiveAttempts: correctiveAttempts,
       confirmationRetryDelays: confirmationRetryDelays,
+      connectedProtocol: connectedProtocol,
     );
   }
 
@@ -105,6 +107,32 @@ void main() {
       );
     },
   );
+
+  test('session orchestration can use a connected protocol object', () async {
+    const configuration = BikeConfiguration(
+      light: false,
+      mode: 2,
+      assist: 3,
+      region: BikeRegion.us,
+    );
+    final protocol = _FakeConnectedProtocol(configuration);
+    session = createSession(
+      readDiagnosticsOnConnect: false,
+      connectedProtocol: protocol,
+    );
+
+    await session.connect();
+
+    expect(session.observed.value, configuration);
+    expect(session.state.value, isA<SessionReady>());
+    expect(protocol.configurationReads, 1);
+    expect(
+      connection.writes.where(
+        (write) => write.characteristicUuid == BikeGatt.registerSelector,
+      ),
+      isEmpty,
+    );
+  });
 
   test('invalidates a same-ID history result before accepting state', () async {
     connection
@@ -246,6 +274,37 @@ void main() {
   });
 
   test(
+    'retries one fixed startup target when an unselected value changes',
+    () async {
+      connection.readFrames.addAll([
+        [3, 0, 1, 0, 0, 0],
+        [3, 0, 2, 0, 0, 0],
+        [3, 0, 2, 0, 0, 3],
+      ]);
+      session = createSession(
+        setOnConnect: const SetOnConnectSettings(
+          lightEnabled: false,
+          mode: 3,
+          modeEnabled: true,
+          assist: 0,
+          assistEnabled: false,
+        ),
+        readDiagnosticsOnConnect: false,
+      );
+
+      await session.connect();
+
+      final writes = connection.writes
+          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+          .map((write) => write.value)
+          .toList();
+      expect(writes, hasLength(2));
+      expect(writes[0], writes[1]);
+      expect(writes[0][3], 1);
+    },
+  );
+
+  test(
     'a startup write turns a disabled light off when its register is stale',
     () async {
       connection.readFrames.addAll([
@@ -299,6 +358,49 @@ void main() {
         ),
         hasLength(1),
       );
+    },
+  );
+
+  test(
+    'a mode-only V2 notification cannot validate a retained light bit',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0xd0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+        [0, 0xd0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+        [0, 0xd0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+      ]);
+      session = createSession(
+        protocol: BikeProtocolVersion.v2,
+        setOnConnect: const SetOnConnectSettings(
+          lightEnabled: false,
+          mode: 3,
+          modeEnabled: true,
+          assist: 0,
+          assistEnabled: false,
+        ),
+        readDiagnosticsOnConnect: false,
+        pollInterval: const Duration(milliseconds: 5),
+      );
+
+      await session.connect();
+      expect(session.observed.value?.light, isFalse);
+
+      connection.emitNotification([0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0]);
+      await _waitUntil(
+        () =>
+            connection.reads
+                .where(
+                  (candidate) =>
+                      candidate.characteristicUuid == BikeGatt.stateRegister,
+                )
+                .length >=
+            6,
+      );
+
+      expect(session.observed.value?.light, isFalse);
     },
   );
 
@@ -1428,6 +1530,50 @@ void main() {
       hasLength(1),
     );
   });
+}
+
+final class _FakeConnectedProtocol extends BikeProtocolDefinition {
+  _FakeConnectedProtocol(this.configuration);
+
+  final BikeConfiguration configuration;
+  int configurationReads = 0;
+
+  @override
+  BikeControlPatch? decodeTelemetry(List<int> packet) => null;
+
+  @override
+  List<int> encodeConfiguration(BikeConfiguration configuration) {
+    throw UnsupportedError('Writes are overridden in this test.');
+  }
+
+  @override
+  Future<BikeConfiguration> readConfiguration({
+    required BikeRegion? preferredRegion,
+    required BikeRegion? fallbackRegion,
+    void Function(int meters)? onOdometer,
+  }) async {
+    configurationReads++;
+    return configuration;
+  }
+
+  @override
+  Future<List<int>> readHistoryRecord(List<int> selector) {
+    throw UnsupportedError('Diagnostics are disabled in this test.');
+  }
+
+  @override
+  Future<int> readOdometer({required int? cachedMeters}) {
+    throw UnsupportedError('Diagnostics are disabled in this test.');
+  }
+
+  @override
+  void reset() {}
+
+  @override
+  bool wireRegionMatches(BikeConfiguration target) => true;
+
+  @override
+  Future<void> writeConfiguration(BikeConfiguration configuration) async {}
 }
 
 Future<void> _waitUntil(bool Function() condition) async {

@@ -365,10 +365,15 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
       ),
     ];
   }
-  await services.bikeRepository.setModeOnConnect(
+  await services.bikeRepository.setOnConnect(
     'active-bike',
-    enabled: true,
-    value: 3,
+    const SetOnConnectSettings(
+      lightEnabled: false,
+      mode: 3,
+      modeEnabled: true,
+      assist: 0,
+      assistEnabled: false,
+    ),
   );
   transport.readFramesOnOpen['active-bike'] = [
     v1StateFrame(light: true, assist: 2),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';

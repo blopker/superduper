@@ -586,10 +586,9 @@ final class BikeHardwareTestController {
           reconnected.assist == setOnConnectTarget.assist,
       'The Set on connect light and assist values were not applied.',
     );
-    final expectedPacket = BikeProtocol.encodeConfiguration(
-      reconnected,
-      version: session.protocolVersion,
-    );
+    final expectedPacket = BikeProtocol.forVersion(
+      session.protocolVersion,
+    ).encodeConfiguration(reconnected);
     final writtenPacket = connection.configurationWrites.last;
     _expect(
       _listsEqual(writtenPacket, expectedPacket),

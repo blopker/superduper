@@ -420,9 +420,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
-                        () => _services.bikeRepository.setLightOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          enabled: enabled,
+                          saved.setOnConnect.copyWith(lightEnabled: enabled),
                         ),
                       ),
                     ),
@@ -441,10 +441,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
-                        () => _services.bikeRepository.setModeOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          enabled: enabled,
-                          value: saved.setOnConnect.mode,
+                          saved.setOnConnect.copyWith(modeEnabled: enabled),
                         ),
                       ),
                     ),
@@ -460,10 +459,12 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   label: (mode) => '${mode + 1}',
                   onChanged: (mode) => unawaited(
                     _changeSetOnConnect(
-                      () => _services.bikeRepository.setModeOnConnect(
+                      () => _services.bikeRepository.setOnConnect(
                         deviceId,
-                        enabled: true,
-                        value: mode,
+                        saved.setOnConnect.copyWith(
+                          mode: mode,
+                          modeEnabled: true,
+                        ),
                       ),
                     ),
                   ),
@@ -483,10 +484,9 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
-                        () => _services.bikeRepository.setAssistOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          enabled: enabled,
-                          value: saved.setOnConnect.assist,
+                          saved.setOnConnect.copyWith(assistEnabled: enabled),
                         ),
                       ),
                     ),
@@ -502,10 +502,12 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                   label: (assist) => '$assist',
                   onChanged: (assist) => unawaited(
                     _changeSetOnConnect(
-                      () => _services.bikeRepository.setAssistOnConnect(
+                      () => _services.bikeRepository.setOnConnect(
                         deviceId,
-                        enabled: true,
-                        value: assist,
+                        saved.setOnConnect.copyWith(
+                          assist: assist,
+                          assistEnabled: true,
+                        ),
                       ),
                     ),
                   ),

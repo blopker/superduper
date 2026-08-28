@@ -48,6 +48,18 @@ Settings stores the separate, fixed values to apply whenever that bike connects.
 Light is off when the bike starts, so enabling its option means turn it on;
 Mode and Assist each expose an explicit value selector.
 
+## BLE architecture
+
+Protocol objects own every V1/V2 wire difference: register selection, decoding,
+command encoding, GATT transactions, odometer behavior, and confirmation rules.
+The bike session owns connection lifecycle, bounded retry, and the observed and
+pending control state.
+
+Live controls and Set on connect both use a typed control patch. The patch owns
+how selected fields are applied and compared, so retry and transport code do not
+need field-specific branches. Tests can inject a connected protocol object
+directly into a session without reproducing protocol behavior in fake GATT.
+
 ### Light
 
 If your bike has them, this toggles your bike's lights on and off.

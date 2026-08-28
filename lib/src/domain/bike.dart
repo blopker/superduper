@@ -24,6 +24,102 @@ enum BikeRegion {
   final String label;
 }
 
+final class BikeConfiguration {
+  const BikeConfiguration({
+    required this.light,
+    required this.mode,
+    required this.assist,
+    required this.region,
+  });
+
+  final bool light;
+  final int mode;
+  final int assist;
+  final BikeRegion region;
+
+  BikeConfiguration copyWith({
+    bool? light,
+    int? mode,
+    int? assist,
+    BikeRegion? region,
+  }) {
+    return BikeConfiguration(
+      light: light ?? this.light,
+      mode: mode ?? this.mode,
+      assist: assist ?? this.assist,
+      region: region ?? this.region,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is BikeConfiguration &&
+      light == other.light &&
+      mode == other.mode &&
+      assist == other.assist &&
+      region == other.region;
+
+  @override
+  int get hashCode => Object.hash(light, mode, assist, region);
+}
+
+final class BikeControlPatch {
+  const BikeControlPatch({this.light, this.mode, this.assist, this.region});
+
+  factory BikeControlPatch.fromSetOnConnect(SetOnConnectSettings settings) {
+    return BikeControlPatch(
+      light: settings.lightEnabled ? true : null,
+      mode: settings.modeEnabled ? settings.mode : null,
+      assist: settings.assistEnabled ? settings.assist : null,
+    );
+  }
+
+  final bool? light;
+  final int? mode;
+  final int? assist;
+  final BikeRegion? region;
+
+  bool get isEmpty =>
+      light == null && mode == null && assist == null && region == null;
+
+  BikeConfiguration applyTo(BikeConfiguration base) {
+    return base.copyWith(
+      light: light,
+      mode: mode,
+      assist: assist,
+      region: region,
+    );
+  }
+
+  BikeControlPatch merge(BikeControlPatch newer) {
+    return BikeControlPatch(
+      light: newer.light ?? light,
+      mode: newer.mode ?? mode,
+      assist: newer.assist ?? assist,
+      region: newer.region ?? region,
+    );
+  }
+
+  BikeConfiguration startupTarget(
+    BikeConfiguration observed, {
+    required BikeRegion? preferredRegion,
+  }) {
+    return applyTo(
+      observed.copyWith(
+        light: light ?? false,
+        region: preferredRegion ?? observed.region,
+      ),
+    );
+  }
+
+  bool matches(BikeConfiguration configuration) {
+    return (light == null || configuration.light == light) &&
+        (mode == null || configuration.mode == mode) &&
+        (assist == null || configuration.assist == assist) &&
+        (region == null || configuration.region == region);
+  }
+}
+
 enum BikeColor {
   royalHorizon('royal_horizon', 'Royal Horizon', 0),
   oceanMirage('ocean_mirage', 'Ocean Mirage', 1),

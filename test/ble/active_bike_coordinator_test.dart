@@ -89,9 +89,16 @@ void main() {
   });
 
   test('startup applies every kept value before reporting ready', () async {
-    await bikes.setLightOnConnect('first', enabled: true);
-    await bikes.setModeOnConnect('first', enabled: true, value: 3);
-    await bikes.setAssistOnConnect('first', enabled: true, value: 4);
+    await bikes.setOnConnect(
+      'first',
+      const SetOnConnectSettings(
+        lightEnabled: true,
+        mode: 3,
+        modeEnabled: true,
+        assist: 4,
+        assistEnabled: true,
+      ),
+    );
     connectionFrames['first'] = [
       [0, 0, 0, 0, 0, 0],
       [0, 0, 4, 0, 1, 3],

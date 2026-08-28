@@ -89,9 +89,16 @@ void main() {
         deviceId: 'bike',
       );
 
-      await repository.setLightOnConnect('bike', enabled: true);
-      await repository.setModeOnConnect('bike', enabled: true, value: 3);
-      await repository.setAssistOnConnect('bike', enabled: true, value: 4);
+      await repository.setOnConnect(
+        'bike',
+        const SetOnConnectSettings(
+          lightEnabled: true,
+          mode: 3,
+          modeEnabled: true,
+          assist: 4,
+          assistEnabled: true,
+        ),
+      );
 
       final saved = (await repository.getBikes()).single;
       expect(saved.setOnConnect.lightEnabled, isTrue);
@@ -107,11 +114,29 @@ void main() {
     await repository.addBike(deviceId: 'bike');
 
     expect(
-      () => repository.setModeOnConnect('bike', enabled: true, value: 4),
+      () => repository.setOnConnect(
+        'bike',
+        const SetOnConnectSettings(
+          lightEnabled: false,
+          mode: 4,
+          modeEnabled: true,
+          assist: 0,
+          assistEnabled: false,
+        ),
+      ),
       throwsRangeError,
     );
     expect(
-      () => repository.setAssistOnConnect('bike', enabled: true, value: -1),
+      () => repository.setOnConnect(
+        'bike',
+        const SetOnConnectSettings(
+          lightEnabled: false,
+          mode: 0,
+          modeEnabled: false,
+          assist: -1,
+          assistEnabled: true,
+        ),
+      ),
       throwsRangeError,
     );
   });

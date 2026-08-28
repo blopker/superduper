@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/bike_settings/bike_settings_page.dart';
