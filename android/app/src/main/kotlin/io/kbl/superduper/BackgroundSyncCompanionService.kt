@@ -7,4 +7,9 @@ class BackgroundSyncCompanionService : CompanionDeviceService() {
     override fun onDeviceAppeared(address: String) {
         BackgroundSyncScheduler.enqueue(this, address, "companion")
     }
+
+    @Suppress("DEPRECATION")
+    override fun onDeviceDisappeared(address: String) {
+        BackgroundCompanionManager.markCompanionAbsent(this, address)
+    }
 }

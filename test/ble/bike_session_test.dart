@@ -26,6 +26,7 @@ void main() {
     List<Duration> reconnectDelays = const [],
     List<Duration> synchronizationRetryDelays = const [],
     bool readDiagnosticsOnConnect = true,
+    Duration? pollInterval,
   }) {
     return BikeSession(
       connection: connection,
@@ -37,7 +38,7 @@ void main() {
       onVersionsRead: onVersionsRead,
       onOdometerRead: onOdometerRead,
       readDiagnosticsOnConnect: readDiagnosticsOnConnect,
-      pollInterval: null,
+      pollInterval: pollInterval,
       reconnectDelays: reconnectDelays,
       synchronizationRetryDelays: synchronizationRetryDelays,
       correctiveAttempts: correctiveAttempts,
@@ -1011,14 +1012,10 @@ void main() {
     );
   });
 
-  test('re-applies a locked setting changed by a V2 notification', () async {
+  test('does not re-apply a set-on-connect value after telemetry', () async {
     connection.firmwareRevision = '250426';
     connection.readFrames.addAll([
       [0, 0xd0, 1, 0, 1, 0, 0, 0, 0, 0],
-      [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
-      [0, 0xd0, 1, 0, 1, 0, 0, 0, 0, 0],
-      [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
-      [0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0],
       [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
       [0, 0xd0, 1, 0, 1, 0, 0, 0, 0, 0],
       [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
@@ -1036,6 +1033,8 @@ void main() {
       confirmationRetryDelays: const [Duration.zero],
     );
     await session.connect();
+    await Future<void>.delayed(Duration.zero);
+    expect(session.state.value, isA<SessionReady>());
     final initialConfigurationWrites = connection.writes
         .where(
           (write) =>
@@ -1046,33 +1045,53 @@ void main() {
     expect(initialConfigurationWrites, 1);
 
     connection.emitNotification([0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0]);
-    await _waitUntil(
-      () =>
-          connection.writes
-              .where(
-                (write) =>
-                    write.characteristicUuid == BikeGatt.stateRegister &&
-                    write.value[1] == 0xc1,
-              )
-              .length ==
-          initialConfigurationWrites + 1,
-    );
-    await _waitUntil(
-      () =>
-          session.state.value is SessionReady &&
-          session.observed.value?.light == true,
-    );
+    await _waitUntil(() => session.observed.value?.light == false);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(session.observed.value?.light, isTrue);
+    expect(session.observed.value?.light, isFalse);
     expect(
       connection.writes.where(
         (write) =>
             write.characteristicUuid == BikeGatt.stateRegister &&
             write.value[1] == 0xc1,
       ),
-      hasLength(2),
+      hasLength(initialConfigurationWrites),
     );
   });
+
+  test(
+    'polling observes changes without re-applying set-on-connect values',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+      ]);
+      session = createSession(
+        preferences: const RidePreferences(
+          desiredLight: true,
+          desiredMode: 0,
+          desiredAssist: 0,
+          keepLight: true,
+          keepMode: false,
+          keepAssist: false,
+        ),
+        pollInterval: const Duration(milliseconds: 5),
+      );
+      await session.connect();
+      await _waitUntil(() => session.observed.value?.light == false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(session.observed.value?.light, isFalse);
+      expect(
+        connection.writes.where(
+          (write) => write.characteristicUuid == BikeGatt.stateRegister,
+        ),
+        hasLength(1),
+      );
+    },
+  );
 
   test(
     'manual disconnect pauses reconnect and disposal rejects commands',

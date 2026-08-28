@@ -772,20 +772,6 @@ final class BikeSession {
         updated = updated.copyWith(region: region);
       }
       _publishObserved(updated);
-      final target = LockedConfigurationPolicy.effective(
-        observed: updated,
-        preferences: _preferences,
-        preferredRegion: _preferredRegion,
-      );
-      if (_state.peek() is SessionReady &&
-          !LockedConfigurationPolicy.lockedValuesMatch(
-            observed: updated,
-            target: target,
-            preferences: _preferences,
-          ) &&
-          !_commands.isBusy) {
-        unawaited(synchronize().catchError((Object _) {}));
-      }
     } on BikeProtocolFailure {
       // Notifications are advisory and may be partial or from an unsupported
       // telemetry family. Keep the last authoritative configuration; a later
@@ -1132,10 +1118,39 @@ final class BikeSession {
     if (_pollInterval case final interval?) {
       _pollTimer = Timer.periodic(interval, (_) {
         if (!_commands.isBusy && _state.peek() is SessionReady) {
-          unawaited(synchronize().catchError((Object _) {}));
+          unawaited(_pollConfiguration().catchError((Object _) {}));
         }
       });
     }
+  }
+
+  Future<void> _pollConfiguration() {
+    final generation = _generation;
+    return _commands.add(() async {
+      if (!_isCurrent(generation) ||
+          !_hasObservedConnection ||
+          _state.peek() is! SessionReady) {
+        return;
+      }
+      try {
+        final confirmed = await _readConfiguration();
+        if (!_isCurrent(generation) || !_hasObservedConnection) {
+          return;
+        }
+        _publishObserved(confirmed);
+        _state.value = SessionReady(configuration: confirmed);
+      } on Object catch (error) {
+        if (!_isCurrent(generation)) {
+          return;
+        }
+        final failure = _asFailure(error);
+        if (_isConnectionFailure(failure)) {
+          _scheduleReconnect(failure);
+        } else if (failure is! BikeSessionDisposedFailure) {
+          _state.value = SessionFailed(failure: failure, canRetry: true);
+        }
+      }
+    });
   }
 
   void _markDegraded(

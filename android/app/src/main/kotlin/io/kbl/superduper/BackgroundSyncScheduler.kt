@@ -21,14 +21,22 @@ internal object BackgroundSyncScheduler {
             null,
         ) ?: return
         if (!storedDeviceId.equals(deviceId, ignoreCase = true)) return
+        if (source == "companion" &&
+            preferences.getBoolean(BackgroundCompanionManager.companionPresentKey, false)
+        ) {
+            return
+        }
 
-        preferences.edit()
+        val editor = preferences.edit()
             .putLong(
                 BackgroundCompanionManager.lastPresenceAtKey,
                 System.currentTimeMillis(),
             )
             .putString(BackgroundCompanionManager.lastPresenceSourceKey, source)
-            .apply()
+        if (source == "companion") {
+            editor.putBoolean(BackgroundCompanionManager.companionPresentKey, true)
+        }
+        editor.commit()
         val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
             .setInputData(
                 workDataOf(

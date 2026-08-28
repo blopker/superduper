@@ -100,8 +100,10 @@ Finally, older (or newer) bike firmware may not be supported. Make sure your bik
 
 It saves the value the bike most recently confirmed. While Superduper is open,
 the auto-connect session reads the bike, restores any kept value that differs,
-and reads again before reporting `Ready to ride`. Closing or backgrounding the
-app pauses that guarantee; reopening the app resynchronizes the auto-connect bike.
+and reads again before reporting `Ready to ride`. Changes made with the bike's
+physical controls remain in effect until the next connection. Closing or
+backgrounding the app pauses the connection; reopening it resynchronizes the
+auto-connect bike.
 
 ### What are the supported devices?
 

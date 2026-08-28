@@ -154,7 +154,11 @@ The system association chooser owns its lifetime; the app does not impose a time
 
 Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
 
-Presence callbacks enqueue unique work, so concurrent duplicate callbacks cannot start duplicate synchronization transactions. The implementation does not maintain its own sticky present/lost debounce; Android owns the association presence epoch.
+The first presence callback in an appeared/disappeared epoch enqueues unique
+work. Duplicate appeared callbacks are ignored even after that work completes,
+and the disappeared callback arms the next epoch. Registration restoration
+clears the marker before observation starts so a missed disappeared callback
+cannot permanently suppress future synchronization.
 
 The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
 

@@ -24,6 +24,7 @@ internal object BackgroundCompanionManager {
     const val lastOutcomeKey = "last_outcome"
     const val lastDetailKey = "last_detail"
     const val lastCompletedAtKey = "last_completed_at_ms"
+    const val companionPresentKey = "companion_present"
 
     private const val legacyPresentKey = "bike_present"
     private const val legacyScanAction = "io.kbl.superduper.BACKGROUND_SCAN"
@@ -84,11 +85,9 @@ internal object BackgroundCompanionManager {
         }
         if (!isAssociated(context, address)) return false
 
-        cancelLegacyScan(context)
         val preferences = preferences(context)
         val previousAddress = preferences.getString(deviceIdKey, null)
         val previousSerial = preferences.getString(serialKey, null)
-        startObserving(context, address)
         if (previousAddress != null && !previousAddress.equals(address, ignoreCase = true)) {
             stopObserving(context, previousAddress)
             disassociate(context, previousAddress)
@@ -102,10 +101,13 @@ internal object BackgroundCompanionManager {
             .edit()
             .putString(deviceIdKey, address)
             .putString(serialKey, serial)
+            .putBoolean(companionPresentKey, false)
             .remove(legacyPresentKey)
             .remove(registrationErrorDetailKey)
             .remove(registrationErrorAtKey)
-            .apply()
+            .commit()
+        cancelLegacyScan(context)
+        startObserving(context, address)
         return true
     }
 
@@ -145,6 +147,7 @@ internal object BackgroundCompanionManager {
             .remove(deviceIdKey)
             .remove(serialKey)
             .remove(legacyPresentKey)
+            .remove(companionPresentKey)
             .apply()
         cancelLegacyScan(context)
     }
@@ -153,6 +156,13 @@ internal object BackgroundCompanionManager {
         val address = normalizeDeviceId(deviceId)
         stopObserving(context, address)
         disassociate(context, address)
+    }
+
+    fun markCompanionAbsent(context: Context, deviceId: String) {
+        val preferences = preferences(context)
+        val storedDeviceId = preferences.getString(deviceIdKey, null) ?: return
+        if (!storedDeviceId.equals(deviceId, ignoreCase = true)) return
+        preferences.edit().putBoolean(companionPresentKey, false).apply()
     }
 
     fun cancelLegacyScan(context: Context) {
