@@ -400,7 +400,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       ),
       const SizedBox(height: 10),
       const Text(
-        'Applied once whenever Superduper connects. Live controls do not change these values.',
+        'Lock in settings when Superduper connects.',
       ),
       const SizedBox(height: 16),
       SurfacePanel(
@@ -415,7 +415,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.lightbulb_outline_rounded),
               title: const Text('Turn light on'),
-              subtitle: const Text('The bike starts with its light off.'),
               value: saved.setOnConnect.lightEnabled,
               onChanged: _changingSetOnConnect
                   ? null
@@ -437,7 +436,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.speed_rounded),
               title: const Text('Set mode'),
-              subtitle: Text('Mode ${saved.setOnConnect.mode + 1}'),
               value: saved.setOnConnect.modeEnabled,
               onChanged: _changingSetOnConnect
                   ? null
@@ -480,7 +478,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.bolt_rounded),
               title: const Text('Set assist'),
-              subtitle: Text('Level ${saved.setOnConnect.assist}'),
               value: saved.setOnConnect.assistEnabled,
               onChanged: _changingSetOnConnect
                   ? null

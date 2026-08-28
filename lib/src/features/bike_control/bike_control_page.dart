@@ -164,27 +164,16 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         _SettingSection(
           icon: Icons.lightbulb_outline_rounded,
           title: 'Light',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : configuration.light
-              ? 'On'
-              : 'Off',
           toggleValue: configuration?.light ?? false,
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
               : null,
-          setOnConnectLabel: bike.setOnConnect.lightEnabled
-              ? 'On at connect'
-              : null,
-          onSetOnConnectTap: () => _openSettings(bike),
+          setOnConnectValue: bike.setOnConnect.lightEnabled ? 'On' : null,
         ),
         const SizedBox(height: 14),
         _SettingSection(
           icon: Icons.speed_rounded,
           title: 'Mode',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : 'Mode ${configuration.mode + 1}',
           control: BikeValueSelector(
             values: const [0, 1, 2, 3],
             selected: configuration?.mode,
@@ -193,18 +182,14 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             label: (mode) => '${mode + 1}',
             onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
           ),
-          setOnConnectLabel: bike.setOnConnect.modeEnabled
-              ? 'Mode ${bike.setOnConnect.mode + 1} at connect'
+          setOnConnectValue: bike.setOnConnect.modeEnabled
+              ? '${bike.setOnConnect.mode + 1}'
               : null,
-          onSetOnConnectTap: () => _openSettings(bike),
         ),
         const SizedBox(height: 14),
         _SettingSection(
           icon: Icons.bolt_rounded,
           title: 'Assist',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : 'Level ${configuration.assist}',
           control: BikeValueSelector(
             values: const [0, 1, 2, 3, 4],
             selected: configuration?.assist,
@@ -214,10 +199,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             onChanged: (assist) =>
                 _runCommand(() => session!.setAssist(assist)),
           ),
-          setOnConnectLabel: bike.setOnConnect.assistEnabled
-              ? 'Assist ${bike.setOnConnect.assist} at connect'
+          setOnConnectValue: bike.setOnConnect.assistEnabled
+              ? '${bike.setOnConnect.assist}'
               : null,
-          onSetOnConnectTap: () => _openSettings(bike),
         ),
         if (canRetry) ...[
           const SizedBox(height: 18),
@@ -378,9 +362,7 @@ final class _SettingSection extends StatelessWidget {
   const _SettingSection({
     required this.icon,
     required this.title,
-    required this.value,
-    required this.setOnConnectLabel,
-    required this.onSetOnConnectTap,
+    required this.setOnConnectValue,
     this.control,
     this.toggleValue,
     this.onToggleChanged,
@@ -388,12 +370,10 @@ final class _SettingSection extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String value;
   final Widget? control;
   final bool? toggleValue;
   final ValueChanged<bool>? onToggleChanged;
-  final String? setOnConnectLabel;
-  final VoidCallback onSetOnConnectTap;
+  final String? setOnConnectValue;
 
   @override
   Widget build(BuildContext context) {
@@ -410,8 +390,10 @@ final class _SettingSection extends StatelessWidget {
                 vertical: 8,
               ),
               secondary: Icon(icon, color: accent, size: 30),
-              title: Text(title),
-              subtitle: Text(value),
+              title: _SettingHeader(
+                title: title,
+                setOnConnectValue: setOnConnectValue,
+              ),
               value: toggled,
               onChanged: onToggleChanged,
             )
@@ -425,16 +407,9 @@ final class _SettingSection extends StatelessWidget {
                       Icon(icon, color: accent, size: 30),
                       const SizedBox(width: 13),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(value),
-                          ],
+                        child: _SettingHeader(
+                          title: title,
+                          setOnConnectValue: setOnConnectValue,
                         ),
                       ),
                     ],
@@ -443,36 +418,57 @@ final class _SettingSection extends StatelessWidget {
                     const SizedBox(height: 18),
                     body,
                   ],
-                  if (setOnConnectLabel case final label?) ...[
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ActionChip(
-                        avatar: const Icon(Icons.lock_rounded, size: 18),
-                        label: Text(label),
-                        tooltip: 'Open Set on connect settings',
-                        onPressed: onSetOnConnectTap,
-                      ),
-                    ),
-                  ],
                 ],
-              ),
-            ),
-          if (toggleValue != null && setOnConnectLabel != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: ActionChip(
-                  avatar: const Icon(Icons.lock_rounded, size: 18),
-                  label: Text(setOnConnectLabel!),
-                  tooltip: 'Open Set on connect settings',
-                  onPressed: onSetOnConnectTap,
-                ),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+final class _SettingHeader extends StatelessWidget {
+  const _SettingHeader({
+    required this.title,
+    required this.setOnConnectValue,
+  });
+
+  final String title;
+  final String? setOnConnectValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        if (setOnConnectValue case final value?)
+          Semantics(
+            key: ValueKey(
+              'set-on-connect-indicator-${title.toLowerCase()}',
+            ),
+            label: 'Set on connect: $value',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_rounded, size: 15, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

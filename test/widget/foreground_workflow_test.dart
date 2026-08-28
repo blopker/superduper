@@ -109,10 +109,22 @@ void main() {
     final fixture = await _pumpReadyBikeApp(tester, 'set_on_connect');
     final writesBeforeSettings = fixture.connection.configurationWriteStarts;
 
-    expect(find.text('Mode 4 at connect'), findsOneWidget);
+    final modeIndicator = find.byKey(
+      const ValueKey('set-on-connect-indicator-mode'),
+    );
+    expect(modeIndicator, findsOneWidget);
+    expect(
+      find.descendant(of: modeIndicator, matching: find.text('4')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('set-on-connect-mode')), findsNothing);
 
-    await tester.tap(find.text('Mode 4 at connect'));
+    expect(
+      find.descendant(of: modeIndicator, matching: find.byType(TextButton)),
+      findsNothing,
+    );
+
+    await tester.tap(find.byTooltip('Bike settings'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
@@ -283,7 +295,10 @@ void main() {
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
     expect(find.text('RIDE CONTROLS'), findsOneWidget);
-    expect(find.text('Waiting for bike'), findsWidgets);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Mode'), findsOneWidget);
+    expect(find.text('Assist'), findsOneWidget);
+    expect(find.text('Waiting for bike'), findsNothing);
   });
 }
 
