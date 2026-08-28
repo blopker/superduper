@@ -10,6 +10,7 @@ import android.companion.BluetoothLeDeviceFilter
 import android.companion.CompanionDeviceManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import androidx.work.WorkManager
 
@@ -17,11 +18,22 @@ internal object BackgroundCompanionManager {
     const val preferencesName = "background_sync"
     const val deviceIdKey = "device_id"
     const val serialKey = "module_serial"
+    const val lastPresenceAtKey = "last_presence_at_ms"
+    const val lastPresenceSourceKey = "last_presence_source"
+    const val lastWorkerStartedAtKey = "last_worker_started_at_ms"
+    const val lastOutcomeKey = "last_outcome"
+    const val lastDetailKey = "last_detail"
+    const val lastCompletedAtKey = "last_completed_at_ms"
 
     private const val legacyPresentKey = "bike_present"
     private const val legacyScanAction = "io.kbl.superduper.BACKGROUND_SCAN"
     private const val registrationErrorDetailKey = "registration_error_detail"
     private const val registrationErrorAtKey = "registration_error_at_ms"
+
+    fun preferences(context: Context): SharedPreferences =
+        context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+
+    fun workName(serial: String): String = "background-sync-${normalizeSerial(serial)}"
 
     fun normalizeDeviceId(value: String): String {
         val normalized = value.uppercase()
@@ -73,10 +85,7 @@ internal object BackgroundCompanionManager {
         if (!isAssociated(context, address)) return false
 
         cancelLegacyScan(context)
-        val preferences = context.getSharedPreferences(
-            preferencesName,
-            Context.MODE_PRIVATE,
-        )
+        val preferences = preferences(context)
         val previousAddress = preferences.getString(deviceIdKey, null)
         val previousSerial = preferences.getString(serialKey, null)
         startObserving(context, address)
@@ -86,7 +95,7 @@ internal object BackgroundCompanionManager {
         }
         if (previousSerial != null && previousSerial != serial) {
             WorkManager.getInstance(context).cancelUniqueWork(
-                "background-sync-$previousSerial",
+                workName(previousSerial),
             )
         }
         preferences
@@ -101,10 +110,7 @@ internal object BackgroundCompanionManager {
     }
 
     fun restoreStored(context: Context): Boolean {
-        val preferences = context.getSharedPreferences(
-            preferencesName,
-            Context.MODE_PRIVATE,
-        )
+        val preferences = preferences(context)
         val address = preferences.getString(deviceIdKey, null) ?: run {
             cancelLegacyScan(context)
             return true
@@ -127,10 +133,7 @@ internal object BackgroundCompanionManager {
     }
 
     fun cancel(context: Context) {
-        val preferences = context.getSharedPreferences(
-            preferencesName,
-            Context.MODE_PRIVATE,
-        )
+        val preferences = preferences(context)
         val address = preferences.getString(deviceIdKey, null)
         val serial = preferences.getString(serialKey, null)
         if (address != null) {
@@ -139,7 +142,7 @@ internal object BackgroundCompanionManager {
         }
         if (serial != null) {
             WorkManager.getInstance(context).cancelUniqueWork(
-                "background-sync-$serial",
+                workName(serial),
             )
         }
         preferences.edit()
@@ -207,6 +210,8 @@ internal object BackgroundCompanionManager {
     }
 
     private fun legacyPendingIntent(context: Context): PendingIntent {
+        // These values must remain identical to the scan registration shipped
+        // before CompanionDeviceManager so upgrades can cancel that PendingIntent.
         val intent = Intent(context, BackgroundScanReceiver::class.java)
             .setAction(legacyScanAction)
         return PendingIntent.getBroadcast(
@@ -218,7 +223,7 @@ internal object BackgroundCompanionManager {
     }
 
     private fun recordFailure(context: Context, detail: String) {
-        context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+        preferences(context)
             .edit()
             .putString(registrationErrorDetailKey, detail)
             .putLong(registrationErrorAtKey, System.currentTimeMillis())

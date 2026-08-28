@@ -7,6 +7,7 @@ import android.content.IntentSender
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,7 +20,9 @@ class MainActivity : FlutterActivity() {
         var chooserLaunched: Boolean = false,
     )
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingAssociation: PendingAssociation? = null
+    private var cancelledAssociationDeviceId: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -45,6 +48,7 @@ class MainActivity : FlutterActivity() {
                         )
                     }
                     "cancel" -> {
+                        cancelPendingAssociation("Bike association was cancelled")
                         BackgroundCompanionManager.cancel(applicationContext)
                         result.success(null)
                     }
@@ -57,18 +61,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
-        pendingAssociation?.let {
-            BackgroundCompanionManager.removeAssociation(
-                applicationContext,
-                it.deviceId,
-            )
-        }
-        pendingAssociation?.result?.error(
-            "background_sync",
-            "Bike association was interrupted",
-            null,
-        )
-        pendingAssociation = null
+        cancelPendingAssociation("Bike association was interrupted")
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             BackgroundSyncChannels.control,
@@ -96,6 +89,11 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != companionAssociationRequestCode) return
+        cancelledAssociationDeviceId?.let { address ->
+            cancelledAssociationDeviceId = null
+            BackgroundCompanionManager.removeAssociation(applicationContext, address)
+            return
+        }
         if (resultCode == Activity.RESULT_OK) {
             completeAssociation()
         } else {
@@ -111,70 +109,61 @@ class MainActivity : FlutterActivity() {
     ) {
         val address = BackgroundCompanionManager.normalizeDeviceId(deviceId)
         val serial = BackgroundCompanionManager.normalizeSerial(moduleSerial)
+        if (!BackgroundCompanionManager.hasCompanionSupport(applicationContext)) {
+            if (requestAssociation) {
+                throw IllegalStateException(
+                    "This phone does not support Android companion-device association",
+                )
+            }
+            result.success(false)
+            return
+        }
         if (BackgroundCompanionManager.configureIfAssociated(
                 applicationContext,
                 address,
                 serial,
             )
         ) {
-            result.success(null)
+            result.success(true)
             return
         }
         if (!requestAssociation) {
-            throw IllegalStateException(
-                "Open Background Sync and associate this bike again",
-            )
+            result.success(false)
+            return
         }
         if (pendingAssociation != null) {
             throw IllegalStateException("Another bike association is already in progress")
         }
+        if (cancelledAssociationDeviceId != null) {
+            throw IllegalStateException("The previous bike association is still closing")
+        }
 
         BackgroundCompanionManager.cancelLegacyScan(applicationContext)
         pendingAssociation = PendingAssociation(address, serial, result)
-        val manager = getSystemService(CompanionDeviceManager::class.java)
-        val request = BackgroundCompanionManager.associationRequest(address)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            associateModern(manager, request)
-        } else {
-            val callback = object : CompanionDeviceManager.Callback() {
-                @Deprecated("Called by Android 12")
-                override fun onDeviceFound(intentSender: IntentSender) {
-                    launchAssociationChooser(intentSender)
-                }
-
-                override fun onFailure(error: CharSequence?) {
-                    failAssociation(
-                        error?.toString() ?: "Android could not associate this bike",
-                    )
-                }
+        try {
+            val manager = getSystemService(CompanionDeviceManager::class.java)
+            val request = BackgroundCompanionManager.associationRequest(address)
+            val callback = associationCallback()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                manager.associate(request, mainExecutor, callback)
+            } else {
+                @Suppress("DEPRECATION")
+                manager.associate(request, callback, mainHandler)
             }
-            @Suppress("DEPRECATION")
-            manager.associate(request, callback, Handler(Looper.getMainLooper()))
+        } catch (error: Exception) {
+            failAssociation(error.message ?: error.javaClass.simpleName)
         }
     }
 
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun associateModern(
-        manager: CompanionDeviceManager,
-        request: android.companion.AssociationRequest,
-    ) {
-        val callback = object : CompanionDeviceManager.Callback() {
-            override fun onAssociationPending(intentSender: IntentSender) {
-                launchAssociationChooser(intentSender)
-            }
-
-            override fun onFailure(error: CharSequence?) {
-                failAssociation(error?.toString() ?: "Android could not associate this bike")
-            }
-
-            override fun onFailure(errorCode: Int, error: CharSequence?) {
-                failAssociation(
-                    error?.toString()
-                        ?: "Android could not associate this bike (code $errorCode)",
-                )
-            }
+    private fun associationCallback() = object : CompanionDeviceManager.Callback() {
+        @Deprecated("Called by Android's association callback on all supported versions")
+        override fun onDeviceFound(intentSender: IntentSender) {
+            launchAssociationChooser(intentSender)
         }
-        manager.associate(request, mainExecutor, callback)
+
+        override fun onFailure(error: CharSequence?) {
+            failAssociation(error?.toString() ?: "Android could not associate this bike")
+        }
     }
 
     private fun launchAssociationChooser(intentSender: IntentSender) {
@@ -195,40 +184,102 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun completeAssociation() {
+    private fun cancelPendingAssociation(message: String) {
         val pending = pendingAssociation ?: return
-        try {
-            if (!BackgroundCompanionManager.configureIfAssociated(
-                    applicationContext,
-                    pending.deviceId,
-                    pending.moduleSerial,
-                )
-            ) {
-                BackgroundCompanionManager.removeAssociation(
-                    applicationContext,
-                    pending.deviceId,
-                )
-                failAssociation("Android did not save the bike association")
-                return
+        pendingAssociation = null
+        if (pending.chooserLaunched) {
+            cancelledAssociationDeviceId = pending.deviceId
+            try {
+                finishActivity(companionAssociationRequestCode)
+            } catch (_: RuntimeException) {
+                // The chooser may already be closing.
             }
-            pendingAssociation = null
-            pending.result.success(null)
+            mainHandler.postDelayed(
+                {
+                    if (cancelledAssociationDeviceId == pending.deviceId) {
+                        BackgroundCompanionManager.removeAssociation(
+                            applicationContext,
+                            pending.deviceId,
+                        )
+                        cancelledAssociationDeviceId = null
+                    }
+                },
+                cancelledAssociationCleanupMs,
+            )
+        }
+        BackgroundCompanionManager.removeAssociation(
+            applicationContext,
+            pending.deviceId,
+        )
+        replyError(pending, message)
+    }
+
+    private fun replyError(pending: PendingAssociation, message: String) {
+        try {
+            pending.result.error("background_sync", message, null)
+        } catch (error: RuntimeException) {
+            Log.w(logTag, "Could not reply to the association request", error)
+        }
+    }
+
+    private fun replySuccess(pending: PendingAssociation) {
+        try {
+            pending.result.success(true)
+        } catch (error: RuntimeException) {
+            Log.w(logTag, "Could not reply to the association request", error)
+        }
+    }
+
+    private fun completeAssociation(attempt: Int = 0) {
+        val pending = pendingAssociation ?: return
+        val configured = try {
+            BackgroundCompanionManager.configureIfAssociated(
+                applicationContext,
+                pending.deviceId,
+                pending.moduleSerial,
+            )
         } catch (error: Exception) {
             BackgroundCompanionManager.removeAssociation(
                 applicationContext,
                 pending.deviceId,
             )
             failAssociation(error.message ?: error.javaClass.simpleName)
+            return
         }
+        if (!configured) {
+            if (attempt < associationPersistenceAttempts) {
+                mainHandler.postDelayed(
+                    {
+                        if (pendingAssociation === pending) {
+                            completeAssociation(attempt + 1)
+                        }
+                    },
+                    associationPersistenceRetryMs,
+                )
+                return
+            }
+            BackgroundCompanionManager.removeAssociation(
+                applicationContext,
+                pending.deviceId,
+            )
+            failAssociation("Android did not save the bike association")
+            return
+        }
+        pendingAssociation = null
+        replySuccess(pending)
     }
 
     private fun failAssociation(message: String) {
         val pending = pendingAssociation ?: return
         pendingAssociation = null
-        pending.result.error("background_sync", message, null)
+        replyError(pending, message)
     }
 
     companion object {
+        private const val logTag = "BackgroundSync"
         private const val companionAssociationRequestCode = 8107
+        private const val associationPersistenceAttempts = 20
+        private const val associationPersistenceRetryMs = 50L
+        private const val cancelledAssociationCleanupMs = 1_000L
     }
 }

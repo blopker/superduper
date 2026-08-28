@@ -115,6 +115,91 @@ void main() {
     expect(platform.configurations, isEmpty);
   });
 
+  test('does not fail startup when native reconciliation throws', () async {
+    await bikes.addBike(
+      deviceId: 'bike',
+      moduleSerial: '00112233aabbccdd',
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    platform.configureError = StateError('companion service unavailable');
+
+    await coordinator.start();
+
+    expect(
+      (await bikes.getBikes()).single.backgroundPreference.requested,
+      isTrue,
+    );
+  });
+
+  test('turns off consent when the native association is missing', () async {
+    await bikes.addBike(
+      deviceId: 'bike',
+      moduleSerial: '00112233aabbccdd',
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    platform.configureResult = BackgroundSyncRegistration.needsAssociation;
+
+    await coordinator.start();
+
+    expect(
+      (await bikes.getBikes()).single.backgroundPreference.requested,
+      isFalse,
+    );
+    expect(platform.cancelCount, 1);
+  });
+
+  test('rechecks the native association after the app resumes', () async {
+    await bikes.addBike(
+      deviceId: 'bike',
+      moduleSerial: '00112233aabbccdd',
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    await coordinator.start();
+    platform.configureResult = BackgroundSyncRegistration.needsAssociation;
+
+    await coordinator.reconcileNativeRegistration();
+
+    expect(
+      (await bikes.getBikes()).single.backgroundPreference.requested,
+      isFalse,
+    );
+  });
+
+  test('turns off Background Sync when its bike stops being active', () async {
+    await bikes.addBike(
+      deviceId: 'first',
+      moduleSerial: '00112233aabbccdd',
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    await bikes.addBike(
+      deviceId: 'second',
+      moduleSerial: 'ffeeddccbbaa2211',
+    );
+    await coordinator.start();
+
+    await settings.makeBikeActive('second');
+    await _waitUntil(
+      () async => !(await bikes.getBikes())
+          .singleWhere((saved) => saved.bike.deviceId == 'first')
+          .backgroundPreference
+          .requested,
+    );
+
+    expect(platform.cancelCount, 1);
+  });
+
   test('does not opt in when native registration fails', () async {
     await bikes.addBike(
       deviceId: 'bike',
@@ -179,6 +264,25 @@ void main() {
       expect(platform.configurations.single.requestAssociation, isTrue);
     },
   );
+
+  test('does not steal another Bluetooth operation pause', () async {
+    await bikes.addBike(
+      deviceId: 'bike',
+      moduleSerial: '00112233aabbccdd',
+    );
+    await coordinator.start();
+    await activeBike.pauseForDiscovery();
+    final cancelCount = platform.cancelCount;
+
+    await expectLater(
+      coordinator.setAutomaticSetup('bike', enabled: true),
+      throwsA(isA<BackgroundSyncConfigurationFailure>()),
+    );
+
+    expect(activeBike.isDiscoveryPaused, isTrue);
+    expect(platform.configurations, isEmpty);
+    expect(platform.cancelCount, cancelCount);
+  });
 
   test('stale scan consent is cancelled instead of restored', () async {
     await bikes.addBike(
@@ -257,34 +361,92 @@ void main() {
     );
   });
 
-  test('turns a stalled native registration into a visible failure', () async {
+  test('reports a missing native companion association as state', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     const channel = MethodChannel(backgroundSyncChannelName);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) => Completer<void>().future);
+        .setMockMethodCallHandler(channel, (call) async => false);
     addTearDown(() {
       debugDefaultTargetPlatformOverride = null;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null);
     });
 
-    await expectLater(
-      SystemBackgroundSyncPlatformGateway(
-        configurationTimeout: Duration.zero,
-      ).configure(
-        deviceId: 'AA:BB:CC:DD:EE:FF',
-        moduleSerial: '00112233aabbccdd',
-        requestAssociation: true,
-      ),
-      throwsA(
-        isA<BackgroundSyncConfigurationFailure>().having(
-          (error) => error.message,
-          'message',
-          contains('did not finish associating'),
-        ),
-      ),
+    final registration = await SystemBackgroundSyncPlatformGateway().configure(
+      deviceId: 'AA:BB:CC:DD:EE:FF',
+      moduleSerial: '00112233aabbccdd',
+      requestAssociation: false,
     );
+
+    expect(registration, BackgroundSyncRegistration.needsAssociation);
   });
+
+  test(
+    'turns a stalled native reconciliation into a visible failure',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      const channel = MethodChannel(backgroundSyncChannelName);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            channel,
+            (call) => Completer<void>().future,
+          );
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+
+      await expectLater(
+        SystemBackgroundSyncPlatformGateway(
+          configurationTimeout: Duration.zero,
+        ).configure(
+          deviceId: 'AA:BB:CC:DD:EE:FF',
+          moduleSerial: '00112233aabbccdd',
+          requestAssociation: false,
+        ),
+        throwsA(
+          isA<BackgroundSyncConfigurationFailure>().having(
+            (error) => error.message,
+            'message',
+            contains('did not finish associating'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'does not time out the interactive Android association chooser',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      const channel = MethodChannel(backgroundSyncChannelName);
+      final associated = Completer<bool>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) => associated.future);
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+      final configuration =
+          SystemBackgroundSyncPlatformGateway(
+            configurationTimeout: Duration.zero,
+          ).configure(
+            deviceId: 'AA:BB:CC:DD:EE:FF',
+            moduleSerial: '00112233aabbccdd',
+            requestAssociation: true,
+          );
+      await Future<void>.delayed(Duration.zero);
+
+      associated.complete(true);
+
+      expect(
+        await configuration,
+        BackgroundSyncRegistration.configured,
+      );
+    },
+  );
 }
 
 final class _Configuration {
@@ -316,6 +478,8 @@ final class _FakeBackgroundSyncPlatform
   int cancelCount = 0;
   BackgroundWakeHandler? handler;
   Error? configureError;
+  BackgroundSyncRegistration configureResult =
+      BackgroundSyncRegistration.configured;
   void Function()? onConfigure;
 
   @override
@@ -327,7 +491,7 @@ final class _FakeBackgroundSyncPlatform
   }
 
   @override
-  Future<void> configure({
+  Future<BackgroundSyncRegistration> configure({
     required String deviceId,
     required String moduleSerial,
     required bool requestAssociation,
@@ -343,10 +507,21 @@ final class _FakeBackgroundSyncPlatform
         requestAssociation: requestAssociation,
       ),
     );
+    return configureResult;
   }
 
   @override
   void setWakeHandler(BackgroundWakeHandler? handler) {
     this.handler = handler;
   }
+}
+
+Future<void> _waitUntil(Future<bool> Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (await condition()) {
+      return;
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Condition was not reached before the test timeout.');
 }

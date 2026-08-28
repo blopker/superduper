@@ -150,6 +150,8 @@ stable bike Bluetooth address
 
 The bike-settings page exposes the consented “Background Sync” switch on Android. Enabling it pauses the foreground bike connection and opens Android's system association flow for the active bike's stable Bluetooth address. If an imported bike does not have a saved module serial, enablement first briefly scans for that active bike and stores the serial. The preference is saved only after association and presence observation succeed. Disabling the feature, changing the active bike, or forgetting the bike stops observation and removes the association.
 
+The system association chooser owns its lifetime; the app does not impose a timeout while the user is deciding. If Android's association is later removed outside the app, reconciliation turns off the stored Background Sync request instead of failing app startup or leaving an enabled switch with no native registration.
+
 Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
 
 Presence callbacks enqueue unique work, so concurrent duplicate callbacks cannot start duplicate synchronization transactions. The implementation does not maintain its own sticky present/lost debounce; Android owns the association presence epoch.

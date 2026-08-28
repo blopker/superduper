@@ -11,10 +11,7 @@ import java.util.concurrent.TimeUnit
 
 internal object BackgroundSyncScheduler {
     fun enqueue(context: Context, deviceId: String, source: String) {
-        val preferences = context.getSharedPreferences(
-            BackgroundCompanionManager.preferencesName,
-            Context.MODE_PRIVATE,
-        )
+        val preferences = BackgroundCompanionManager.preferences(context)
         val storedDeviceId = preferences.getString(
             BackgroundCompanionManager.deviceIdKey,
             null,
@@ -26,21 +23,24 @@ internal object BackgroundSyncScheduler {
         if (!storedDeviceId.equals(deviceId, ignoreCase = true)) return
 
         preferences.edit()
-            .putLong("last_presence_at_ms", System.currentTimeMillis())
-            .putString("last_presence_source", source)
+            .putLong(
+                BackgroundCompanionManager.lastPresenceAtKey,
+                System.currentTimeMillis(),
+            )
+            .putString(BackgroundCompanionManager.lastPresenceSourceKey, source)
             .apply()
         val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
             .setInputData(
                 workDataOf(
-                    BackgroundSyncWorker.deviceIdKey to storedDeviceId,
-                    BackgroundSyncWorker.moduleSerialKey to serial,
+                    BackgroundCompanionManager.deviceIdKey to storedDeviceId,
+                    BackgroundCompanionManager.serialKey to serial,
                 ),
             )
             .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
-            "background-sync-$serial",
+            BackgroundCompanionManager.workName(serial),
             ExistingWorkPolicy.KEEP,
             request,
         )
