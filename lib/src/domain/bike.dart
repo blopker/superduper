@@ -188,68 +188,61 @@ final class CachedBikeOdometer {
   final DateTime readAt;
 }
 
-final class RidePreferences {
-  const RidePreferences({
-    required this.desiredLight,
-    required this.desiredMode,
-    required this.desiredAssist,
-    required this.keepLight,
-    required this.keepMode,
-    required this.keepAssist,
+final class SetOnConnectSettings {
+  const SetOnConnectSettings({
+    required this.lightEnabled,
+    required this.mode,
+    required this.modeEnabled,
+    required this.assist,
+    required this.assistEnabled,
   });
 
-  const RidePreferences.defaults()
-    : desiredLight = false,
-      desiredMode = 0,
-      desiredAssist = 0,
-      keepLight = false,
-      keepMode = false,
-      keepAssist = false;
+  const SetOnConnectSettings.defaults()
+    : lightEnabled = false,
+      mode = 0,
+      modeEnabled = false,
+      assist = 0,
+      assistEnabled = false;
 
-  final bool desiredLight;
-  final int desiredMode;
-  final int desiredAssist;
-  final bool keepLight;
-  final bool keepMode;
-  final bool keepAssist;
+  final bool lightEnabled;
+  final int mode;
+  final bool modeEnabled;
+  final int assist;
+  final bool assistEnabled;
 
-  RidePreferences copyWith({
-    bool? desiredLight,
-    int? desiredMode,
-    int? desiredAssist,
-    bool? keepLight,
-    bool? keepMode,
-    bool? keepAssist,
+  SetOnConnectSettings copyWith({
+    bool? lightEnabled,
+    int? mode,
+    bool? modeEnabled,
+    int? assist,
+    bool? assistEnabled,
   }) {
-    return RidePreferences(
-      desiredLight: desiredLight ?? this.desiredLight,
-      desiredMode: desiredMode ?? this.desiredMode,
-      desiredAssist: desiredAssist ?? this.desiredAssist,
-      keepLight: keepLight ?? this.keepLight,
-      keepMode: keepMode ?? this.keepMode,
-      keepAssist: keepAssist ?? this.keepAssist,
+    return SetOnConnectSettings(
+      lightEnabled: lightEnabled ?? this.lightEnabled,
+      mode: mode ?? this.mode,
+      modeEnabled: modeEnabled ?? this.modeEnabled,
+      assist: assist ?? this.assist,
+      assistEnabled: assistEnabled ?? this.assistEnabled,
     );
   }
 
   @override
   bool operator ==(Object other) {
-    return other is RidePreferences &&
-        desiredLight == other.desiredLight &&
-        desiredMode == other.desiredMode &&
-        desiredAssist == other.desiredAssist &&
-        keepLight == other.keepLight &&
-        keepMode == other.keepMode &&
-        keepAssist == other.keepAssist;
+    return other is SetOnConnectSettings &&
+        lightEnabled == other.lightEnabled &&
+        mode == other.mode &&
+        modeEnabled == other.modeEnabled &&
+        assist == other.assist &&
+        assistEnabled == other.assistEnabled;
   }
 
   @override
   int get hashCode => Object.hash(
-    desiredLight,
-    desiredMode,
-    desiredAssist,
-    keepLight,
-    keepMode,
-    keepAssist,
+    lightEnabled,
+    mode,
+    modeEnabled,
+    assist,
+    assistEnabled,
   );
 }
 
@@ -270,14 +263,14 @@ final class BackgroundPreference {
 final class SavedBike {
   const SavedBike({
     required this.bike,
-    required this.preferences,
+    required this.setOnConnect,
     this.backgroundPreference = const BackgroundPreference.defaults(),
     this.versions,
     this.odometer,
   });
 
   final Bike bike;
-  final RidePreferences preferences;
+  final SetOnConnectSettings setOnConnect;
   final BackgroundPreference backgroundPreference;
   final CachedBikeVersions? versions;
   final CachedBikeOdometer? odometer;

@@ -15,6 +15,7 @@ import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
+import 'package:superduper/src/widgets/bike_value_selector.dart';
 import 'package:superduper/src/widgets/report_actions.dart';
 
 enum BikeSettingsOutcome { forgotten }
@@ -45,6 +46,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   var _forgetting = false;
   var _closing = false;
   var _changingBackground = false;
+  var _changingSetOnConnect = false;
   var _allowPop = false;
   var _regionFieldRevision = 0;
   var _protocolFieldRevision = 0;
@@ -111,6 +113,8 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           isActive: isActive,
         ),
         const SizedBox(height: 30),
+        ..._buildSetOnConnectSettings(saved, deviceId),
+        const SizedBox(height: 34),
         const SectionHeader(eyebrow: 'Identity', title: 'Bike details'),
         const SizedBox(height: 16),
         SurfacePanel(
@@ -385,6 +389,137 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     );
   }
 
+  List<Widget> _buildSetOnConnectSettings(
+    SavedBike saved,
+    String deviceId,
+  ) {
+    return [
+      const SectionHeader(
+        eyebrow: 'Automation',
+        title: 'Set on connect',
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        'Applied once whenever Superduper connects. Live controls do not change these values.',
+      ),
+      const SizedBox(height: 16),
+      SurfacePanel(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            SwitchListTile(
+              key: const Key('set-on-connect-light'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.lightbulb_outline_rounded),
+              title: const Text('Turn light on'),
+              subtitle: const Text('The bike starts with its light off.'),
+              value: saved.setOnConnect.lightEnabled,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setLightOnConnect(
+                          deviceId,
+                          enabled: enabled,
+                        ),
+                      ),
+                    ),
+            ),
+            const Divider(height: 1),
+            SwitchListTile(
+              key: const Key('set-on-connect-mode'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.speed_rounded),
+              title: const Text('Set mode'),
+              subtitle: Text('Mode ${saved.setOnConnect.mode + 1}'),
+              value: saved.setOnConnect.modeEnabled,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setModeOnConnect(
+                          deviceId,
+                          enabled: enabled,
+                          value: saved.setOnConnect.mode,
+                        ),
+                      ),
+                    ),
+            ),
+            if (saved.setOnConnect.modeEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: BikeValueSelector(
+                  values: const [0, 1, 2, 3],
+                  selected: saved.setOnConnect.mode,
+                  enabled: !_changingSetOnConnect,
+                  semanticLabel: 'Set on connect mode',
+                  label: (mode) => '${mode + 1}',
+                  onChanged: (mode) => unawaited(
+                    _changeSetOnConnect(
+                      () => _services.bikeRepository.setModeOnConnect(
+                        deviceId,
+                        enabled: true,
+                        value: mode,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const Divider(height: 1),
+            SwitchListTile(
+              key: const Key('set-on-connect-assist'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.bolt_rounded),
+              title: const Text('Set assist'),
+              subtitle: Text('Level ${saved.setOnConnect.assist}'),
+              value: saved.setOnConnect.assistEnabled,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setAssistOnConnect(
+                          deviceId,
+                          enabled: enabled,
+                          value: saved.setOnConnect.assist,
+                        ),
+                      ),
+                    ),
+            ),
+            if (saved.setOnConnect.assistEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: BikeValueSelector(
+                  values: const [0, 1, 2, 3, 4],
+                  selected: saved.setOnConnect.assist,
+                  enabled: !_changingSetOnConnect,
+                  semanticLabel: 'Set on connect assist level',
+                  label: (assist) => '$assist',
+                  onChanged: (assist) => unawaited(
+                    _changeSetOnConnect(
+                      () => _services.bikeRepository.setAssistOnConnect(
+                        deviceId,
+                        enabled: true,
+                        value: assist,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
   void _scheduleNameSave(String value) {
     _nameSaveTimer?.cancel();
     _nameSaveTimer = null;
@@ -545,6 +680,26 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     } finally {
       if (mounted) {
         setState(() => _changingBackground = false);
+      }
+    }
+  }
+
+  Future<void> _changeSetOnConnect(Future<void> Function() change) async {
+    if (_changingSetOnConnect) {
+      return;
+    }
+    setState(() => _changingSetOnConnect = true);
+    try {
+      await change();
+    } on Object catch (error) {
+      if (mounted) {
+        _showMessage(
+          userFacingError(error, context: UserErrorContext.saveBike),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _changingSetOnConnect = false);
       }
     }
   }

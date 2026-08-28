@@ -1,4 +1,4 @@
-# Background locked-setting synchronization
+# Background Set on connect synchronization
 
 Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android Companion Device Manager implementation is ready for physical-device validation.
 
@@ -9,7 +9,7 @@ After initial setup, the user should not need to open Superduper before riding:
 1. The user turns on the active bike.
 2. The operating system wakes Superduper without presenting its UI.
 3. Superduper connects, authenticates, and reads the current configuration.
-4. It applies only the locked values, preserving values the user left unlocked.
+4. It applies only enabled Set on connect choices, preserving other values.
 5. It confirms the result and records the outcome.
 6. The user rides.
 
@@ -82,7 +82,7 @@ bike off
   -> pending connection retained by iOS
   -> bike turns on
   -> connection completes and wakes Superduper
-  -> authenticate, merge, write, and confirm locked settings
+  -> authenticate, apply, and confirm Set on connect
   -> keep the connection idle while the bike remains on
   -> bike turns off and the connection drops
   -> disconnection wakes Superduper
@@ -101,7 +101,7 @@ Apple says a Core Bluetooth wake normally has around ten seconds to finish its w
 2. Discover required GATT state if it was not restored.
 3. Authenticate.
 4. Read the current configuration.
-5. Merge locked values while preserving unlocked values.
+5. Merge enabled Set on connect choices while preserving other values.
 6. Write only when needed.
 7. Read back and confirm.
 8. Persist the outcome.
@@ -179,7 +179,7 @@ Use a debug build and a physical bike whose module serial appears under Bike inf
    ```
 
    `last_presence_source` should be `companion`, `last_presence_at_ms` and `last_worker_started_at_ms` should be recent, and `last_outcome` should be `confirmed`. If restoration failed, `registration_error_detail` records the native reason.
-6. Open the app and confirm the locked value was applied while every unlocked value remained unchanged.
+6. Open the app and confirm Set on connect was applied while every disabled value remained unchanged.
 
 For the cold-process case, `adb shell am kill io.kbl.superduper` may be used only after the app is backgrounded. Do not use `am force-stop`: Force Stop intentionally cancels this path until the user opens the app again.
 
@@ -263,7 +263,7 @@ read authentication challenge
 write authentication response
 verify authentication
 read configuration
-merge locked values
+merge enabled Set on connect choices
 write configuration when changed
 read back and confirm
 record result
@@ -276,7 +276,7 @@ The native transaction needs an atomic desired-state snapshot containing only:
 - whether automatic synchronization is enabled;
 - active bike platform identifier and module serial;
 - selected protocol;
-- lock flags and locked values; and
+- Set on connect enabled flags and values; and
 - a monotonically increasing configuration generation.
 
 It should write back the last attempt, last confirmed generation and configuration, timestamps, and a bounded diagnostic record. It should not independently mutate the primary Drift model.
@@ -333,14 +333,14 @@ Test at least a current Pixel and Samsung device:
 - Simulated app hibernation and recovery.
 - Manual Force Stop as an expected failure.
 - One synchronization per presence epoch.
-- Configuration readback proving locked values were applied and unlocked values were preserved.
+- Configuration readback proving Set on connect was applied and disabled values were preserved.
 
 ### Common success criteria
 
 - The application UI never needs to appear.
 - The production authentication and configuration paths are used.
-- Locked values are confirmed by a readback.
-- Unlocked values are never overwritten.
+- Set on connect values are confirmed by a readback.
+- Disabled values are never overwritten.
 - No duplicate writes occur in one power session.
 - Failures use bounded retries and cannot loop indefinitely.
 - The last outcome is available to the foreground app and support report.

@@ -13,6 +13,7 @@ import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/bike_session_presentation.dart';
+import 'package:superduper/src/widgets/bike_value_selector.dart';
 
 final class BikeControlPage extends SignalStatefulWidget {
   const BikeControlPage({required this.deviceId, super.key});
@@ -28,7 +29,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
   var _initialized = false;
   var _selectionStarted = false;
   var _temporarySelection = false;
-  var _changingLock = false;
 
   @override
   void didChangeDependencies() {
@@ -95,11 +95,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final configuration = pendingConfiguration ?? observedConfiguration;
     final canControl =
         session?.canChangeConfiguration == true && configuration != null;
-    final canChangeLocks =
-        !_changingLock &&
-        observedConfiguration != null &&
-        pendingConfiguration == null &&
-        (sessionState is SessionReady || sessionState is SessionDegraded);
     final canConnect =
         matchingSessionState is SessionDisconnected ||
         matchingSessionState is SessionFailed ||
@@ -115,8 +110,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           _ => false,
         };
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
-    final palette = BikeColorPalette.from(bike.bike.color);
-
     return BikePageScaffold(
       title: 'Ride controls',
       color: bike.bike.color,
@@ -180,16 +173,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
               : null,
-          keep: bike.preferences.keepLight,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setLightLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.light,
-                  ),
-                )
+          setOnConnectLabel: bike.setOnConnect.lightEnabled
+              ? 'On at connect'
               : null,
+          onSetOnConnectTap: () => _openSettings(bike),
         ),
         const SizedBox(height: 14),
         _SettingSection(
@@ -198,7 +185,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           value: configuration == null
               ? 'Waiting for bike'
               : 'Mode ${configuration.mode + 1}',
-          control: _ValueSelector(
+          control: BikeValueSelector(
             values: const [0, 1, 2, 3],
             selected: configuration?.mode,
             enabled: canControl,
@@ -206,16 +193,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             label: (mode) => '${mode + 1}',
             onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
           ),
-          keep: bike.preferences.keepMode,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setModeLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.mode,
-                  ),
-                )
+          setOnConnectLabel: bike.setOnConnect.modeEnabled
+              ? 'Mode ${bike.setOnConnect.mode + 1} at connect'
               : null,
+          onSetOnConnectTap: () => _openSettings(bike),
         ),
         const SizedBox(height: 14),
         _SettingSection(
@@ -224,7 +205,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           value: configuration == null
               ? 'Waiting for bike'
               : 'Level ${configuration.assist}',
-          control: _ValueSelector(
+          control: BikeValueSelector(
             values: const [0, 1, 2, 3, 4],
             selected: configuration?.assist,
             enabled: canControl,
@@ -233,31 +214,10 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             onChanged: (assist) =>
                 _runCommand(() => session!.setAssist(assist)),
           ),
-          keep: bike.preferences.keepAssist,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setAssistLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.assist,
-                  ),
-                )
+          setOnConnectLabel: bike.setOnConnect.assistEnabled
+              ? 'Assist ${bike.setOnConnect.assist} at connect'
               : null,
-        ),
-        const SizedBox(height: 18),
-        SurfacePanel(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.lock_rounded, color: palette.accent),
-              const SizedBox(width: 13),
-              const Expanded(
-                child: Text(
-                  'Set on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
-                ),
-              ),
-            ],
-          ),
+          onSetOnConnectTap: () => _openSettings(bike),
         ),
         if (canRetry) ...[
           const SizedBox(height: 18),
@@ -289,30 +249,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
           ),
         );
-      }
-    }
-  }
-
-  Future<void> _runLockChange(Future<void> Function() change) async {
-    if (_changingLock) {
-      return;
-    }
-    setState(() => _changingLock = true);
-    try {
-      await change();
-    } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userFacingError(error, context: UserErrorContext.bikeAction),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _changingLock = false);
       }
     }
   }
@@ -443,8 +379,8 @@ final class _SettingSection extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
-    required this.keep,
-    required this.onKeepChanged,
+    required this.setOnConnectLabel,
+    required this.onSetOnConnectTap,
     this.control,
     this.toggleValue,
     this.onToggleChanged,
@@ -456,8 +392,8 @@ final class _SettingSection extends StatelessWidget {
   final Widget? control;
   final bool? toggleValue;
   final ValueChanged<bool>? onToggleChanged;
-  final bool keep;
-  final Future<void> Function(bool enabled)? onKeepChanged;
+  final String? setOnConnectLabel;
+  final VoidCallback onSetOnConnectTap;
 
   @override
   Widget build(BuildContext context) {
@@ -507,109 +443,35 @@ final class _SettingSection extends StatelessWidget {
                     const SizedBox(height: 18),
                     body,
                   ],
+                  if (setOnConnectLabel case final label?) ...[
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ActionChip(
+                        avatar: const Icon(Icons.lock_rounded, size: 18),
+                        label: Text(label),
+                        tooltip: 'Open Set on connect settings',
+                        onPressed: onSetOnConnectTap,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 3,
-            ),
-            secondary: Icon(
-              keep ? Icons.lock_rounded : Icons.lock_open_rounded,
-              color: keep
-                  ? accent
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            // The three lock switches share one visible label; the section
-            // title is only visual context, so screen readers need it here.
-            title: Text(
-              'Set on connect',
-              semanticsLabel: 'Set $title on connect',
-            ),
-            value: keep,
-            onChanged: onKeepChanged == null
-                ? null
-                : (value) => unawaited(onKeepChanged!(value)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-final class _ValueSelector extends StatelessWidget {
-  const _ValueSelector({
-    required this.values,
-    required this.selected,
-    required this.enabled,
-    required this.semanticLabel,
-    required this.label,
-    required this.onChanged,
-  });
-
-  final List<int> values;
-  final int? selected;
-  final bool enabled;
-  final String semanticLabel;
-  final String Function(int value) label;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<int>(
-        segments: [
-          for (final value in values)
-            ButtonSegment<int>(
-              value: value,
-              label: Semantics(
-                label: '$semanticLabel ${label(value)}',
-                excludeSemantics: true,
-                child: Text(label(value)),
+          if (toggleValue != null && setOnConnectLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ActionChip(
+                  avatar: const Icon(Icons.lock_rounded, size: 18),
+                  label: Text(setOnConnectLabel!),
+                  tooltip: 'Open Set on connect settings',
+                  onPressed: onSetOnConnectTap,
+                ),
               ),
             ),
         ],
-        selected: selected == null ? const {} : {selected!},
-        emptySelectionAllowed: true,
-        onSelectionChanged: enabled
-            ? (selection) {
-                if (selection.isNotEmpty) {
-                  onChanged(selection.single);
-                }
-              }
-            : null,
-        showSelectedIcon: false,
-        expandedInsets: EdgeInsets.zero,
-        style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(42, 50)),
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return scheme.primary;
-            }
-            return scheme.surfaceContainerLow;
-          }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return scheme.onPrimary;
-            }
-            return states.contains(WidgetState.disabled)
-                ? scheme.onSurfaceVariant.withValues(alpha: 0.45)
-                : scheme.onSurface;
-          }),
-          side: const WidgetStatePropertyAll(BorderSide.none),
-          shape: const WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-            ),
-          ),
-          textStyle: const WidgetStatePropertyAll(
-            TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-        ),
       ),
     );
   }

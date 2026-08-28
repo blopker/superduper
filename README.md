@@ -32,8 +32,8 @@ Features:
 1. Power on your bike and choose `Add bike`.
 2. Allow the Bluetooth access needed by your operating system.
 3. Select the bike found nearby, confirm its name and region, and save it.
-4. Set Light, Mode, and Assist from Bike Control. Enable
-   `Set on connect` for each value Superduper should restore.
+4. Use Bike Control for immediate changes. Open Bike Settings to choose which
+   `Set on connect` values Superduper should apply on future connections.
 
 The first saved bike becomes the auto-connect bike. On later launches, Superduper connects to
 that bike directly, applies its Set on connect values, confirms them, and reports
@@ -43,9 +43,10 @@ bikes, use `Auto connect` to choose the one that connects on launch.
 ## Bike Functions
 
 Bike Control sends changes immediately and confirms the resulting state before
-showing it as ready. `Set on connect` stores the currently confirmed value
-and reapplies it whenever that bike connects while Superduper is open. Unkept
-values follow the bike.
+showing it as ready. These live controls do not edit `Set on connect`. Bike
+Settings stores the separate, fixed values to apply whenever that bike connects.
+Light is off when the bike starts, so enabling its option means turn it on;
+Mode and Assist each expose an explicit value selector.
 
 ### Light
 
@@ -98,12 +99,12 @@ Finally, older (or newer) bike firmware may not be supported. Make sure your bik
 
 ### How does Set on connect work?
 
-It saves the value the bike most recently confirmed. While Superduper is open,
-the auto-connect session reads the bike, restores any kept value that differs,
-and reads again before reporting `Ready to ride`. Changes made with the bike's
-physical controls remain in effect until the next connection. Closing or
-backgrounding the app pauses the connection; reopening it resynchronizes the
-auto-connect bike.
+Bike Settings stores a fixed choice for each enabled option. On each connection,
+the auto-connect session reads the bike, applies those choices once, and reads
+again before reporting `Ready to ride`. Live controls and the bike's physical
+controls do not change the saved choices, and their changes remain in effect
+until the next connection. Closing or backgrounding the app pauses the
+connection; reopening it resynchronizes the auto-connect bike.
 
 ### What are the supported devices?
 

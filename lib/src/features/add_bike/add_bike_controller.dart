@@ -228,7 +228,7 @@ final class AddBikeController {
       final session = BikeSession(
         connection: transport.openConnection(candidate.deviceId),
         preferredRegion: null,
-        preferences: const RidePreferences.defaults(),
+        setOnConnect: const SetOnConnectSettings.defaults(),
         protocol: protocol,
         pollInterval: null,
         reconnectDelays: const [],
@@ -305,13 +305,12 @@ final class AddBikeController {
         region: persistedRegion,
         color: color,
         moduleSerial: current.candidate.moduleSerial,
-        preferences: RidePreferences(
-          desiredLight: configuration.light,
-          desiredMode: configuration.mode,
-          desiredAssist: configuration.assist,
-          keepLight: false,
-          keepMode: false,
-          keepAssist: false,
+        setOnConnect: SetOnConnectSettings(
+          lightEnabled: false,
+          mode: configuration.mode,
+          modeEnabled: false,
+          assist: configuration.assist,
+          assistEnabled: false,
         ),
         versions: current.versions,
         odometerMeters: current.odometerMeters,

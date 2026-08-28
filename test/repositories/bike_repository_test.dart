@@ -82,31 +82,36 @@ void main() {
   );
 
   test(
-    'enabling a lock captures the confirmed bike value atomically',
+    'Set on connect values are saved independently of a live bike',
     () async {
       await settingsRepository.initialize();
       await repository.addBike(
         deviceId: 'bike',
       );
 
-      await repository.setModeLock('bike', enabled: true, confirmedValue: 3);
+      await repository.setLightOnConnect('bike', enabled: true);
+      await repository.setModeOnConnect('bike', enabled: true, value: 3);
+      await repository.setAssistOnConnect('bike', enabled: true, value: 4);
 
       final saved = (await repository.getBikes()).single;
-      expect(saved.preferences.keepMode, isTrue);
-      expect(saved.preferences.desiredMode, 3);
+      expect(saved.setOnConnect.lightEnabled, isTrue);
+      expect(saved.setOnConnect.modeEnabled, isTrue);
+      expect(saved.setOnConnect.mode, 3);
+      expect(saved.setOnConnect.assistEnabled, isTrue);
+      expect(saved.setOnConnect.assist, 4);
     },
   );
 
-  test('invalid desired values never reach SQLite', () async {
+  test('invalid Set on connect values never reach SQLite', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');
 
     expect(
-      () => repository.saveDesiredSettings('bike', mode: 4),
+      () => repository.setModeOnConnect('bike', enabled: true, value: 4),
       throwsRangeError,
     );
     expect(
-      () => repository.saveDesiredSettings('bike', assist: -1),
+      () => repository.setAssistOnConnect('bike', enabled: true, value: -1),
       throwsRangeError,
     );
   });

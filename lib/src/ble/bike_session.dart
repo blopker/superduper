@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
-import 'package:superduper/src/ble/locked_configuration_policy.dart';
+import 'package:superduper/src/ble/set_on_connect_policy.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 sealed class BikeSessionFailure implements Exception {
@@ -42,11 +42,6 @@ final class BikeSessionDisposedFailure extends BikeSessionFailure {
 
 final class BikeSessionNotReady extends BikeSessionFailure {
   const BikeSessionNotReady() : super('The bike is not ready for controls.');
-}
-
-final class BikeSettingsPersistenceFailure extends BikeSessionFailure {
-  const BikeSettingsPersistenceFailure()
-    : super('The bike changed, but its saved setting could not be updated.');
 }
 
 final class BikeAuthenticationFailed extends BikeSessionFailure {
@@ -131,9 +126,6 @@ final class SessionDisposed extends BikeSessionState {
   const SessionDisposed();
 }
 
-typedef ConfigurationConfirmed = Future<void> Function(
-  BikeConfiguration configuration,
-);
 typedef VersionsRead = Future<void> Function(BikeVersionInfo versions);
 typedef OdometerRead = Future<void> Function(int meters);
 
@@ -141,10 +133,9 @@ final class BikeSession {
   BikeSession({
     required this.connection,
     required BikeRegion? preferredRegion,
-    required RidePreferences preferences,
+    required SetOnConnectSettings setOnConnect,
     required BikeProtocolVersion protocol,
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
-    ConfigurationConfirmed? onConfigurationConfirmed,
     VersionsRead? onVersionsRead,
     OdometerRead? onOdometerRead,
     this.readDiagnosticsOnConnect = true,
@@ -171,12 +162,8 @@ final class BikeSession {
        // ignore: prefer_initializing_formals
        _preferredRegion = preferredRegion,
        _authenticationKey = List<int>.unmodifiable(authenticationKey),
-       // The public named parameter backs private mutable session state.
-       // ignore: prefer_initializing_formals
-       _preferences = preferences,
-       // The public named parameter keeps the callback implementation private.
-       // ignore: prefer_initializing_formals
-       _onConfigurationConfirmed = onConfigurationConfirmed,
+       _setOnConnect = setOnConnect,
+       _connectionSetOnConnect = setOnConnect,
        // The public named parameter keeps the callback implementation private.
        // ignore: prefer_initializing_formals
        _onVersionsRead = onVersionsRead,
@@ -231,7 +218,6 @@ final class BikeSession {
   }
 
   final BikeConnection connection;
-  final ConfigurationConfirmed? _onConfigurationConfirmed;
   final VersionsRead? _onVersionsRead;
   final OdometerRead? _onOdometerRead;
   final bool readDiagnosticsOnConnect;
@@ -268,7 +254,8 @@ final class BikeSession {
   late final StreamSubscription<BikeConnectionState> _connectionSubscription;
   StreamSubscription<List<int>>? _telemetrySubscription;
   BikeRegion? _preferredRegion;
-  RidePreferences _preferences;
+  SetOnConnectSettings _setOnConnect;
+  SetOnConnectSettings _connectionSetOnConnect;
   Timer? _pollTimer;
   Timer? _reconnectTimer;
   Timer? _synchronizationRetryTimer;
@@ -286,6 +273,10 @@ final class BikeSession {
   int? _platformConnectGeneration;
   Future<BikeConfiguration>? _configurationChangeFuture;
   int? _configurationChangeGeneration;
+  bool? _pendingLight;
+  int? _pendingMode;
+  int? _pendingAssist;
+  bool? _startupLightOverride;
   BikeRegion? _lastV1WireRegion;
   List<int>? _lastLatchedHistorySelector;
 
@@ -355,7 +346,7 @@ final class BikeSession {
         if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
           _scheduleSynchronizationRetry(failure);
         } else if (_isConnectionFailure(failure)) {
-          _pending.value = null;
+          _clearPendingConfiguration();
           _scheduleReconnect(failure);
         } else {
           _pending.value = null;
@@ -367,36 +358,25 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> setLight(bool value) {
-    return _changeConfiguration((current) => current.copyWith(light: value));
+    return _changeConfiguration(light: value);
   }
 
   Future<BikeConfiguration> setMode(int value) {
     if (value < 0 || value > 3) {
       throw RangeError.range(value, 0, 3, 'mode');
     }
-    return _changeConfiguration((current) => current.copyWith(mode: value));
+    return _changeConfiguration(mode: value);
   }
 
   Future<BikeConfiguration> setAssist(int value) {
     if (value < 0 || value > 4) {
       throw RangeError.range(value, 0, 4, 'assist');
     }
-    return _changeConfiguration((current) => current.copyWith(assist: value));
+    return _changeConfiguration(assist: value);
   }
 
-  Future<void> updatePreferences(RidePreferences preferences) {
-    if (_preferences == preferences) {
-      return Future.value();
-    }
-    final requiresSynchronization = !LockedConfigurationPolicy.sameEnforcement(
-      _preferences,
-      preferences,
-    );
-    _preferences = preferences;
-    if (requiresSynchronization && canChangeConfiguration) {
-      return synchronize();
-    }
-    return Future.value();
+  void updateSetOnConnect(SetOnConnectSettings settings) {
+    _setOnConnect = settings;
   }
 
   void updatePreferredRegion(BikeRegion? region) {
@@ -515,6 +495,7 @@ final class BikeSession {
         return;
       }
       _expectedDisconnect = false;
+      _connectionSetOnConnect = _setOnConnect;
       _pollTimer?.cancel();
       _synchronizationRetryTimer?.cancel();
       _invalidateConfigurationState();
@@ -549,7 +530,7 @@ final class BikeSession {
           return;
         }
         _state.value = const SessionConnected();
-        await _synchronizeNow(forceLockedWrite: true);
+        await _synchronizeNow(forceSetOnConnectWrite: true);
         _reconnectAttempt = 0;
         if (readDiagnosticsOnConnect &&
             _isCurrent(generation) &&
@@ -771,7 +752,7 @@ final class BikeSession {
       if (_preferredRegion case final region?) {
         updated = updated.copyWith(region: region);
       }
-      _publishObserved(updated);
+      _publishObserved(updated, trustLight: true);
     } on BikeProtocolFailure {
       // Notifications are advisory and may be partial or from an unsupported
       // telemetry family. Keep the last authoritative configuration; a later
@@ -793,11 +774,23 @@ final class BikeSession {
     _scheduleReconnect(BikeSessionTransportFailure(error));
   }
 
-  void _publishObserved(BikeConfiguration configuration) {
-    _observed.value = configuration;
+  BikeConfiguration _publishObserved(
+    BikeConfiguration configuration, {
+    bool trustLight = false,
+  }) {
+    var published = configuration;
+    if (_startupLightOverride case final light?) {
+      if (trustLight || configuration.light == light) {
+        _startupLightOverride = null;
+      } else {
+        published = configuration.copyWith(light: light);
+      }
+    }
+    _observed.value = published;
+    return published;
   }
 
-  Future<void> _synchronizeNow({bool forceLockedWrite = false}) async {
+  Future<void> _synchronizeNow({bool forceSetOnConnectWrite = false}) async {
     final generation = _generation;
     _pollTimer?.cancel();
     _synchronizationRetryTimer?.cancel();
@@ -807,59 +800,64 @@ final class BikeSession {
     }
     _publishObserved(confirmed);
     var mustWrite =
-        forceLockedWrite &&
-        LockedConfigurationPolicy.hasLockedSettings(_preferences);
+        forceSetOnConnectWrite &&
+        SetOnConnectPolicy.hasSettings(_connectionSetOnConnect);
 
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
-      final target = LockedConfigurationPolicy.effective(
+      final target = SetOnConnectPolicy.effective(
         observed: confirmed,
-        preferences: _preferences,
+        settings: _connectionSetOnConnect,
         preferredRegion: _preferredRegion,
       );
       if (!mustWrite &&
-          LockedConfigurationPolicy.lockedValuesMatch(
+          SetOnConnectPolicy.enabledValuesMatch(
             observed: confirmed,
             target: target,
-            preferences: _preferences,
+            settings: _connectionSetOnConnect,
           )) {
-        _markReady(confirmed);
+        _markReady(_observed.peek() ?? confirmed);
         return;
       }
       _state.value = SessionSynchronizing(attempt: attempt);
       await _writeConfiguration(target);
+      if (!_connectionSetOnConnect.lightEnabled) {
+        _startupLightOverride = target.light;
+      }
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
       mustWrite = false;
       confirmed = await _readConfigurationUntil(
         (candidate) =>
-            LockedConfigurationPolicy.lockedValuesMatch(
+            SetOnConnectPolicy.enabledValuesMatch(
               observed: candidate,
               target: target,
-              preferences: _preferences,
+              settings: _connectionSetOnConnect,
             ) &&
             _wireRegionMatches(target),
       );
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
-      _publishObserved(confirmed);
-      if (LockedConfigurationPolicy.lockedValuesMatch(
+      final published = _publishObserved(confirmed);
+      if (SetOnConnectPolicy.enabledValuesMatch(
             observed: confirmed,
             target: target,
-            preferences: _preferences,
+            settings: _connectionSetOnConnect,
           ) &&
           _wireRegionMatches(target)) {
-        _markReady(confirmed);
+        _markReady(published);
         return;
       }
     }
     throw const BikeSettingsNotApplied();
   }
 
-  Future<BikeConfiguration> _changeConfiguration(
-    BikeConfiguration Function(BikeConfiguration current) update,
-  ) {
+  Future<BikeConfiguration> _changeConfiguration({
+    bool? light,
+    int? mode,
+    int? assist,
+  }) {
     _ensureNotDisposed();
     if (!canChangeConfiguration) {
       throw const BikeSessionNotReady();
@@ -868,12 +866,16 @@ final class BikeSession {
     if (current == null) {
       throw const BikeSessionNotReady();
     }
-    final enforced = LockedConfigurationPolicy.effective(
-      observed: current,
-      preferences: _preferences,
-      preferredRegion: _preferredRegion,
-    );
-    final target = update(enforced).copyWith(
+    if (light != null) {
+      _startupLightOverride = null;
+    }
+    _pendingLight = light ?? _pendingLight;
+    _pendingMode = mode ?? _pendingMode;
+    _pendingAssist = assist ?? _pendingAssist;
+    final target = current.copyWith(
+      light: light,
+      mode: mode,
+      assist: assist,
       region: _preferredRegion ?? current.region,
     );
     final generation = _generation;
@@ -892,17 +894,22 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> _drainConfigurationChanges(int generation) async {
-    BikeSettingsPersistenceFailure? persistenceFailure;
     try {
       while (true) {
         if (!_isCurrent(generation) || !_hasObservedConnection) {
           throw const BikeSessionDisposedFailure();
         }
-        final target = _pending.peek();
         final current = _observed.peek();
-        if (target == null || current == null) {
+        if (_pending.peek() == null || current == null) {
           throw const BikeSessionNotReady();
         }
+        final target = current.copyWith(
+          light: _pendingLight,
+          mode: _pendingMode,
+          assist: _pendingAssist,
+          region: _preferredRegion ?? current.region,
+        );
+        _pending.value = target;
         // An explicit control must reach the bike even when telemetry claims
         // the cached state already matches; the controller can lag that cache.
         _pollTimer?.cancel();
@@ -938,7 +945,7 @@ final class BikeSession {
               _hasObservedConnection) {
             continue;
           }
-          _pending.value = null;
+          _clearPendingConfiguration();
           final observed = _observed.peek();
           if (failure is BikeSettingsNotApplied &&
               _hasObservedConnection &&
@@ -952,24 +959,11 @@ final class BikeSession {
           throw failure;
         }
 
-        _preferences = _preferences.copyWith(
-          desiredLight: confirmed.light,
-          desiredMode: confirmed.mode,
-          desiredAssist: confirmed.assist,
-        );
-        try {
-          await _onConfigurationConfirmed?.call(confirmed);
-        } on Object {
-          persistenceFailure = const BikeSettingsPersistenceFailure();
-        }
         _clearPendingIf(target);
         if (_pending.peek() != null) {
           continue;
         }
         _markReady(confirmed);
-        if (persistenceFailure != null) {
-          throw persistenceFailure;
-        }
         return confirmed;
       }
     } finally {
@@ -1137,8 +1131,8 @@ final class BikeSession {
         if (!_isCurrent(generation) || !_hasObservedConnection) {
           return;
         }
-        _publishObserved(confirmed);
-        _state.value = SessionReady(configuration: confirmed);
+        final published = _publishObserved(confirmed);
+        _state.value = SessionReady(configuration: published);
       } on Object catch (error) {
         if (!_isCurrent(generation)) {
           return;
@@ -1170,8 +1164,15 @@ final class BikeSession {
 
   void _clearPendingIf(BikeConfiguration target) {
     if (_pending.peek() == target) {
-      _pending.value = null;
+      _clearPendingConfiguration();
     }
+  }
+
+  void _clearPendingConfiguration() {
+    _pending.value = null;
+    _pendingLight = null;
+    _pendingMode = null;
+    _pendingAssist = null;
   }
 
   Future<void> _enqueueDisconnect({
@@ -1360,7 +1361,8 @@ final class BikeSession {
   bool _isCurrent(int generation) => !_disposed && generation == _generation;
 
   void _invalidateConfigurationState() {
-    _pending.value = null;
+    _clearPendingConfiguration();
+    _startupLightOverride = null;
     _observed.value = null;
     _lastV1WireRegion = null;
     _lastLatchedHistorySelector = null;

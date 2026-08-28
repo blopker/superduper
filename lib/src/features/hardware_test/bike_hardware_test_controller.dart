@@ -374,7 +374,7 @@ final class BikeHardwareTestController {
     final session = BikeSession(
       connection: connection,
       preferredRegion: _preferredRegion(candidate.deviceId),
-      preferences: const RidePreferences.defaults(),
+      setOnConnect: const SetOnConnectSettings.defaults(),
       protocol: BikeProtocolVersion.fromAdvertisedName(candidate.name)!,
       onVersionsRead: (_) async {
         versionReads++;
@@ -492,33 +492,32 @@ final class BikeHardwareTestController {
       );
     }
 
-    final lockedTarget = initial.copyWith(
-      light: !initial.light,
+    final setOnConnectTarget = initial.copyWith(
+      light: true,
       assist: (initial.assist + 1) % 5,
     );
     _addTrace(
-      'bike.configuration.lock_target',
-      _formatConfiguration(lockedTarget, protocol: protocol),
+      'bike.configuration.set_on_connect_target',
+      _formatConfiguration(setOnConnectTarget, protocol: protocol),
     );
-    await session.setLight(lockedTarget.light);
+    await session.setLight(setOnConnectTarget.light);
     _checkCurrent(generation);
-    await session.setAssist(lockedTarget.assist);
+    await session.setAssist(setOnConnectTarget.assist);
     _checkCurrent(generation);
-    await session.updatePreferences(
-      RidePreferences(
-        desiredLight: lockedTarget.light,
-        desiredMode: lockedTarget.mode,
-        desiredAssist: lockedTarget.assist,
-        keepLight: true,
-        keepMode: false,
-        keepAssist: true,
+    session.updateSetOnConnect(
+      SetOnConnectSettings(
+        mode: setOnConnectTarget.mode,
+        assist: setOnConnectTarget.assist,
+        lightEnabled: true,
+        modeEnabled: false,
+        assistEnabled: true,
       ),
     );
     await _waitForReady(session, generation, timeout: stepTimeout);
     _addLog(
       BikeHardwareTestLogStatus.passed,
-      'Locked-setting setup',
-      'Light and assist are locked; mode is deliberately left unlocked.',
+      'Set on connect setup',
+      'Light and assist are enabled; mode is deliberately left unchanged.',
     );
 
     final disconnectsBefore = connection.disconnectEvents;
@@ -546,7 +545,7 @@ final class BikeHardwareTestController {
     _publish(
       BikeHardwareTestPhase.waitingForPowerOn,
       'Now turn the bike ON',
-      'Waiting for automatic reconnect, authentication, version refresh, and locked-setting enforcement.',
+      'Waiting for automatic reconnect, authentication, version refresh, and Set on connect.',
     );
     _addTrace('test.prompt', 'Waiting for the bike to power on.');
     await _waitForReady(session, generation, timeout: stepTimeout);
@@ -583,9 +582,9 @@ final class BikeHardwareTestController {
       'No configuration was observed after reconnect.',
     );
     _expect(
-      reconnected!.light == lockedTarget.light &&
-          reconnected.assist == lockedTarget.assist,
-      'The locked light and assist values were not restored.',
+      reconnected!.light == setOnConnectTarget.light &&
+          reconnected.assist == setOnConnectTarget.assist,
+      'The Set on connect light and assist values were not applied.',
     );
     final expectedPacket = BikeProtocol.encodeConfiguration(
       reconnected,
@@ -598,8 +597,8 @@ final class BikeHardwareTestController {
     );
     _addLog(
       BikeHardwareTestLogStatus.passed,
-      'Reconnect and locked settings',
-      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and confirmed locked values while preserving unlocked mode ${reconnected.mode}.',
+      'Reconnect and Set on connect',
+      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and confirmed Set on connect values while preserving mode ${reconnected.mode}.',
     );
 
     _publish(
@@ -886,7 +885,7 @@ final class BikeHardwareTestController {
       try {
         final restorable = await _waitUntilRestorable(session);
         if (restorable) {
-          await session.updatePreferences(const RidePreferences.defaults());
+          session.updateSetOnConnect(const SetOnConnectSettings.defaults());
           var current = session.pending.peek() ?? session.observed.peek();
           if (current?.light != original.light) {
             current = await session.setLight(original.light);

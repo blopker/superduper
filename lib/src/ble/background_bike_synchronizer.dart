@@ -86,7 +86,7 @@ final class BackgroundBikeSynchronizer {
       session = BikeSession(
         connection: transport.openConnection(request.deviceId),
         preferredRegion: saved.bike.region,
-        preferences: saved.preferences,
+        setOnConnect: saved.setOnConnect,
         protocol: saved.bike.protocol,
         pollInterval: null,
         reconnectDelays: const [],

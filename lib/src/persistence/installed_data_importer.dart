@@ -226,10 +226,10 @@ final class InstalledDataImporter {
             .insert(
               BikePreferencesCompanion.insert(
                 deviceId: imported.deviceId,
-                desiredLight: imported.light,
+                desiredLight: imported.lightLocked && imported.light,
                 desiredMode: imported.mode,
                 desiredAssist: imported.assist,
-                keepLight: imported.lightLocked,
+                keepLight: imported.lightLocked && imported.light,
                 keepMode: imported.modeLocked,
                 keepAssist: imported.assistLocked,
                 backgroundRequested: imported.backgroundRequested,

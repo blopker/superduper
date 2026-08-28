@@ -93,17 +93,16 @@ void main() {
     expect(transport.connections, isEmpty);
   });
 
-  test('uses the observed address and confirms locked settings', () async {
+  test('uses the observed address and confirms Set on connect', () async {
     await bikes.addBike(
       deviceId: 'saved-address',
       moduleSerial: '00112233aabbccdd',
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 3,
-        desiredAssist: 4,
-        keepLight: false,
-        keepMode: true,
-        keepAssist: false,
+      setOnConnect: const SetOnConnectSettings(
+        mode: 3,
+        assist: 4,
+        lightEnabled: false,
+        modeEnabled: true,
+        assistEnabled: false,
       ),
       backgroundPreference: const BackgroundPreference(
         requested: true,

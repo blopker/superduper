@@ -43,7 +43,7 @@ final class BikeRepository {
     String? displayName,
     BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
-    RidePreferences preferences = const RidePreferences.defaults(),
+    SetOnConnectSettings setOnConnect = const SetOnConnectSettings.defaults(),
     BackgroundPreference backgroundPreference =
         const BackgroundPreference.defaults(),
     BikeVersionInfo? versions,
@@ -54,7 +54,7 @@ final class BikeRepository {
     if (normalizedId.isEmpty) {
       throw ArgumentError.value(deviceId, 'deviceId', 'Must not be empty.');
     }
-    _validatePreferences(preferences);
+    _validateSetOnConnect(setOnConnect);
     _validateBackgroundPreference(backgroundPreference);
     final normalizedVersions = versions == null
         ? null
@@ -122,9 +122,9 @@ final class BikeRepository {
       await database
           .into(database.bikePreferences)
           .insert(
-            _preferencesInsert(
+            _setOnConnectInsert(
               normalizedId,
-              preferences,
+              setOnConnect,
               backgroundPreference,
             ),
           );
@@ -199,68 +199,42 @@ final class BikeRepository {
     );
   }
 
-  Future<void> saveDesiredSettings(
-    String deviceId, {
-    bool? light,
-    int? mode,
-    int? assist,
-  }) {
-    if (mode != null) {
-      _validateMode(mode);
-    }
-    if (assist != null) {
-      _validateAssist(assist);
-    }
+  Future<void> setLightOnConnect(String deviceId, {required bool enabled}) {
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
-        desiredLight: light == null ? const Value.absent() : Value(light),
-        desiredMode: mode == null ? const Value.absent() : Value(mode),
-        desiredAssist: assist == null ? const Value.absent() : Value(assist),
-      ),
-    );
-  }
-
-  Future<void> setLightLock(
-    String deviceId, {
-    required bool enabled,
-    required bool confirmedValue,
-  }) {
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
+        desiredLight: Value(enabled),
         keepLight: Value(enabled),
-        desiredLight: enabled ? Value(confirmedValue) : const Value.absent(),
       ),
     );
   }
 
-  Future<void> setModeLock(
+  Future<void> setModeOnConnect(
     String deviceId, {
     required bool enabled,
-    required int confirmedValue,
+    required int value,
   }) {
-    _validateMode(confirmedValue);
+    _validateMode(value);
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
+        desiredMode: Value(value),
         keepMode: Value(enabled),
-        desiredMode: enabled ? Value(confirmedValue) : const Value.absent(),
       ),
     );
   }
 
-  Future<void> setAssistLock(
+  Future<void> setAssistOnConnect(
     String deviceId, {
     required bool enabled,
-    required int confirmedValue,
+    required int value,
   }) {
-    _validateAssist(confirmedValue);
+    _validateAssist(value);
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
+        desiredAssist: Value(value),
         keepAssist: Value(enabled),
-        desiredAssist: enabled ? Value(confirmedValue) : const Value.absent(),
       ),
     );
   }
@@ -512,13 +486,12 @@ final class BikeRepository {
             : DateTime.fromMillisecondsSinceEpoch(bike.lastConnectedAtMs!),
         moduleSerial: bike.moduleSerial,
       ),
-      preferences: RidePreferences(
-        desiredLight: preferences.desiredLight,
-        desiredMode: preferences.desiredMode,
-        desiredAssist: preferences.desiredAssist,
-        keepLight: preferences.keepLight,
-        keepMode: preferences.keepMode,
-        keepAssist: preferences.keepAssist,
+      setOnConnect: SetOnConnectSettings(
+        lightEnabled: preferences.keepLight && preferences.desiredLight,
+        mode: preferences.desiredMode,
+        modeEnabled: preferences.keepMode,
+        assist: preferences.desiredAssist,
+        assistEnabled: preferences.keepAssist,
       ),
       backgroundPreference: BackgroundPreference(
         requested: preferences.backgroundRequested,
@@ -554,19 +527,19 @@ final class BikeRepository {
     );
   }
 
-  BikePreferencesCompanion _preferencesInsert(
+  BikePreferencesCompanion _setOnConnectInsert(
     String deviceId,
-    RidePreferences preferences,
+    SetOnConnectSettings setOnConnect,
     BackgroundPreference backgroundPreference,
   ) {
     return BikePreferencesCompanion.insert(
       deviceId: deviceId,
-      desiredLight: preferences.desiredLight,
-      desiredMode: preferences.desiredMode,
-      desiredAssist: preferences.desiredAssist,
-      keepLight: preferences.keepLight,
-      keepMode: preferences.keepMode,
-      keepAssist: preferences.keepAssist,
+      desiredLight: setOnConnect.lightEnabled,
+      desiredMode: setOnConnect.mode,
+      desiredAssist: setOnConnect.assist,
+      keepLight: setOnConnect.lightEnabled,
+      keepMode: setOnConnect.modeEnabled,
+      keepAssist: setOnConnect.assistEnabled,
       backgroundRequested: backgroundPreference.requested,
       backgroundConsentVersion: backgroundPreference.consentVersion,
     );
@@ -608,9 +581,9 @@ final class BikeRepository {
     return normalized;
   }
 
-  void _validatePreferences(RidePreferences preferences) {
-    _validateMode(preferences.desiredMode);
-    _validateAssist(preferences.desiredAssist);
+  void _validateSetOnConnect(SetOnConnectSettings settings) {
+    _validateMode(settings.mode);
+    _validateAssist(settings.assist);
   }
 
   void _validateBackgroundPreference(BackgroundPreference preference) {

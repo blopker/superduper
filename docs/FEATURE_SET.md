@@ -37,10 +37,10 @@ persisted active bike for riding.
   auto-connect bike.
 - Opening the app connects directly to that bike without requiring navigation
   into its control screen.
-- After connecting, the app reads the current configuration, merges in the
-  user's locked values, writes one complete configuration if needed, and
-  confirms the result.
-- The app reports ride readiness only after locked settings are confirmed.
+- After connecting, the app reads the current configuration, applies the
+  user's enabled Set on connect values, writes one complete configuration if
+  needed, and confirms the result.
+- The app reports ride readiness only after Set on connect is confirmed.
 - Until background operation is proven, this workflow runs while the app is
   foreground-active and repeats the next time the app opens.
 
@@ -105,22 +105,21 @@ quicker.
 ### 4. Control a bike
 
 The control screen shows the bike name, connection status, settings action, and
-four controls. Background Lock is Android-only.
+three live controls.
 
-| Control | Values | Tap behavior | Independent lock |
-| --- | --- | --- | --- |
-| Light | Off / On | Toggles the bike light | Yes |
-| Mode | 1 through 4 | Advances to the next mode and wraps 4 to 1 | Yes |
-| Assist | 0 through 4 | Advances to the next level and wraps 4 to 0 | Yes |
-| Background Lock | Off / On | Enables Android foreground operation | No; it extends the three setting locks |
+| Control | Values | Tap behavior |
+| --- | --- | --- |
+| Light | Off / On | Toggles the bike light |
+| Mode | 1 through 4 | Selects a mode directly |
+| Assist | 0 through 4 | Selects a level directly |
 
 A control change sends the complete light, assist, and mode configuration to
 the bike. If the bike is disconnected, control taps do not change the saved
 state.
 
 The app reads the bike periodically while its control state is active and reads
-again after connection. Values observed on the bike update the local display
-unless the corresponding setting is locked.
+again after connection. Values observed on the bike update the local display;
+polling and telemetry never reapply Set on connect values.
 
 #### Light
 
@@ -159,35 +158,32 @@ controls future encoding.
 Assist controls pedal-assist strength from 0 (none) through 4 (full). It does
 not change throttle power.
 
-### 5. Lock desired settings
+### 5. Configure Set on connect
 
-Light, Mode, and Assist each have a separate lock button. Locking a setting saves
-the displayed value as the desired value for that bike. While the app's sync
-loop is active:
+Set on connect is configured in Bike Settings, separately from the live control
+screen. Light, Mode, and Assist each have an enable switch. Mode and Assist show
+their direct value selector when enabled. Because the bike starts with its light
+off, enabling the Light option means turn the light on.
 
-1. The app reads the bike's current configuration.
-2. Unlocked values follow the bike.
-3. A locked value that differs from the bike is replaced with the saved desired
-   value.
-4. The resulting complete configuration is written back to the bike.
+On each connection, the app reads the bike, applies enabled choices in one
+complete configuration write, and confirms the result. It does not enforce them
+again during that connection. The saved choices persist across app launches and
+are not changed by live or physical bike controls. Enabled choices appear as
+small lock-and-value indicators on Bike Control; tapping one opens Bike Settings.
 
-This lets the app restore settings that the bike resets at startup. Lock choices
-and desired values persist across app launches.
+### 6. Android Background Sync
 
-### 6. Android Background Lock
-
-Background Lock is intended to keep the normal setting-lock behavior working
-when the phone is locked or the app is in the background. Enabling it:
+Background Sync applies the normal Set on connect behavior when Android wakes
+the app for a companion bike presence event. Enabling it:
 
 - Requests notification permission.
 - Requests exemption from Android battery optimization.
 - Starts a low-priority connected-device foreground service.
-- Shows a persistent notification titled `SuperDuper Background Lock On` with
-  an action that returns to the app.
-- Warns that the feature may increase phone battery usage.
+- Registers the selected bike as a companion device.
+- Schedules bounded background synchronization when that bike appears.
 
-Disabling Background Lock stops the foreground service. The preference is saved
-per bike, and the control is not shown on iOS.
+Disabling Background Sync removes the companion association. The preference is
+saved per bike, and the control is not shown on iOS.
 
 The current foreground task has no independent polling callback; it relies on
 the app's normal connection and state-sync work remaining active. Screen-off,
@@ -227,11 +223,11 @@ Each saved bike contains:
 | --- | --- |
 | BLE device identifier | Stable identity and connection target |
 | Name | Generated default or custom friendly name |
-| Light value and lock | Desired/current light state and enforcement choice |
-| Mode value and lock | Desired/current mode and enforcement choice |
-| Assist value and lock | Desired/current assist level and enforcement choice |
+| Set on connect light | Whether to turn the light on at connection |
+| Set on connect mode | Enabled choice and selected mode |
+| Set on connect assist | Enabled choice and selected assist level |
 | Region | US/EU mode interpretation |
-| Background Lock | Per-bike Android foreground-service preference |
+| Background Sync | Per-bike Android companion-sync preference |
 | Color | Selected gradient index |
 
 A separate settings file stores the most recently selected bike identifier. The
@@ -272,7 +268,8 @@ represent active features.
 
 ## Privacy and network behavior
 
-- Core discovery, storage, locking, and control work without internet access.
+- Core discovery, storage, Set on connect, and control work without internet
+  access.
 - The app has no login, backend API, advertising, telemetry, or analytics SDK.
 - It does not collect or transmit bike identifiers, custom names, preferences,
   usage, or location.
@@ -322,18 +319,17 @@ A replacement can be considered feature-compatible when it demonstrates:
 - Automatic filtered discovery plus manual rescanning.
 - Saving, listing, reconnecting to, switching among, editing, and deleting
   multiple bikes.
-- Stable generated names and persisted custom name, region, color, values, and
-  lock choices.
+- Stable generated names and persisted custom name, region, color, and Set on
+  connect choices.
 - Correct live Light, Mode, and Assist reads and writes for both US and EU
   encodings.
-- Independent enforcement of all three setting locks after a bike-side reset.
+- One-shot application of every enabled Set on connect choice after connection.
 - Automatic reconnection and a manual retry path after connection loss.
-- Zero-tap connection and locked-setting synchronization for one persisted
+- Zero-tap connection and Set on connect synchronization for one persisted
   active bike when the app opens.
 - A deterministic first-bike default and an explicit way to make another saved
   bike active.
-- Android foreground notification, service lifecycle, and verified Background
-  Lock behavior under each OS lifecycle state.
+- Android companion association and background-work lifecycle behavior.
 - Offline core operation and no app-owned transmission of locally stored data.
 - External FAQ and Getting Started links.
 
@@ -348,8 +344,6 @@ decided explicitly instead of copied accidentally:
 
 - Product copy says Background Lock works after the app is closed, while its
   foreground task has no independent state-sync callback.
-- The README describes long-pressing a control to lock it; the current interface
-  uses a separate tappable lock icon.
 - A selected-bike identifier is persisted but never restored on launch.
 - The privacy copy describes location as Android-only, while the iOS launch path
   also requests a location permission through the permission abstraction.
@@ -369,7 +363,8 @@ This baseline was derived from the following current sources:
 - App launch and permissions: `lib/main.dart`.
 - Discovery and bike selection: `lib/select_page.dart`.
 - Connection, scanning, reads, writes, and reconnection: `lib/repository.dart`.
-- Bike state, controls, locks, and Android foreground operation: `lib/bike.dart`.
+- Bike state, live controls, Set on connect, and Android background operation:
+  the corresponding feature and BLE modules under `lib/src/`.
 - Persistent data: `lib/db.dart` and `lib/models.dart`.
 - Editing and color choices: `lib/edit_bike.dart` and `lib/colors.dart`.
 - GATT identifiers and payload model: `lib/services.dart`.

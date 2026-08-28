@@ -52,7 +52,7 @@ void main() {
   });
 
   test(
-    'runs discovery, settings, reconnect, locked sync, and cleanup in order',
+    'runs discovery, settings, reconnect, Set on connect, and cleanup in order',
     () async {
       final connection = FakeBikeConnection(deviceId: 'bike')
         ..operationDelay = const Duration(milliseconds: 1);
@@ -65,8 +65,6 @@ void main() {
         v1StateFrame(mode: 2, assist: 2),
         v1StateFrame(mode: 2, assist: 1),
         v1StateFrame(light: true, mode: 2, assist: 1),
-        v1StateFrame(light: true, mode: 2, assist: 2),
-        v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
@@ -110,7 +108,12 @@ void main() {
       await run.timeout(const Duration(seconds: 5));
 
       final result = controller.state.peek();
-      expect(result.phase, BikeHardwareTestPhase.passed);
+      expect(
+        result.phase,
+        BikeHardwareTestPhase.passed,
+        reason:
+            '${result.title}: ${result.detail}\n${result.log.map((entry) => '${entry.label}: ${entry.detail}').join('\n')}',
+      );
       expect(
         result.log.singleWhere((entry) => entry.label == 'Live notification'),
         isA<BikeHardwareTestLogEntry>()
@@ -141,9 +144,9 @@ void main() {
           'Mode toggle',
           'Assist toggle',
           'Live notification',
-          'Locked-setting setup',
+          'Set on connect setup',
           'Power-off detection',
-          'Reconnect and locked settings',
+          'Reconnect and Set on connect',
           'Cleanup',
         ]),
       );
@@ -185,7 +188,7 @@ void main() {
       expect(report, contains('bike BLE identifier and module serial'));
       expect(report, contains('SUPER73 bike RSSI -42'));
       expect(report, contains('0102030405060708'));
-      expect(report, contains('[PASS] Reconnect and locked settings'));
+      expect(report, contains('[PASS] Reconnect and Set on connect'));
       expect(report, contains('BLE TRACE'));
       expect(report, contains('<redacted 20-byte authentication value>'));
       final authenticationResponse = BikeProtocol.authenticationResponse(

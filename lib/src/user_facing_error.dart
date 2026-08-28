@@ -35,8 +35,6 @@ String userFacingError(
     BikeSettingsNotApplied() => 'The bike didn’t apply the requested setting. Manual controls are still available.',
     BikeSessionNotReady() =>
       'Wait for the bike to finish connecting, then try again.',
-    BikeSettingsPersistenceFailure() =>
-      'The bike changed, but Superduper couldn’t save the change.',
     BikeAuthenticationFailed() =>
       'Couldn’t verify this bike. Close other bike apps and try again.',
     BikeProtocolNotSupported() => 'This bike’s Bluetooth protocol isn’t supported. Check the protocol under Advanced settings.',

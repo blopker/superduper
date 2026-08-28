@@ -14,12 +14,11 @@ void main() {
   late BikeSession session;
 
   BikeSession createSession({
-    RidePreferences preferences = const RidePreferences.defaults(),
+    SetOnConnectSettings setOnConnect = const SetOnConnectSettings.defaults(),
     BikeRegion? region,
     BikeProtocolVersion protocol = BikeProtocolVersion.v1,
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     int correctiveAttempts = 2,
-    ConfigurationConfirmed? onConfirmed,
     VersionsRead? onVersionsRead,
     OdometerRead? onOdometerRead,
     List<Duration> confirmationRetryDelays = const [],
@@ -31,10 +30,9 @@ void main() {
     return BikeSession(
       connection: connection,
       preferredRegion: region,
-      preferences: preferences,
+      setOnConnect: setOnConnect,
       protocol: protocol,
       authenticationKey: authenticationKey,
-      onConfigurationConfirmed: onConfirmed,
       onVersionsRead: onVersionsRead,
       onOdometerRead: onOdometerRead,
       readDiagnosticsOnConnect: readDiagnosticsOnConnect,
@@ -54,54 +52,59 @@ void main() {
     await session.dispose();
   });
 
-  test('connects, discovers, reads, and becomes ready without locks', () async {
-    connection.readFrames.add([0, 0, 2, 0, 1, 3]);
-    session = createSession();
+  test(
+    'connects, discovers, reads, and becomes ready without settings',
+    () async {
+      connection.readFrames.add([0, 0, 2, 0, 1, 3]);
+      session = createSession();
 
-    await session.connect();
+      await session.connect();
 
-    expect(connection.connectCalls, 1);
-    expect(connection.discoveryCalls, 1);
-    expect(session.state.value, isA<SessionReady>());
-    expect(
-      session.observed.value,
-      const BikeConfiguration(
-        light: true,
-        mode: 3,
-        assist: 2,
-        region: BikeRegion.us,
-      ),
-    );
-    expect(connection.authenticated, isTrue);
-    expect(connection.notificationsEnabled, isTrue);
-    final selectorWrites = connection.writes
-        .where((write) => write.characteristicUuid == BikeGatt.registerSelector)
-        .toList();
-    expect(selectorWrites.map((write) => write.value), [
-      BikeGatt.displayVersionSelector,
-      BikeGatt.v1StateSelector,
-      BikeGatt.v1OdometerSelector,
-      BikeGatt.displayVersionSelector,
-      BikeGatt.componentVersionsSelector,
-    ]);
-    expect(session.odometerMeters.value, connection.odometerMeters);
-    final authenticationWrite = connection.writes.singleWhere(
-      (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
-    );
-    expect(
-      authenticationWrite.value,
-      BikeProtocol.authenticationResponse(
-        challenge: connection.authenticationChallenge,
-        key: BikeProtocol.defaultAuthenticationKey,
-      ),
-    );
-    expect(
-      connection.writes.where(
-        (write) => write.characteristicUuid == BikeGatt.stateRegister,
-      ),
-      isEmpty,
-    );
-  });
+      expect(connection.connectCalls, 1);
+      expect(connection.discoveryCalls, 1);
+      expect(session.state.value, isA<SessionReady>());
+      expect(
+        session.observed.value,
+        const BikeConfiguration(
+          light: true,
+          mode: 3,
+          assist: 2,
+          region: BikeRegion.us,
+        ),
+      );
+      expect(connection.authenticated, isTrue);
+      expect(connection.notificationsEnabled, isTrue);
+      final selectorWrites = connection.writes
+          .where(
+            (write) => write.characteristicUuid == BikeGatt.registerSelector,
+          )
+          .toList();
+      expect(selectorWrites.map((write) => write.value), [
+        BikeGatt.displayVersionSelector,
+        BikeGatt.v1StateSelector,
+        BikeGatt.v1OdometerSelector,
+        BikeGatt.displayVersionSelector,
+        BikeGatt.componentVersionsSelector,
+      ]);
+      expect(session.odometerMeters.value, connection.odometerMeters);
+      final authenticationWrite = connection.writes.singleWhere(
+        (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
+      );
+      expect(
+        authenticationWrite.value,
+        BikeProtocol.authenticationResponse(
+          challenge: connection.authenticationChallenge,
+          key: BikeProtocol.defaultAuthenticationKey,
+        ),
+      );
+      expect(
+        connection.writes.where(
+          (write) => write.characteristicUuid == BikeGatt.stateRegister,
+        ),
+        isEmpty,
+      );
+    },
+  );
 
   test('invalidates a same-ID history result before accepting state', () async {
     connection
@@ -210,7 +213,7 @@ void main() {
     expect(session.observed.value, isNull);
   });
 
-  test('pushes matching locked settings on every connection', () async {
+  test('pushes matching Set on connect settings on every connection', () async {
     connection.readFrames.addAll([
       [0, 0, 4, 0, 1, 3],
       [0, 0, 4, 0, 1, 3],
@@ -218,13 +221,12 @@ void main() {
       [0, 0, 4, 0, 1, 3],
     ]);
     session = createSession(
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 0,
-        desiredAssist: 4,
-        keepLight: true,
-        keepMode: false,
-        keepAssist: true,
+      setOnConnect: const SetOnConnectSettings(
+        mode: 0,
+        assist: 4,
+        lightEnabled: true,
+        modeEnabled: false,
+        assistEnabled: true,
       ),
     );
 
@@ -242,6 +244,63 @@ void main() {
     ]);
     expect(session.state.value, isA<SessionReady>());
   });
+
+  test(
+    'a startup write turns a disabled light off when its register is stale',
+    () async {
+      connection.readFrames.addAll([
+        [3, 0, 2, 0, 1, 3],
+        [3, 0, 2, 0, 1, 3],
+        [3, 0, 2, 0, 1, 3],
+      ]);
+      session = createSession(
+        setOnConnect: const SetOnConnectSettings(
+          lightEnabled: false,
+          mode: 3,
+          modeEnabled: true,
+          assist: 0,
+          assistEnabled: false,
+        ),
+        readDiagnosticsOnConnect: false,
+        pollInterval: const Duration(milliseconds: 5),
+      );
+
+      await session.connect();
+      await _waitUntil(
+        () =>
+            connection.reads
+                .where(
+                  (candidate) =>
+                      candidate.characteristicUuid == BikeGatt.stateRegister,
+                )
+                .length >=
+            3,
+      );
+
+      final write = connection.writes.singleWhere(
+        (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
+      );
+      expect(write.value[2], 0);
+      expect(session.observed.value?.light, isFalse);
+      expect(
+        session.state.value,
+        isA<SessionReady>().having(
+          (state) => state.configuration.light,
+          'configuration.light',
+          isFalse,
+        ),
+      );
+
+      connection.emitNotification([3, 0, 2, 0, 1, 3, 0, 0, 0, 0]);
+      await _waitUntil(() => session.observed.value?.light == true);
+      expect(
+        connection.writes.where(
+          (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
+        ),
+        hasLength(1),
+      );
+    },
+  );
 
   test(
     'rejects an invalid authentication response before reading state',
@@ -489,7 +548,7 @@ void main() {
   });
 
   test(
-    'retries locked settings while the controller finishes booting',
+    'retries Set on connect while the controller finishes booting',
     () async {
       connection.readFrames.addAll([
         [0, 0, 2, 0, 1, 3],
@@ -499,13 +558,12 @@ void main() {
         [0, 0, 2, 0, 1, 3],
       ]);
       session = createSession(
-        preferences: const RidePreferences(
-          desiredLight: true,
-          desiredMode: 3,
-          desiredAssist: 2,
-          keepLight: true,
-          keepMode: true,
-          keepAssist: true,
+        setOnConnect: const SetOnConnectSettings(
+          mode: 3,
+          assist: 2,
+          lightEnabled: true,
+          modeEnabled: true,
+          assistEnabled: true,
         ),
         correctiveAttempts: 1,
         reconnectDelays: const [Duration.zero],
@@ -555,19 +613,18 @@ void main() {
     },
   );
 
-  test('applies all locked settings in one write and confirms them', () async {
+  test('applies all Set on connect settings in one write', () async {
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
       [0, 0, 4, 0, 1, 3],
     ]);
     session = createSession(
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 3,
-        desiredAssist: 4,
-        keepLight: true,
-        keepMode: true,
-        keepAssist: true,
+      setOnConnect: const SetOnConnectSettings(
+        mode: 3,
+        assist: 4,
+        lightEnabled: true,
+        modeEnabled: true,
+        assistEnabled: true,
       ),
     );
 
@@ -588,13 +645,12 @@ void main() {
       [0, 0, 0, 0, 0, 0],
     ]);
     session = createSession(
-      preferences: const RidePreferences(
-        desiredLight: false,
-        desiredMode: 3,
-        desiredAssist: 0,
-        keepLight: false,
-        keepMode: true,
-        keepAssist: false,
+      setOnConnect: const SetOnConnectSettings(
+        mode: 3,
+        assist: 0,
+        lightEnabled: false,
+        modeEnabled: true,
+        assistEnabled: false,
       ),
     );
 
@@ -614,18 +670,13 @@ void main() {
     );
   });
 
-  test('serializes user writes and persists only confirmed values', () async {
+  test('serializes live control writes', () async {
     connection.operationDelay = const Duration(milliseconds: 2);
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
       [0, 0, 4, 0, 1, 0],
     ]);
-    final persisted = <BikeConfiguration>[];
-    session = createSession(
-      onConfirmed: (configuration) async {
-        persisted.add(configuration);
-      },
-    );
+    session = createSession();
     await session.connect();
 
     final light = session.setLight(true);
@@ -633,11 +684,39 @@ void main() {
     await Future.wait([light, assist]);
 
     expect(connection.maxConcurrentOperations, 1);
-    expect(persisted, hasLength(1));
-    expect(persisted.single.light, isTrue);
-    expect(persisted.last.assist, 4);
     expect(session.observed.value?.assist, 4);
   });
+
+  test(
+    'live controls preserve physical changes to Set on connect fields',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 3],
+      ]);
+      session = createSession(
+        setOnConnect: const SetOnConnectSettings(
+          lightEnabled: true,
+          mode: 0,
+          modeEnabled: false,
+          assist: 0,
+          assistEnabled: false,
+        ),
+      );
+      await session.connect();
+      connection.emitNotification([3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      await _waitUntil(() => session.observed.value?.light == false);
+
+      await session.setMode(3);
+
+      final write = connection.writes.lastWhere(
+        (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
+      );
+      expect(write.value[2], 0);
+      expect(write.value[4], 3);
+    },
+  );
 
   test('coalesces rapid configuration changes to the latest value', () async {
     connection.readFrames.addAll([
@@ -696,7 +775,7 @@ void main() {
   );
 
   test(
-    'preserves a user command queued during locked synchronization',
+    'preserves a user command queued during Set on connect',
     () async {
       connection.readFrames.addAll([
         [0, 0, 0, 0, 0, 0],
@@ -705,13 +784,12 @@ void main() {
         [0, 0, 0, 0, 1, 3],
       ]);
       session = createSession(
-        preferences: const RidePreferences(
-          desiredLight: false,
-          desiredMode: 3,
-          desiredAssist: 0,
-          keepLight: false,
-          keepMode: true,
-          keepAssist: false,
+        setOnConnect: const SetOnConnectSettings(
+          mode: 3,
+          assist: 0,
+          lightEnabled: false,
+          modeEnabled: true,
+          assistEnabled: false,
         ),
         confirmationRetryDelays: const [Duration(milliseconds: 10)],
       );
@@ -731,7 +809,7 @@ void main() {
   );
 
   test(
-    'a confirmed locked change updates in-memory enforcement immediately',
+    'a confirmed command updates the observed configuration immediately',
     () async {
       connection.readFrames.addAll([
         [0, 0, 0, 0, 0, 0],
@@ -741,13 +819,12 @@ void main() {
         [0, 0, 0, 0, 0, 0],
       ]);
       session = createSession(
-        preferences: const RidePreferences(
-          desiredLight: false,
-          desiredMode: 0,
-          desiredAssist: 0,
-          keepLight: true,
-          keepMode: false,
-          keepAssist: false,
+        setOnConnect: const SetOnConnectSettings(
+          mode: 0,
+          assist: 0,
+          lightEnabled: true,
+          modeEnabled: false,
+          assistEnabled: false,
         ),
       );
       await session.connect();
@@ -810,34 +887,36 @@ void main() {
     expect(session.observed.value?.light, isFalse);
   });
 
-  test('waits for locked settings without writing them twice', () async {
-    connection.readFrames.addAll([
-      [0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 1, 0],
-    ]);
-    session = createSession(
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 0,
-        desiredAssist: 0,
-        keepLight: true,
-        keepMode: false,
-        keepAssist: false,
-      ),
-      confirmationRetryDelays: const [Duration.zero, Duration.zero],
-    );
+  test(
+    'waits for Set on connect confirmation without a second write',
+    () async {
+      connection.readFrames.addAll([
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+      ]);
+      session = createSession(
+        setOnConnect: const SetOnConnectSettings(
+          mode: 0,
+          assist: 0,
+          lightEnabled: true,
+          modeEnabled: false,
+          assistEnabled: false,
+        ),
+        confirmationRetryDelays: const [Duration.zero, Duration.zero],
+      );
 
-    await session.connect();
+      await session.connect();
 
-    expect(session.state.value, isA<SessionReady>());
-    expect(
-      connection.writes.where(
-        (write) => write.characteristicUuid == BikeGatt.stateRegister,
-      ),
-      hasLength(1),
-    );
-  });
+      expect(session.state.value, isA<SessionReady>());
+      expect(
+        connection.writes.where(
+          (write) => write.characteristicUuid == BikeGatt.stateRegister,
+        ),
+        hasLength(1),
+      );
+    },
+  );
 
   test('uses the persisted region for configuration writes', () async {
     connection.readFrames.addAll([
@@ -891,7 +970,7 @@ void main() {
       session = BikeSession(
         connection: connection,
         preferredRegion: null,
-        preferences: const RidePreferences.defaults(),
+        setOnConnect: const SetOnConnectSettings.defaults(),
         protocol: BikeProtocolVersion.v1,
         reconnectDelays: const [],
         confirmationRetryDelays: const [],
@@ -1022,13 +1101,12 @@ void main() {
     ]);
     session = createSession(
       protocol: BikeProtocolVersion.v2,
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 0,
-        desiredAssist: 0,
-        keepLight: true,
-        keepMode: false,
-        keepAssist: false,
+      setOnConnect: const SetOnConnectSettings(
+        mode: 0,
+        assist: 0,
+        lightEnabled: true,
+        modeEnabled: false,
+        assistEnabled: false,
       ),
       confirmationRetryDelays: const [Duration.zero],
     );
@@ -1069,13 +1147,12 @@ void main() {
         [0, 0, 0, 0, 0, 0],
       ]);
       session = createSession(
-        preferences: const RidePreferences(
-          desiredLight: true,
-          desiredMode: 0,
-          desiredAssist: 0,
-          keepLight: true,
-          keepMode: false,
-          keepAssist: false,
+        setOnConnect: const SetOnConnectSettings(
+          mode: 0,
+          assist: 0,
+          lightEnabled: true,
+          modeEnabled: false,
+          assistEnabled: false,
         ),
         pollInterval: const Duration(milliseconds: 5),
       );
@@ -1191,7 +1268,7 @@ void main() {
   );
 
   test(
-    'locked-setting retries stop in a controllable degraded state',
+    'Set on connect retries stop in a controllable degraded state',
     () async {
       connection.readFrames.addAll([
         [0, 0, 0, 0, 0, 0],
@@ -1201,13 +1278,12 @@ void main() {
         [0, 0, 0, 0, 0, 2],
       ]);
       session = createSession(
-        preferences: const RidePreferences(
-          desiredLight: false,
-          desiredMode: 3,
-          desiredAssist: 0,
-          keepLight: false,
-          keepMode: true,
-          keepAssist: false,
+        setOnConnect: const SetOnConnectSettings(
+          mode: 3,
+          assist: 0,
+          lightEnabled: false,
+          modeEnabled: true,
+          assistEnabled: false,
         ),
         correctiveAttempts: 1,
         synchronizationRetryDelays: const [Duration(milliseconds: 1)],
@@ -1317,30 +1393,40 @@ void main() {
     expect(session.state.value, isA<SessionReady>());
   });
 
-  test('a failed synchronization clears its optimistic value', () async {
+  test('Set on connect edits wait until the next connection', () async {
     connection.readFrames.addAll([
       [0, 0, 0, 0, 0, 0],
-      [0xff],
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1, 0],
     ]);
     session = createSession();
     await session.connect();
-
-    await expectLater(
-      session.updatePreferences(
-        const RidePreferences(
-          desiredLight: false,
-          desiredMode: 3,
-          desiredAssist: 0,
-          keepLight: false,
-          keepMode: true,
-          keepAssist: false,
-        ),
-      ),
-      throwsA(isA<BikeSessionFailure>()),
+    final writesBeforeEdit = connection.writes.where(
+      (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
 
-    expect(session.pending.value, isNull);
-    expect(session.state.value, isA<SessionFailed>());
+    session.updateSetOnConnect(
+      const SetOnConnectSettings(
+        lightEnabled: true,
+        mode: 0,
+        modeEnabled: false,
+        assist: 0,
+        assistEnabled: false,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(writesBeforeEdit, isEmpty);
+
+    await session.pauseForBackground();
+    await session.resumeFromBackground();
+
+    expect(session.state.value, isA<SessionReady>());
+    expect(
+      connection.writes.where(
+        (write) => write.characteristicUuid == BikeGatt.stateRegister,
+      ),
+      hasLength(1),
+    );
   });
 }
 
