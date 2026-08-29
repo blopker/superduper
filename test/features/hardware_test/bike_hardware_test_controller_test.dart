@@ -40,7 +40,6 @@ void main() {
       scanDuration: const Duration(milliseconds: 100),
       notificationWait: Duration.zero,
       reconnectDelays: const [Duration.zero],
-      confirmationRetryDelays: const [],
     );
   });
 
@@ -52,7 +51,7 @@ void main() {
   });
 
   test(
-    'runs discovery, settings, reconnect, locked sync, and cleanup in order',
+    'runs discovery, settings, reconnect, Set on connect, and cleanup in order',
     () async {
       final connection = FakeBikeConnection(deviceId: 'bike')
         ..operationDelay = const Duration(milliseconds: 1);
@@ -65,8 +64,6 @@ void main() {
         v1StateFrame(mode: 2, assist: 2),
         v1StateFrame(mode: 2, assist: 1),
         v1StateFrame(light: true, mode: 2, assist: 1),
-        v1StateFrame(light: true, mode: 2, assist: 2),
-        v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
         v1StateFrame(light: true, mode: 2, assist: 2),
@@ -110,7 +107,12 @@ void main() {
       await run.timeout(const Duration(seconds: 5));
 
       final result = controller.state.peek();
-      expect(result.phase, BikeHardwareTestPhase.passed);
+      expect(
+        result.phase,
+        BikeHardwareTestPhase.passed,
+        reason:
+            '${result.title}: ${result.detail}\n${result.log.map((entry) => '${entry.label}: ${entry.detail}').join('\n')}',
+      );
       expect(
         result.log.singleWhere((entry) => entry.label == 'Live notification'),
         isA<BikeHardwareTestLogEntry>()
@@ -141,9 +143,9 @@ void main() {
           'Mode toggle',
           'Assist toggle',
           'Live notification',
-          'Locked-setting setup',
+          'Set on connect setup',
           'Power-off detection',
-          'Reconnect and locked settings',
+          'Reconnect and Set on connect',
           'Cleanup',
         ]),
       );
@@ -185,7 +187,7 @@ void main() {
       expect(report, contains('bike BLE identifier and module serial'));
       expect(report, contains('SUPER73 bike RSSI -42'));
       expect(report, contains('0102030405060708'));
-      expect(report, contains('[PASS] Reconnect and locked settings'));
+      expect(report, contains('[PASS] Reconnect and Set on connect'));
       expect(report, contains('BLE TRACE'));
       expect(report, contains('<redacted 20-byte authentication value>'));
       final authenticationResponse = BikeProtocol.authenticationResponse(
@@ -217,7 +219,8 @@ void main() {
   test('cancel waits for an in-flight toggle before restoring', () async {
     final gate = Completer<void>();
     final connection = FakeBikeConnection(deviceId: 'bike')
-      ..configurationWriteGate = gate;
+      ..configurationWriteGate = gate
+      ..configurationWriteGateAfterStarts = 1;
     connection.readFrames.addAll([
       v1StateFrame(mode: 2, assist: 1),
       v1StateFrame(light: true, mode: 2, assist: 1),
@@ -230,7 +233,7 @@ void main() {
     transport.emitResults(const [
       DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
     ]);
-    await _waitUntil(() => connection.configurationWriteStarts == 1);
+    await _waitUntil(() => connection.configurationWriteStarts == 2);
 
     final cancel = controller.cancel();
     gate.complete();
@@ -238,6 +241,7 @@ void main() {
 
     final writes = connection.writes
         .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .skip(1)
         .toList();
     expect(writes, hasLength(2));
     expect(writes.last.value, [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0]);
@@ -267,7 +271,6 @@ void main() {
       scanDuration: const Duration(milliseconds: 100),
       notificationWait: Duration.zero,
       reconnectDelays: const [Duration.zero],
-      confirmationRetryDelays: const [],
       cleanupTimeout: Duration.zero,
     );
     final connection = FakeBikeConnection(deviceId: 'bike');

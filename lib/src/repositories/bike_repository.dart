@@ -43,7 +43,7 @@ final class BikeRepository {
     String? displayName,
     BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
-    RidePreferences preferences = const RidePreferences.defaults(),
+    BikeControlPatch setOnConnect = const BikeControlPatch(),
     BackgroundPreference backgroundPreference =
         const BackgroundPreference.defaults(),
     BikeVersionInfo? versions,
@@ -54,7 +54,7 @@ final class BikeRepository {
     if (normalizedId.isEmpty) {
       throw ArgumentError.value(deviceId, 'deviceId', 'Must not be empty.');
     }
-    _validatePreferences(preferences);
+    _validateSetOnConnect(setOnConnect);
     _validateBackgroundPreference(backgroundPreference);
     final normalizedVersions = versions == null
         ? null
@@ -73,14 +73,7 @@ final class BikeRepository {
         'Must be a supported bike advertised name.',
       );
     }
-    if (protocol == BikeProtocolVersion.v1 && region == null) {
-      throw ArgumentError.value(
-        region,
-        'region',
-        'A region is required for the V1 protocol.',
-      );
-    }
-    final persistedRegion = protocol == BikeProtocolVersion.v1 ? region : null;
+    final persistedRegion = protocol.normalizeRegion(region);
     final normalizedName = _normalizeName(displayName, normalizedId);
     final normalizedSerial = moduleSerial == null
         ? null
@@ -122,9 +115,9 @@ final class BikeRepository {
       await database
           .into(database.bikePreferences)
           .insert(
-            _preferencesInsert(
+            _setOnConnectInsert(
               normalizedId,
-              preferences,
+              setOnConnect,
               backgroundPreference,
             ),
           );
@@ -179,88 +172,26 @@ final class BikeRepository {
         'Must not be empty.',
       );
     }
-    if (protocol == BikeProtocolVersion.v1 && region == null) {
-      throw ArgumentError.value(
-        region,
-        'region',
-        'A region is required for the V1 protocol.',
-      );
-    }
     return _updateBike(
       deviceId,
       BikesCompanion(
         displayName: Value(normalizedName),
         protocol: Value(protocol),
-        region: Value(
-          protocol == BikeProtocolVersion.v1 ? region?.name : null,
-        ),
+        region: Value(protocol.normalizeRegion(region)?.name),
         colorKey: Value(color.key),
       ),
     );
   }
 
-  Future<void> saveDesiredSettings(
-    String deviceId, {
-    bool? light,
-    int? mode,
-    int? assist,
-  }) {
-    if (mode != null) {
-      _validateMode(mode);
-    }
-    if (assist != null) {
-      _validateAssist(assist);
-    }
+  Future<void> setOnConnect(
+    String deviceId,
+    BikeControlPatch settings,
+  ) {
+    _validateSetOnConnect(settings);
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
-        desiredLight: light == null ? const Value.absent() : Value(light),
-        desiredMode: mode == null ? const Value.absent() : Value(mode),
-        desiredAssist: assist == null ? const Value.absent() : Value(assist),
-      ),
-    );
-  }
-
-  Future<void> setLightLock(
-    String deviceId, {
-    required bool enabled,
-    required bool confirmedValue,
-  }) {
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        keepLight: Value(enabled),
-        desiredLight: enabled ? Value(confirmedValue) : const Value.absent(),
-      ),
-    );
-  }
-
-  Future<void> setModeLock(
-    String deviceId, {
-    required bool enabled,
-    required int confirmedValue,
-  }) {
-    _validateMode(confirmedValue);
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        keepMode: Value(enabled),
-        desiredMode: enabled ? Value(confirmedValue) : const Value.absent(),
-      ),
-    );
-  }
-
-  Future<void> setAssistLock(
-    String deviceId, {
-    required bool enabled,
-    required int confirmedValue,
-  }) {
-    _validateAssist(confirmedValue);
-    return _updatePreferences(
-      deviceId,
-      BikePreferencesCompanion(
-        keepAssist: Value(enabled),
-        desiredAssist: enabled ? Value(confirmedValue) : const Value.absent(),
+        setOnConnect: Value(settings),
       ),
     );
   }
@@ -512,14 +443,7 @@ final class BikeRepository {
             : DateTime.fromMillisecondsSinceEpoch(bike.lastConnectedAtMs!),
         moduleSerial: bike.moduleSerial,
       ),
-      preferences: RidePreferences(
-        desiredLight: preferences.desiredLight,
-        desiredMode: preferences.desiredMode,
-        desiredAssist: preferences.desiredAssist,
-        keepLight: preferences.keepLight,
-        keepMode: preferences.keepMode,
-        keepAssist: preferences.keepAssist,
-      ),
+      setOnConnect: preferences.setOnConnect,
       backgroundPreference: BackgroundPreference(
         requested: preferences.backgroundRequested,
         consentVersion: preferences.backgroundConsentVersion,
@@ -554,19 +478,14 @@ final class BikeRepository {
     );
   }
 
-  BikePreferencesCompanion _preferencesInsert(
+  BikePreferencesCompanion _setOnConnectInsert(
     String deviceId,
-    RidePreferences preferences,
+    BikeControlPatch setOnConnect,
     BackgroundPreference backgroundPreference,
   ) {
     return BikePreferencesCompanion.insert(
       deviceId: deviceId,
-      desiredLight: preferences.desiredLight,
-      desiredMode: preferences.desiredMode,
-      desiredAssist: preferences.desiredAssist,
-      keepLight: preferences.keepLight,
-      keepMode: preferences.keepMode,
-      keepAssist: preferences.keepAssist,
+      setOnConnect: setOnConnect,
       backgroundRequested: backgroundPreference.requested,
       backgroundConsentVersion: backgroundPreference.consentVersion,
     );
@@ -608,9 +527,20 @@ final class BikeRepository {
     return normalized;
   }
 
-  void _validatePreferences(RidePreferences preferences) {
-    _validateMode(preferences.desiredMode);
-    _validateAssist(preferences.desiredAssist);
+  void _validateSetOnConnect(BikeControlPatch settings) {
+    if (settings.light == false) {
+      throw ArgumentError.value(
+        settings.light,
+        'light',
+        'Set on connect can only turn the light on.',
+      );
+    }
+    if (settings.mode case final mode?) {
+      BikeControlValues.validateMode(mode);
+    }
+    if (settings.assist case final assist?) {
+      BikeControlValues.validateAssist(assist);
+    }
   }
 
   void _validateBackgroundPreference(BackgroundPreference preference) {
@@ -662,18 +592,6 @@ final class BikeRepository {
   void _validateUnsigned(int value, int maximum, String name) {
     if (value < 0 || value > maximum) {
       throw RangeError.range(value, 0, maximum, name);
-    }
-  }
-
-  void _validateMode(int mode) {
-    if (mode < 0 || mode > 3) {
-      throw RangeError.range(mode, 0, 3, 'mode');
-    }
-  }
-
-  void _validateAssist(int assist) {
-    if (assist < 0 || assist > 4) {
-      throw RangeError.range(assist, 0, 4, 'assist');
     }
   }
 }

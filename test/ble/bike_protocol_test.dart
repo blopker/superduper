@@ -100,7 +100,7 @@ void main() {
   group('decodeV1State', () {
     test('decodes US boundaries', () {
       expect(
-        BikeProtocol.decodeV1State([3, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        BikeProtocol.v1.decodeState([3, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         const BikeConfiguration(
           light: false,
           mode: 0,
@@ -109,7 +109,7 @@ void main() {
         ),
       );
       expect(
-        BikeProtocol.decodeV1State([3, 0, 4, 0, 1, 3, 0, 0, 0, 0]),
+        BikeProtocol.v1.decodeState([3, 0, 4, 0, 1, 3, 0, 0, 0, 0]),
         const BikeConfiguration(
           light: true,
           mode: 3,
@@ -122,7 +122,7 @@ void main() {
     test('decodes EU wire modes four through seven', () {
       for (var wireMode = 4; wireMode <= 7; wireMode++) {
         expect(
-          BikeProtocol.decodeV1State([3, 0, 2, 0, 1, wireMode, 0, 0, 0, 0]),
+          BikeProtocol.v1.decodeState([3, 0, 2, 0, 1, wireMode, 0, 0, 0, 0]),
           BikeConfiguration(
             light: true,
             mode: wireMode - 4,
@@ -135,30 +135,30 @@ void main() {
 
     test('rejects short and malformed frames', () {
       expect(
-        () => BikeProtocol.decodeV1State([0, 1]),
+        () => BikeProtocol.v1.decodeState([0, 1]),
         throwsA(isA<ShortBikeFrame>()),
       );
       expect(
-        () => BikeProtocol.decodeV1State([3, 0, 0, 0, -1, 0, 0, 0, 0, 0]),
+        () => BikeProtocol.v1.decodeState([3, 0, 0, 0, -1, 0, 0, 0, 0, 0]),
         throwsA(isA<MalformedBikeFrame>()),
       );
     });
 
     test('rejects unsupported field values instead of clamping', () {
       expect(
-        () => BikeProtocol.decodeV1State([3, 0, 5, 0, 0, 0, 0, 0, 0, 0]),
+        () => BikeProtocol.v1.decodeState([3, 0, 5, 0, 0, 0, 0, 0, 0, 0]),
         throwsA(isA<UnsupportedBikeValue>()),
       );
       expect(
-        () => BikeProtocol.decodeV1State([3, 0, 0, 0, 2, 0, 0, 0, 0, 0]),
+        () => BikeProtocol.v1.decodeState([3, 0, 0, 0, 2, 0, 0, 0, 0, 0]),
         throwsA(isA<UnsupportedBikeValue>()),
       );
       expect(
-        () => BikeProtocol.decodeV1State([3, 0, 0, 0, 0, 8, 0, 0, 0, 0]),
+        () => BikeProtocol.v1.decodeState([3, 0, 0, 0, 0, 8, 0, 0, 0, 0]),
         throwsA(isA<UnsupportedBikeValue>()),
       );
       expect(
-        () => BikeProtocol.decodeV1State([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        () => BikeProtocol.v1.decodeState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         throwsA(isA<UnexpectedBikePacket>()),
       );
     });
@@ -167,7 +167,7 @@ void main() {
   group('decodeV2State', () {
     test('combines validated D0 and D9 history records', () {
       expect(
-        BikeProtocol.decodeV2State(
+        BikeProtocol.v2.decodeState(
           d0: const [0, 0xd0, 3, 0, 1, 88, 0, 0, 0, 0],
           d9: const [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
           region: BikeRegion.eu,
@@ -183,7 +183,7 @@ void main() {
 
     test('rejects mismatched records and unsupported control values', () {
       expect(
-        () => BikeProtocol.decodeV2State(
+        () => BikeProtocol.v2.decodeState(
           d0: const [0, 0xd1, 3, 0, 1, 88, 0, 0, 0, 0],
           d9: const [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
           region: BikeRegion.us,
@@ -191,7 +191,7 @@ void main() {
         throwsA(isA<UnexpectedBikePacket>()),
       );
       expect(
-        () => BikeProtocol.decodeV2State(
+        () => BikeProtocol.v2.decodeState(
           d0: const [0, 0xd0, 5, 0, 1, 88, 0, 0, 0, 0],
           d9: const [0, 0xd9, 0, 0, 0, 4, 0, 0, 0, 0],
           region: BikeRegion.us,
@@ -201,19 +201,82 @@ void main() {
     });
   });
 
+  group('decodeTelemetry', () {
+    test('V1 reports every field carried by the state frame', () {
+      expect(
+        BikeProtocol.v1.decodeTelemetry(
+          const [3, 0, 4, 0, 1, 3, 0, 0, 0, 0],
+        ),
+        isA<BikeControlPatch>()
+            .having((patch) => patch.light, 'light', isTrue)
+            .having((patch) => patch.mode, 'mode', 3)
+            .having((patch) => patch.assist, 'assist', 4),
+      );
+    });
+
+    test('V2 D0 reports only light and assist', () {
+      expect(
+        BikeProtocol.v2.decodeTelemetry(
+          const [0, 0xd0, 4, 0, 1, 0, 0, 0, 0, 0],
+        ),
+        isA<BikeControlPatch>()
+            .having((patch) => patch.light, 'light', isTrue)
+            .having((patch) => patch.assist, 'assist', 4),
+      );
+    });
+
+    test('V1 applies its wire region unless the user selected one', () {
+      const current = BikeConfiguration(
+        light: false,
+        mode: 0,
+        assist: 0,
+        region: BikeRegion.us,
+      );
+      const telemetry = [3, 0, 4, 0, 1, 7, 0, 0, 0, 0];
+
+      expect(
+        BikeProtocol.v1
+            .applyTelemetry(
+              telemetry,
+              current,
+              preferredRegion: null,
+            )
+            ?.region,
+        BikeRegion.eu,
+      );
+      expect(
+        BikeProtocol.v1
+            .applyTelemetry(
+              telemetry,
+              current,
+              preferredRegion: BikeRegion.us,
+            )
+            ?.region,
+        BikeRegion.us,
+      );
+    });
+
+    test('V2 D9 reports only mode and cannot confirm light', () {
+      expect(
+        BikeProtocol.v2.decodeTelemetry(
+          const [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+        ),
+        isA<BikeControlPatch>().having((patch) => patch.mode, 'mode', 3),
+      );
+    });
+  });
+
   group('decodeOdometerMeters', () {
     test('decodes the protocol-specific record as a little-endian u32', () {
       expect(
-        BikeProtocol.decodeOdometerMeters(
-          version: BikeProtocolVersion.v1,
-          packet: const [2, 2, 0, 0, 0, 0, 0x78, 0x56, 0x34, 0x12],
+        BikeProtocol.v1.decodeOdometer(
+          const [2, 2, 0, 0, 0, 0, 0x78, 0x56, 0x34, 0x12],
         ),
         0x12345678,
       );
       expect(
-        BikeProtocol.decodeOdometerMeters(
-          version: BikeProtocolVersion.v2,
-          packet: const [0, 0xd0, 0, 0, 0, 0, 0xef, 0xcd, 0xab, 0x90],
+        BikeProtocol.v2.decodeOdometer(
+          const [0, 0xd0, 0, 0, 0, 0, 0xef, 0xcd, 0xab, 0x90],
         ),
         0x90abcdef,
       );
@@ -221,9 +284,8 @@ void main() {
 
     test('rejects a record from the wrong protocol', () {
       expect(
-        () => BikeProtocol.decodeOdometerMeters(
-          version: BikeProtocolVersion.v1,
-          packet: const [0, 0xd0, 0, 0, 0, 0, 1, 0, 0, 0],
+        () => BikeProtocol.v1.decodeOdometer(
+          const [0, 0xd0, 0, 0, 0, 0, 1, 0, 0, 0],
         ),
         throwsA(isA<UnexpectedBikePacket>()),
       );
@@ -294,38 +356,35 @@ void main() {
   group('encodeConfiguration', () {
     test('encodes complete US and EU payloads', () {
       expect(
-        BikeProtocol.encodeConfiguration(
+        BikeProtocol.v1.encodeConfiguration(
           const BikeConfiguration(
             light: true,
             mode: 3,
             assist: 4,
             region: BikeRegion.us,
           ),
-          version: BikeProtocolVersion.v1,
         ),
         [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
       );
       expect(
-        BikeProtocol.encodeConfiguration(
+        BikeProtocol.v1.encodeConfiguration(
           const BikeConfiguration(
             light: false,
             mode: 0,
             assist: 0,
             region: BikeRegion.eu,
           ),
-          version: BikeProtocolVersion.v1,
         ),
         [0, 0xd1, 0, 0, 4, 0, 0, 0, 0, 0],
       );
       expect(
-        BikeProtocol.encodeConfiguration(
+        BikeProtocol.v2.encodeConfiguration(
           const BikeConfiguration(
             light: true,
             mode: 2,
             assist: 3,
             region: BikeRegion.eu,
           ),
-          version: BikeProtocolVersion.v2,
         ),
         [0, 0xc1, 1, 3, 2, 0, 0, 0, 0, 0],
       );
@@ -333,26 +392,24 @@ void main() {
 
     test('rejects invalid configuration ranges', () {
       expect(
-        () => BikeProtocol.encodeConfiguration(
+        () => BikeProtocol.v1.encodeConfiguration(
           const BikeConfiguration(
             light: false,
             mode: 4,
             assist: 0,
             region: BikeRegion.us,
           ),
-          version: BikeProtocolVersion.v1,
         ),
         throwsRangeError,
       );
       expect(
-        () => BikeProtocol.encodeConfiguration(
+        () => BikeProtocol.v2.encodeConfiguration(
           const BikeConfiguration(
             light: false,
             mode: 0,
             assist: -1,
             region: BikeRegion.us,
           ),
-          version: BikeProtocolVersion.v2,
         ),
         throwsRangeError,
       );

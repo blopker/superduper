@@ -38,9 +38,8 @@ void main() {
       buildSession: (bike) => BikeSession(
         connection: transport.openConnection(bike.bike.deviceId),
         preferredRegion: bike.bike.region,
-        preferences: bike.preferences,
+        setOnConnect: bike.setOnConnect,
         protocol: bike.bike.protocol,
-        pollInterval: null,
         reconnectDelays: const [],
       ),
     );
@@ -182,9 +181,7 @@ void main() {
     expect(saved.bike.protocol, BikeProtocolVersion.v1);
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
-    expect(saved.preferences.desiredLight, isTrue);
-    expect(saved.preferences.desiredMode, 2);
-    expect(saved.preferences.desiredAssist, 3);
+    expect(saved.setOnConnect, const BikeControlPatch());
     expect(saved.odometer?.meters, 123456);
     expect(
       saved.versions?.info,

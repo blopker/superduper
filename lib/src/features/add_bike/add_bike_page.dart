@@ -64,9 +64,7 @@ final class _AddBikePageState extends State<AddBikePage>
         _confirmationId = candidate.deviceId;
         _name.text = suggestedName;
         _color = BikeColor.defaultForDeviceId(candidate.deviceId);
-        _region = protocol == BikeProtocolVersion.v1
-            ? configuration.region
-            : null;
+        _region = protocol.normalizeRegion(configuration.region);
       }
     } else {
       _confirmationId = null;

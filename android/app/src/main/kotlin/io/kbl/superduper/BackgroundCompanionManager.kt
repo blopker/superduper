@@ -8,10 +8,13 @@ import android.bluetooth.le.ScanFilter
 import android.companion.AssociationRequest
 import android.companion.BluetoothLeDeviceFilter
 import android.companion.CompanionDeviceManager
+import android.companion.ObservingDevicePresenceRequest
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.work.WorkManager
 
 internal object BackgroundCompanionManager {
@@ -26,9 +29,11 @@ internal object BackgroundCompanionManager {
     const val lastCompletedAtKey = "last_completed_at_ms"
 
     private const val legacyPresentKey = "bike_present"
+    private const val legacyCompanionPresentKey = "companion_present"
     private const val legacyScanAction = "io.kbl.superduper.BACKGROUND_SCAN"
     private const val registrationErrorDetailKey = "registration_error_detail"
     private const val registrationErrorAtKey = "registration_error_at_ms"
+    private const val typedPresenceApi = 36
 
     fun preferences(context: Context): SharedPreferences =
         context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
@@ -84,11 +89,9 @@ internal object BackgroundCompanionManager {
         }
         if (!isAssociated(context, address)) return false
 
-        cancelLegacyScan(context)
         val preferences = preferences(context)
         val previousAddress = preferences.getString(deviceIdKey, null)
         val previousSerial = preferences.getString(serialKey, null)
-        startObserving(context, address)
         if (previousAddress != null && !previousAddress.equals(address, ignoreCase = true)) {
             stopObserving(context, previousAddress)
             disassociate(context, previousAddress)
@@ -103,9 +106,12 @@ internal object BackgroundCompanionManager {
             .putString(deviceIdKey, address)
             .putString(serialKey, serial)
             .remove(legacyPresentKey)
+            .remove(legacyCompanionPresentKey)
             .remove(registrationErrorDetailKey)
             .remove(registrationErrorAtKey)
-            .apply()
+            .commit()
+        cancelLegacyScan(context)
+        startObserving(context, address)
         return true
     }
 
@@ -145,6 +151,7 @@ internal object BackgroundCompanionManager {
             .remove(deviceIdKey)
             .remove(serialKey)
             .remove(legacyPresentKey)
+            .remove(legacyCompanionPresentKey)
             .apply()
         cancelLegacyScan(context)
     }
@@ -153,6 +160,15 @@ internal object BackgroundCompanionManager {
         val address = normalizeDeviceId(deviceId)
         stopObserving(context, address)
         disassociate(context, address)
+    }
+
+    @RequiresApi(typedPresenceApi)
+    fun deviceIdForAssociation(context: Context, associationId: Int): String? {
+        val manager = context.getSystemService(CompanionDeviceManager::class.java)
+        return manager.myAssociations
+            .firstOrNull { it.id == associationId }
+            ?.deviceMacAddress
+            ?.toString()
     }
 
     fun cancelLegacyScan(context: Context) {
@@ -181,19 +197,51 @@ internal object BackgroundCompanionManager {
 
     private fun startObserving(context: Context, address: String) {
         val manager = context.getSystemService(CompanionDeviceManager::class.java)
-        @Suppress("DEPRECATION")
-        manager.startObservingDevicePresence(address)
+        if (Build.VERSION.SDK_INT >= typedPresenceApi) {
+            manager.startObservingDevicePresence(observingRequest(manager, address))
+        } else {
+            @Suppress("DEPRECATION")
+            manager.startObservingDevicePresence(address)
+        }
     }
 
     private fun stopObserving(context: Context, address: String) {
         if (!hasCompanionSupport(context)) return
         val manager = context.getSystemService(CompanionDeviceManager::class.java)
         try {
-            @Suppress("DEPRECATION")
-            manager.stopObservingDevicePresence(address)
+            if (Build.VERSION.SDK_INT >= typedPresenceApi) {
+                observingRequestOrNull(manager, address)?.let {
+                    manager.stopObservingDevicePresence(it)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                manager.stopObservingDevicePresence(address)
+            }
         } catch (_: RuntimeException) {
             // Opt-out must still remove local consent if observation is already gone.
         }
+    }
+
+    @RequiresApi(typedPresenceApi)
+    private fun observingRequest(
+        manager: CompanionDeviceManager,
+        address: String,
+    ): ObservingDevicePresenceRequest = observingRequestOrNull(manager, address)
+        ?: throw IllegalStateException("The bike's companion association is missing")
+
+    @RequiresApi(typedPresenceApi)
+    private fun observingRequestOrNull(
+        manager: CompanionDeviceManager,
+        address: String,
+    ): ObservingDevicePresenceRequest? {
+        val associationId = manager.myAssociations
+            .firstOrNull {
+                it.deviceMacAddress?.toString()?.equals(address, ignoreCase = true) == true
+            }
+            ?.id ?: return null
+        return ObservingDevicePresenceRequest.Builder()
+            .setAssociationId(associationId)
+            .build()
     }
 
     private fun disassociate(context: Context, address: String) {

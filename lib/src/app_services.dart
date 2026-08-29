@@ -52,16 +52,8 @@ final class AppServices {
           buildSession: (bike) => BikeSession(
             connection: resolvedTransport.openConnection(bike.bike.deviceId),
             preferredRegion: bike.bike.region,
-            preferences: bike.preferences,
+            setOnConnect: bike.setOnConnect,
             protocol: bike.bike.protocol,
-            onConfigurationConfirmed: (configuration) {
-              return resolvedBikeRepository.saveDesiredSettings(
-                bike.bike.deviceId,
-                light: configuration.light,
-                mode: configuration.mode,
-                assist: configuration.assist,
-              );
-            },
             onVersionsRead: (versions) async {
               await resolvedBikeRepository.saveVersions(
                 bike.bike.deviceId,

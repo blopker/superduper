@@ -86,21 +86,15 @@ final class BackgroundBikeSynchronizer {
       session = BikeSession(
         connection: transport.openConnection(request.deviceId),
         preferredRegion: saved.bike.region,
-        preferences: saved.preferences,
+        setOnConnect: saved.setOnConnect,
         protocol: saved.bike.protocol,
-        pollInterval: null,
         reconnectDelays: const [],
-        synchronizationRetryDelays: const [],
         readDiagnosticsOnConnect: false,
       );
       await session.connect().timeout(timeout);
       return switch (session.state.peek()) {
         SessionReady() => const BackgroundSyncResult(
           outcome: BackgroundSyncOutcome.confirmed,
-        ),
-        SessionDegraded(:final failure) => BackgroundSyncResult(
-          outcome: BackgroundSyncOutcome.failed,
-          detail: failure.message,
         ),
         SessionFailed(:final failure) => BackgroundSyncResult(
           outcome: BackgroundSyncOutcome.failed,

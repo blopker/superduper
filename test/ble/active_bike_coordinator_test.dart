@@ -56,9 +56,8 @@ void main() {
         return BikeSession(
           connection: connection,
           preferredRegion: bike.bike.region,
-          preferences: bike.preferences,
+          setOnConnect: bike.setOnConnect,
           protocol: bike.bike.protocol,
-          pollInterval: null,
           reconnectDelays: const [],
         );
       },
@@ -89,9 +88,14 @@ void main() {
   });
 
   test('startup applies every kept value before reporting ready', () async {
-    await bikes.setLightLock('first', enabled: true, confirmedValue: true);
-    await bikes.setModeLock('first', enabled: true, confirmedValue: 3);
-    await bikes.setAssistLock('first', enabled: true, confirmedValue: 4);
+    await bikes.setOnConnect(
+      'first',
+      const BikeControlPatch(
+        light: true,
+        mode: 3,
+        assist: 4,
+      ),
+    );
     connectionFrames['first'] = [
       [0, 0, 0, 0, 0, 0],
       [0, 0, 4, 0, 1, 3],
@@ -112,7 +116,7 @@ void main() {
     final writes = connections['first']!.single.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(writes.single.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
+    expect(writes.last.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
   });
 
   test('temporary selection never changes the persisted active bike', () async {

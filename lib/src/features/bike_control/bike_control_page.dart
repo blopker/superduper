@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals_flutter.dart';
 import 'package:superduper/src/app_services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/features/bike_settings/bike_settings_page.dart';
@@ -13,6 +12,7 @@ import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/bike_session_presentation.dart';
+import 'package:superduper/src/widgets/bike_value_selector.dart';
 
 final class BikeControlPage extends SignalStatefulWidget {
   const BikeControlPage({required this.deviceId, super.key});
@@ -28,7 +28,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
   var _initialized = false;
   var _selectionStarted = false;
   var _temporarySelection = false;
-  var _changingLock = false;
 
   @override
   void didChangeDependencies() {
@@ -95,11 +94,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
     final configuration = pendingConfiguration ?? observedConfiguration;
     final canControl =
         session?.canChangeConfiguration == true && configuration != null;
-    final canChangeLocks =
-        !_changingLock &&
-        observedConfiguration != null &&
-        pendingConfiguration == null &&
-        (sessionState is SessionReady || sessionState is SessionDegraded);
     final canConnect =
         matchingSessionState is SessionDisconnected ||
         matchingSessionState is SessionFailed ||
@@ -108,15 +102,12 @@ final class _BikeControlPageState extends State<BikeControlPage> {
                 activeState is ActiveBikeCoordinatorFailure);
     final canRetry =
         coordinatorFailure != null ||
-        sessionState is SessionDegraded ||
         sessionState is SessionDisconnected ||
         switch (sessionState) {
           SessionFailed(:final canRetry) => canRetry,
           _ => false,
         };
     final isActive = coordinator.activeBikeId.value == widget.deviceId;
-    final palette = BikeColorPalette.from(bike.bike.color);
-
     return BikePageScaffold(
       title: 'Ride controls',
       color: bike.bike.color,
@@ -171,61 +162,34 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         _SettingSection(
           icon: Icons.lightbulb_outline_rounded,
           title: 'Light',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : configuration.light
-              ? 'On'
-              : 'Off',
           toggleValue: configuration?.light ?? false,
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
               : null,
-          keep: bike.preferences.keepLight,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setLightLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.light,
-                  ),
-                )
-              : null,
+          setOnConnectValue: bike.setOnConnect.light == true ? 'On' : null,
         ),
         const SizedBox(height: 14),
         _SettingSection(
           icon: Icons.speed_rounded,
           title: 'Mode',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : 'Mode ${configuration.mode + 1}',
-          control: _ValueSelector(
-            values: const [0, 1, 2, 3],
+          control: BikeValueSelector(
+            values: BikeControlValues.modes,
             selected: configuration?.mode,
             enabled: canControl,
             semanticLabel: 'Mode',
             label: (mode) => '${mode + 1}',
             onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
           ),
-          keep: bike.preferences.keepMode,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setModeLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.mode,
-                  ),
-                )
-              : null,
+          setOnConnectValue: bike.setOnConnect.mode == null
+              ? null
+              : '${bike.setOnConnect.mode! + 1}',
         ),
         const SizedBox(height: 14),
         _SettingSection(
           icon: Icons.bolt_rounded,
           title: 'Assist',
-          value: configuration == null
-              ? 'Waiting for bike'
-              : 'Level ${configuration.assist}',
-          control: _ValueSelector(
-            values: const [0, 1, 2, 3, 4],
+          control: BikeValueSelector(
+            values: BikeControlValues.assistLevels,
             selected: configuration?.assist,
             enabled: canControl,
             semanticLabel: 'Assist level',
@@ -233,31 +197,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             onChanged: (assist) =>
                 _runCommand(() => session!.setAssist(assist)),
           ),
-          keep: bike.preferences.keepAssist,
-          onKeepChanged: canChangeLocks
-              ? (enabled) => _runLockChange(
-                  () => _services.bikeRepository.setAssistLock(
-                    widget.deviceId,
-                    enabled: enabled,
-                    confirmedValue: observedConfiguration.assist,
-                  ),
-                )
-              : null,
-        ),
-        const SizedBox(height: 18),
-        SurfacePanel(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.lock_rounded, color: palette.accent),
-              const SizedBox(width: 13),
-              const Expanded(
-                child: Text(
-                  'Set on connect saves the confirmed value and reapplies it whenever this bike connects while Superduper is open.',
-                ),
-              ),
-            ],
-          ),
+          setOnConnectValue: bike.setOnConnect.assist?.toString(),
         ),
         if (canRetry) ...[
           const SizedBox(height: 18),
@@ -266,11 +206,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
               _runConnectionAction(coordinator.retry),
             ),
             icon: const Icon(Icons.refresh_rounded),
-            label: Text(
-              sessionState is SessionDegraded
-                  ? 'Retry saved settings'
-                  : 'Reconnect',
-            ),
+            label: const Text('Reconnect'),
           ),
         ],
       ],
@@ -289,30 +225,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             ),
           ),
         );
-      }
-    }
-  }
-
-  Future<void> _runLockChange(Future<void> Function() change) async {
-    if (_changingLock) {
-      return;
-    }
-    setState(() => _changingLock = true);
-    try {
-      await change();
-    } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userFacingError(error, context: UserErrorContext.bikeAction),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _changingLock = false);
       }
     }
   }
@@ -442,9 +354,7 @@ final class _SettingSection extends StatelessWidget {
   const _SettingSection({
     required this.icon,
     required this.title,
-    required this.value,
-    required this.keep,
-    required this.onKeepChanged,
+    required this.setOnConnectValue,
     this.control,
     this.toggleValue,
     this.onToggleChanged,
@@ -452,12 +362,10 @@ final class _SettingSection extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String value;
   final Widget? control;
   final bool? toggleValue;
   final ValueChanged<bool>? onToggleChanged;
-  final bool keep;
-  final Future<void> Function(bool enabled)? onKeepChanged;
+  final String? setOnConnectValue;
 
   @override
   Widget build(BuildContext context) {
@@ -474,8 +382,10 @@ final class _SettingSection extends StatelessWidget {
                 vertical: 8,
               ),
               secondary: Icon(icon, color: accent, size: 30),
-              title: Text(title),
-              subtitle: Text(value),
+              title: _SettingHeader(
+                title: title,
+                setOnConnectValue: setOnConnectValue,
+              ),
               value: toggled,
               onChanged: onToggleChanged,
             )
@@ -489,16 +399,9 @@ final class _SettingSection extends StatelessWidget {
                       Icon(icon, color: accent, size: 30),
                       const SizedBox(width: 13),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(value),
-                          ],
+                        child: _SettingHeader(
+                          title: title,
+                          setOnConnectValue: setOnConnectValue,
                         ),
                       ),
                     ],
@@ -510,107 +413,54 @@ final class _SettingSection extends StatelessWidget {
                 ],
               ),
             ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 3,
-            ),
-            secondary: Icon(
-              keep ? Icons.lock_rounded : Icons.lock_open_rounded,
-              color: keep
-                  ? accent
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            // The three lock switches share one visible label; the section
-            // title is only visual context, so screen readers need it here.
-            title: Text(
-              'Set on connect',
-              semanticsLabel: 'Set $title on connect',
-            ),
-            value: keep,
-            onChanged: onKeepChanged == null
-                ? null
-                : (value) => unawaited(onKeepChanged!(value)),
-          ),
         ],
       ),
     );
   }
 }
 
-final class _ValueSelector extends StatelessWidget {
-  const _ValueSelector({
-    required this.values,
-    required this.selected,
-    required this.enabled,
-    required this.semanticLabel,
-    required this.label,
-    required this.onChanged,
+final class _SettingHeader extends StatelessWidget {
+  const _SettingHeader({
+    required this.title,
+    required this.setOnConnectValue,
   });
 
-  final List<int> values;
-  final int? selected;
-  final bool enabled;
-  final String semanticLabel;
-  final String Function(int value) label;
-  final ValueChanged<int> onChanged;
+  final String title;
+  final String? setOnConnectValue;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<int>(
-        segments: [
-          for (final value in values)
-            ButtonSegment<int>(
-              value: value,
-              label: Semantics(
-                label: '$semanticLabel ${label(value)}',
-                excludeSemantics: true,
-                child: Text(label(value)),
+    return Wrap(
+      spacing: 6,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        if (setOnConnectValue case final value?)
+          Semantics(
+            key: ValueKey(
+              'set-on-connect-indicator-${title.toLowerCase()}',
+            ),
+            label: 'Set on connect: $value',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_rounded, size: 15, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: scheme.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
-        selected: selected == null ? const {} : {selected!},
-        emptySelectionAllowed: true,
-        onSelectionChanged: enabled
-            ? (selection) {
-                if (selection.isNotEmpty) {
-                  onChanged(selection.single);
-                }
-              }
-            : null,
-        showSelectedIcon: false,
-        expandedInsets: EdgeInsets.zero,
-        style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(42, 50)),
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return scheme.primary;
-            }
-            return scheme.surfaceContainerLow;
-          }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return scheme.onPrimary;
-            }
-            return states.contains(WidgetState.disabled)
-                ? scheme.onSurfaceVariant.withValues(alpha: 0.45)
-                : scheme.onSurface;
-          }),
-          side: const WidgetStatePropertyAll(BorderSide.none),
-          shape: const WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-            ),
           ),
-          textStyle: const WidgetStatePropertyAll(
-            TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-        ),
-      ),
+      ],
     );
   }
 }

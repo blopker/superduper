@@ -6,6 +6,13 @@ enum BikeProtocolVersion {
 
   final String advertisedName;
 
+  BikeRegion? normalizeRegion(BikeRegion? region) {
+    return switch (this) {
+      BikeProtocolVersion.v1 => region ?? BikeRegion.us,
+      BikeProtocolVersion.v2 => null,
+    };
+  }
+
   static BikeProtocolVersion? fromAdvertisedName(String name) {
     return switch (name) {
       'SUPER73' => BikeProtocolVersion.v1,
@@ -23,6 +30,140 @@ enum BikeRegion {
 
   final String label;
 }
+
+abstract final class BikeControlValues {
+  static const minimumMode = 0;
+  static const maximumMode = 3;
+  static const minimumAssist = 0;
+  static const maximumAssist = 4;
+  static const int modeCount = maximumMode - minimumMode + 1;
+
+  static final List<int> modes = List.unmodifiable(
+    List.generate(modeCount, (index) => minimumMode + index),
+  );
+  static final List<int> assistLevels = List.unmodifiable(
+    List.generate(
+      maximumAssist - minimumAssist + 1,
+      (index) => minimumAssist + index,
+    ),
+  );
+
+  static bool isValidMode(int value) {
+    return value >= minimumMode && value <= maximumMode;
+  }
+
+  static bool isValidAssist(int value) {
+    return value >= minimumAssist && value <= maximumAssist;
+  }
+
+  static void validateMode(int value) {
+    if (!isValidMode(value)) {
+      throw RangeError.range(value, minimumMode, maximumMode, 'mode');
+    }
+  }
+
+  static void validateAssist(int value) {
+    if (!isValidAssist(value)) {
+      throw RangeError.range(value, minimumAssist, maximumAssist, 'assist');
+    }
+  }
+}
+
+final class BikeConfiguration {
+  const BikeConfiguration({
+    required this.light,
+    required this.mode,
+    required this.assist,
+    required this.region,
+  });
+
+  final bool light;
+  final int mode;
+  final int assist;
+  final BikeRegion region;
+
+  BikeConfiguration copyWith({
+    bool? light,
+    int? mode,
+    int? assist,
+    BikeRegion? region,
+  }) {
+    return BikeConfiguration(
+      light: light ?? this.light,
+      mode: mode ?? this.mode,
+      assist: assist ?? this.assist,
+      region: region ?? this.region,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is BikeConfiguration &&
+      light == other.light &&
+      mode == other.mode &&
+      assist == other.assist &&
+      region == other.region;
+
+  @override
+  int get hashCode => Object.hash(light, mode, assist, region);
+}
+
+final class BikeControlPatch {
+  const BikeControlPatch({this.light, this.mode, this.assist});
+
+  final bool? light;
+  final int? mode;
+  final int? assist;
+
+  bool get isEmpty => light == null && mode == null && assist == null;
+
+  BikeControlPatch copyWith({
+    Object? light = _unchanged,
+    Object? mode = _unchanged,
+    Object? assist = _unchanged,
+  }) {
+    return BikeControlPatch(
+      light: identical(light, _unchanged) ? this.light : light as bool?,
+      mode: identical(mode, _unchanged) ? this.mode : mode as int?,
+      assist: identical(assist, _unchanged) ? this.assist : assist as int?,
+    );
+  }
+
+  BikeConfiguration applyTo(BikeConfiguration base) {
+    return base.copyWith(
+      light: light,
+      mode: mode,
+      assist: assist,
+    );
+  }
+
+  BikeControlPatch merge(BikeControlPatch newer) {
+    return BikeControlPatch(
+      light: newer.light ?? light,
+      mode: newer.mode ?? mode,
+      assist: newer.assist ?? assist,
+    );
+  }
+
+  bool matches(BikeConfiguration configuration) {
+    return (light == null || configuration.light == light) &&
+        (mode == null || configuration.mode == mode) &&
+        (assist == null || configuration.assist == assist);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is BikeControlPatch &&
+        light == other.light &&
+        mode == other.mode &&
+        assist == other.assist;
+  }
+
+  @override
+  int get hashCode => Object.hash(light, mode, assist);
+}
+
+const _unchanged = Object();
 
 enum BikeColor {
   royalHorizon('royal_horizon', 'Royal Horizon', 0),
@@ -188,71 +329,6 @@ final class CachedBikeOdometer {
   final DateTime readAt;
 }
 
-final class RidePreferences {
-  const RidePreferences({
-    required this.desiredLight,
-    required this.desiredMode,
-    required this.desiredAssist,
-    required this.keepLight,
-    required this.keepMode,
-    required this.keepAssist,
-  });
-
-  const RidePreferences.defaults()
-    : desiredLight = false,
-      desiredMode = 0,
-      desiredAssist = 0,
-      keepLight = false,
-      keepMode = false,
-      keepAssist = false;
-
-  final bool desiredLight;
-  final int desiredMode;
-  final int desiredAssist;
-  final bool keepLight;
-  final bool keepMode;
-  final bool keepAssist;
-
-  RidePreferences copyWith({
-    bool? desiredLight,
-    int? desiredMode,
-    int? desiredAssist,
-    bool? keepLight,
-    bool? keepMode,
-    bool? keepAssist,
-  }) {
-    return RidePreferences(
-      desiredLight: desiredLight ?? this.desiredLight,
-      desiredMode: desiredMode ?? this.desiredMode,
-      desiredAssist: desiredAssist ?? this.desiredAssist,
-      keepLight: keepLight ?? this.keepLight,
-      keepMode: keepMode ?? this.keepMode,
-      keepAssist: keepAssist ?? this.keepAssist,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is RidePreferences &&
-        desiredLight == other.desiredLight &&
-        desiredMode == other.desiredMode &&
-        desiredAssist == other.desiredAssist &&
-        keepLight == other.keepLight &&
-        keepMode == other.keepMode &&
-        keepAssist == other.keepAssist;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    desiredLight,
-    desiredMode,
-    desiredAssist,
-    keepLight,
-    keepMode,
-    keepAssist,
-  );
-}
-
 const backgroundSyncConsentVersion = 2;
 
 final class BackgroundPreference {
@@ -270,14 +346,14 @@ final class BackgroundPreference {
 final class SavedBike {
   const SavedBike({
     required this.bike,
-    required this.preferences,
+    required this.setOnConnect,
     this.backgroundPreference = const BackgroundPreference.defaults(),
     this.versions,
     this.odometer,
   });
 
   final Bike bike;
-  final RidePreferences preferences;
+  final BikeControlPatch setOnConnect;
   final BackgroundPreference backgroundPreference;
   final CachedBikeVersions? versions;
   final CachedBikeOdometer? odometer;

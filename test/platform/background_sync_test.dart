@@ -42,7 +42,7 @@ void main() {
       buildSession: (saved) => BikeSession(
         connection: transport.openConnection(saved.bike.deviceId),
         preferredRegion: saved.bike.region,
-        preferences: saved.preferences,
+        setOnConnect: saved.setOnConnect,
         protocol: saved.bike.protocol,
       ),
     );

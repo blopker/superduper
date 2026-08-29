@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:signals/signals.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
@@ -228,9 +227,8 @@ final class AddBikeController {
       final session = BikeSession(
         connection: transport.openConnection(candidate.deviceId),
         preferredRegion: null,
-        preferences: const RidePreferences.defaults(),
+        setOnConnect: const BikeControlPatch(),
         protocol: protocol,
-        pollInterval: null,
         reconnectDelays: const [],
       );
       _candidateSession = session;
@@ -282,37 +280,17 @@ final class AddBikeController {
       );
     }
 
-    final persistedRegion = switch (current.protocol) {
-      BikeProtocolVersion.v1 =>
-        region ??
-            (throw ArgumentError.value(
-              region,
-              'region',
-              'A V1 bike requires a region.',
-            )),
-      BikeProtocolVersion.v2 => null,
-    };
-
     _state.value = const AddBikeSaving();
     try {
       await _candidateSession?.dispose();
       _candidateSession = null;
-      final configuration = current.configuration;
       final saved = await bikeRepository.addBike(
         deviceId: current.candidate.deviceId,
         advertisedName: current.protocol.advertisedName,
         displayName: normalizedName,
-        region: persistedRegion,
+        region: region,
         color: color,
         moduleSerial: current.candidate.moduleSerial,
-        preferences: RidePreferences(
-          desiredLight: configuration.light,
-          desiredMode: configuration.mode,
-          desiredAssist: configuration.assist,
-          keepLight: false,
-          keepMode: false,
-          keepAssist: false,
-        ),
         versions: current.versions,
         odometerMeters: current.odometerMeters,
       );

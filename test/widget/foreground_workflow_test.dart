@@ -42,7 +42,7 @@ void main() {
     final configurationWrites = fixture.connection.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(configurationWrites.single.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
+    expect(configurationWrites.last.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
   });
 
   testWidgets('bike color theme stays scoped to bike routes', (tester) async {
@@ -103,61 +103,58 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('lock controls wait for a confirmed bike value', (tester) async {
-    final fixture = await _pumpReadyBikeApp(tester, 'confirmed_lock');
-    final gate = Completer<void>();
-    addTearDown(() {
-      if (!gate.isCompleted) {
-        gate.complete();
-      }
-    });
-    fixture.connection
-      ..configurationWriteGate = gate
-      ..readFrames.add(v1StateFrame(light: true, mode: 3, assist: 4));
+  testWidgets('Set on connect is configured separately from live controls', (
+    tester,
+  ) async {
+    final fixture = await _pumpReadyBikeApp(tester, 'set_on_connect');
+    final writesBeforeSettings = fixture.connection.configurationWriteStarts;
 
-    // The three lock switches share the visible text "Set on connect" and are
-    // told apart only by their accessible label.
-    final lockFinder = find.ancestor(
-      of: find.byWidgetPredicate(
-        (widget) =>
-            widget is Text && widget.semanticsLabel == 'Set Assist on connect',
-      ),
-      matching: find.byType(SwitchListTile),
+    final modeIndicator = find.byKey(
+      const ValueKey('set-on-connect-indicator-mode'),
     );
-    expect(lockFinder, findsOneWidget);
-    for (final title in ['Light', 'Mode', 'Assist']) {
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Text &&
-              widget.semanticsLabel == 'Set $title on connect',
-        ),
-        findsOneWidget,
-      );
-    }
-    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNotNull);
-    final initialWriteStarts = fixture.connection.configurationWriteStarts;
-    final activeState =
-        fixture.services.activeBikeCoordinator.state.peek()
-            as ActiveBikeSessionStatus;
-    late Future<BikeConfiguration> change;
+    expect(modeIndicator, findsOneWidget);
+    expect(
+      find.descendant(of: modeIndicator, matching: find.text('4')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('set-on-connect-mode')), findsNothing);
 
-    await tester.runAsync(() async {
-      change = activeState.session.setAssist(4);
-      await _waitUntil(
-        () => fixture.connection.configurationWriteStarts > initialWriteStarts,
-      );
-    });
+    expect(
+      find.descendant(of: modeIndicator, matching: find.byType(TextButton)),
+      findsNothing,
+    );
+
+    await tester.tap(find.byTooltip('Bike settings'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    expect(find.text('BIKE SETTINGS'), findsOneWidget);
+
+    final modeSwitch = find.byKey(const Key('set-on-connect-mode'));
+    final assistSwitch = find.byKey(const Key('set-on-connect-assist'));
+    expect(modeSwitch, findsOneWidget);
+    expect(assistSwitch, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(modeSwitch).value, isTrue);
+    expect(tester.widget<SwitchListTile>(assistSwitch).value, isFalse);
+
+    await tester.tap(assistSwitch);
+    await tester.pump();
+    await tester.runAsync(
+      () => _waitUntilAsync(
+        () async =>
+            (await fixture.services.bikeRepository.getBikes())
+                .single
+                .setOnConnect
+                .assist !=
+            null,
+      ),
+    );
     await tester.pump();
 
-    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNull);
-
-    await tester.runAsync(() async {
-      gate.complete();
-      await change;
-    });
-    await tester.pumpAndSettle();
-    expect(tester.widget<SwitchListTile>(lockFinder).onChanged, isNotNull);
+    final saved = (await fixture.services.bikeRepository.getBikes()).single;
+    expect(saved.setOnConnect.assist, isNotNull);
+    expect(fixture.connection.configurationWriteStarts, writesBeforeSettings);
   });
 
   testWidgets(
@@ -220,6 +217,12 @@ void main() {
         BikeProtocolVersion.v1,
       );
 
+      await tester.scrollUntilVisible(
+        find.text('BIKE INFORMATION'),
+        300,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('BIKE INFORMATION'), findsOneWidget);
       expect(find.text('123.5 km · 76.7 mi'), findsOneWidget);
       expect(find.text('v3.2.0'), findsOneWidget);
@@ -294,7 +297,10 @@ void main() {
     await tester.tap(find.text('Open controls'));
     await tester.pumpAndSettle();
     expect(find.text('RIDE CONTROLS'), findsOneWidget);
-    expect(find.text('Waiting for bike'), findsWidgets);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Mode'), findsOneWidget);
+    expect(find.text('Assist'), findsOneWidget);
+    expect(find.text('Waiting for bike'), findsNothing);
   });
 }
 
@@ -324,17 +330,8 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
     buildSession: (bike) => BikeSession(
       connection: transport.openConnection(bike.bike.deviceId),
       preferredRegion: bike.bike.region,
-      preferences: bike.preferences,
+      setOnConnect: bike.setOnConnect,
       protocol: bike.bike.protocol,
-      confirmationRetryDelays: const [],
-      onConfigurationConfirmed: (configuration) {
-        return bikeRepository.saveDesiredSettings(
-          bike.bike.deviceId,
-          light: configuration.light,
-          mode: configuration.mode,
-          assist: configuration.assist,
-        );
-      },
       onVersionsRead: (versions) async {
         await bikeRepository.saveVersions(bike.bike.deviceId, versions);
       },
@@ -369,10 +366,11 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
       ),
     ];
   }
-  await services.bikeRepository.setModeLock(
+  await services.bikeRepository.setOnConnect(
     'active-bike',
-    enabled: true,
-    confirmedValue: 3,
+    const BikeControlPatch(
+      mode: 3,
+    ),
   );
   transport.readFramesOnOpen['active-bike'] = [
     v1StateFrame(light: true, assist: 2),

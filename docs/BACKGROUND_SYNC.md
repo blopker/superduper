@@ -1,4 +1,4 @@
-# Background locked-setting synchronization
+# Background Set on connect synchronization
 
 Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android Companion Device Manager implementation is ready for physical-device validation.
 
@@ -9,8 +9,8 @@ After initial setup, the user should not need to open Superduper before riding:
 1. The user turns on the active bike.
 2. The operating system wakes Superduper without presenting its UI.
 3. Superduper connects, authenticates, and reads the current configuration.
-4. It applies only the locked values, preserving values the user left unlocked.
-5. It confirms the result and records the outcome.
+4. It applies only enabled Set on connect choices, preserving other values.
+5. It records the acknowledged result.
 6. The user rides.
 
 This is needed only on Android and iOS. It is a convenience feature, not a safety mechanism, and the UI must not claim it will work after the user revokes Bluetooth access, disables Bluetooth, force-stops the app where the platform prohibits relaunch, or leaves the phone out of range.
@@ -24,7 +24,7 @@ The first implementation should keep FlutterBluePlus as the sole GATT connection
 - iOS: AccessorySetupKit setup or migration, Core Bluetooth background configuration, and state restoration.
 - Android: Companion Device Manager presence wakes background Dart work.
 
-Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, write, and confirmation path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
+Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, and acknowledged-write path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
 
 ## Verified bike advertisement
 
@@ -82,7 +82,7 @@ bike off
   -> pending connection retained by iOS
   -> bike turns on
   -> connection completes and wakes Superduper
-  -> authenticate, merge, write, and confirm locked settings
+  -> authenticate and apply Set on connect
   -> keep the connection idle while the bike remains on
   -> bike turns off and the connection drops
   -> disconnection wakes Superduper
@@ -101,12 +101,11 @@ Apple says a Core Bluetooth wake normally has around ten seconds to finish its w
 2. Discover required GATT state if it was not restored.
 3. Authenticate.
 4. Read the current configuration.
-5. Merge locked values while preserving unlocked values.
+5. Merge enabled Set on connect choices while preserving other values.
 6. Write only when needed.
-7. Read back and confirm.
-8. Persist the outcome.
+7. Persist the acknowledged outcome.
 
-Version reads and other diagnostics are secondary. They should run only after configuration is confirmed and only while sufficient execution time remains.
+Version reads and other diagnostics are secondary. They should run only after the configuration write is acknowledged and only while sufficient execution time remains.
 
 ### AccessorySetupKit
 
@@ -144,7 +143,7 @@ stable bike Bluetooth address
   -> unique expedited WorkManager request
   -> existing Flutter engine, or a headless engine only when no engine exists
   -> one-shot Dart BackgroundBikeSynchronizer
-  -> production BikeSession authentication, merge, write, and readback
+  -> production BikeSession authentication, read, merge, and acknowledged write
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
@@ -154,7 +153,15 @@ The system association chooser owns its lifetime; the app does not impose a time
 
 Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
 
-Presence callbacks enqueue unique work, so concurrent duplicate callbacks cannot start duplicate synchronization transactions. The implementation does not maintain its own sticky present/lost debounce; Android owns the association presence epoch.
+BLE appearance callbacks enqueue unique work. Android 16 distinguishes a
+foreground Bluetooth connection from an actual BLE appearance. Earlier Android
+versions use the legacy callback, so foreground appearances are ignored. On all
+supported versions, the disappearance that releases the foreground connection
+schedules a short delayed transaction so a quick bike power cycle is not lost
+between presence epochs. If Android delivers another actionable callback while
+the activity is foreground, the worker retries after the activity stops.
+WorkManager keeps a single pending transaction when Android reports the same
+event more than once.
 
 The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
 
@@ -175,7 +182,7 @@ Use a debug build and a physical bike whose module serial appears under Bike inf
    ```
 
    `last_presence_source` should be `companion`, `last_presence_at_ms` and `last_worker_started_at_ms` should be recent, and `last_outcome` should be `confirmed`. If restoration failed, `registration_error_detail` records the native reason.
-6. Open the app and confirm the locked value was applied while every unlocked value remained unchanged.
+6. Open the app and confirm Set on connect was applied while every disabled value remained unchanged.
 
 For the cold-process case, `adb shell am kill io.kbl.superduper` may be used only after the app is backgrounded. Do not use `am force-stop`: Force Stop intentionally cancels this path until the user opens the app again.
 
@@ -259,20 +266,20 @@ read authentication challenge
 write authentication response
 verify authentication
 read configuration
-merge locked values
+merge enabled Set on connect choices
 write configuration when changed
-read back and confirm
+record the acknowledged write
 record result
 ```
 
-This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, manufacturer filters, and confirmation decoding.
+This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, and manufacturer filters.
 
 The native transaction needs an atomic desired-state snapshot containing only:
 
 - whether automatic synchronization is enabled;
 - active bike platform identifier and module serial;
 - selected protocol;
-- lock flags and locked values; and
+- Set on connect enabled flags and values; and
 - a monotonically increasing configuration generation.
 
 It should write back the last attempt, last confirmed generation and configuration, timestamps, and a bounded diagnostic record. It should not independently mutate the primary Drift model.
@@ -329,14 +336,14 @@ Test at least a current Pixel and Samsung device:
 - Simulated app hibernation and recovery.
 - Manual Force Stop as an expected failure.
 - One synchronization per presence epoch.
-- Configuration readback proving locked values were applied and unlocked values were preserved.
+- A validated pre-write configuration read proving disabled values were preserved in the outgoing command.
 
 ### Common success criteria
 
 - The application UI never needs to appear.
 - The production authentication and configuration paths are used.
-- Locked values are confirmed by a readback.
-- Unlocked values are never overwritten.
+- Set on connect writes are accepted when GATT acknowledges them.
+- Disabled values are never overwritten.
 - No duplicate writes occur in one power session.
 - Failures use bounded retries and cannot loop indefinitely.
 - The last outcome is available to the foreground app and support report.

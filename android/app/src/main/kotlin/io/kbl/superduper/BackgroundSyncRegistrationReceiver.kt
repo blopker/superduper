@@ -6,6 +6,10 @@ import android.content.Intent
 
 class BackgroundSyncRegistrationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        BackgroundCompanionManager.restoreStored(context)
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            -> BackgroundCompanionManager.restoreStored(context)
+        }
     }
 }

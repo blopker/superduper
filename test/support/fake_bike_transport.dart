@@ -223,6 +223,7 @@ final class FakeBikeConnection implements BikeConnection {
   Duration operationDelay = Duration.zero;
   Completer<void>? operationGate;
   Completer<void>? configurationWriteGate;
+  int configurationWriteGateAfterStarts = 0;
   Completer<void>? connectGate;
   Completer<void>? disconnectGate;
   Completer<void>? _connectCancellation;
@@ -410,7 +411,9 @@ final class FakeBikeConnection implements BikeConnection {
     return _operate(() async {
       if (characteristicUuid == BikeGatt.stateRegister) {
         configurationWriteStarts++;
-        await configurationWriteGate?.future;
+        if (configurationWriteStarts > configurationWriteGateAfterStarts) {
+          await configurationWriteGate?.future;
+        }
       }
       if (writeError case final error?) {
         _throw(error);

@@ -101,11 +101,6 @@ final class BikeHardwareTestController {
       Duration(seconds: 5),
       Duration(seconds: 10),
     ],
-    this.confirmationRetryDelays = const [
-      Duration(milliseconds: 250),
-      Duration(milliseconds: 750),
-      Duration(seconds: 1),
-    ],
     this.stepTimeout = const Duration(seconds: 75),
     this.cleanupTimeout = const Duration(seconds: 20),
   });
@@ -116,7 +111,6 @@ final class BikeHardwareTestController {
   final Duration scanDuration;
   final Duration notificationWait;
   final List<Duration> reconnectDelays;
-  final List<Duration> confirmationRetryDelays;
   final Duration stepTimeout;
   final Duration cleanupTimeout;
   late final ExclusiveBluetoothOperation _exclusiveBluetooth =
@@ -374,7 +368,7 @@ final class BikeHardwareTestController {
     final session = BikeSession(
       connection: connection,
       preferredRegion: _preferredRegion(candidate.deviceId),
-      preferences: const RidePreferences.defaults(),
+      setOnConnect: const BikeControlPatch(),
       protocol: BikeProtocolVersion.fromAdvertisedName(candidate.name)!,
       onVersionsRead: (_) async {
         versionReads++;
@@ -382,9 +376,7 @@ final class BikeHardwareTestController {
       onOdometerRead: (_) async {
         odometerReads++;
       },
-      pollInterval: null,
       reconnectDelays: reconnectDelays,
-      confirmationRetryDelays: confirmationRetryDelays,
     );
     _session = session;
     _sessionStateCleanup = session.state.subscribe((sessionState) {
@@ -462,7 +454,7 @@ final class BikeHardwareTestController {
     _publish(
       BikeHardwareTestPhase.exercising,
       'Testing every setting',
-      'Each value is changed, confirmed from the bike, and restored before the next setting.',
+      'Each value is changed after the bike acknowledges the write, then restored before the next setting.',
     );
     await _testSettingToggles(session, initial, generation);
 
@@ -492,33 +484,29 @@ final class BikeHardwareTestController {
       );
     }
 
-    final lockedTarget = initial.copyWith(
-      light: !initial.light,
+    final setOnConnectTarget = initial.copyWith(
+      light: true,
       assist: (initial.assist + 1) % 5,
     );
     _addTrace(
-      'bike.configuration.lock_target',
-      _formatConfiguration(lockedTarget, protocol: protocol),
+      'bike.configuration.set_on_connect_target',
+      _formatConfiguration(setOnConnectTarget, protocol: protocol),
     );
-    await session.setLight(lockedTarget.light);
+    await session.setLight(setOnConnectTarget.light);
     _checkCurrent(generation);
-    await session.setAssist(lockedTarget.assist);
+    await session.setAssist(setOnConnectTarget.assist);
     _checkCurrent(generation);
-    await session.updatePreferences(
-      RidePreferences(
-        desiredLight: lockedTarget.light,
-        desiredMode: lockedTarget.mode,
-        desiredAssist: lockedTarget.assist,
-        keepLight: true,
-        keepMode: false,
-        keepAssist: true,
+    session.updateSetOnConnect(
+      BikeControlPatch(
+        light: true,
+        assist: setOnConnectTarget.assist,
       ),
     );
     await _waitForReady(session, generation, timeout: stepTimeout);
     _addLog(
       BikeHardwareTestLogStatus.passed,
-      'Locked-setting setup',
-      'Light and assist are locked; mode is deliberately left unlocked.',
+      'Set on connect setup',
+      'Light and assist are enabled; mode is deliberately left unchanged.',
     );
 
     final disconnectsBefore = connection.disconnectEvents;
@@ -546,7 +534,7 @@ final class BikeHardwareTestController {
     _publish(
       BikeHardwareTestPhase.waitingForPowerOn,
       'Now turn the bike ON',
-      'Waiting for automatic reconnect, authentication, version refresh, and locked-setting enforcement.',
+      'Waiting for automatic reconnect, authentication, version refresh, and Set on connect.',
     );
     _addTrace('test.prompt', 'Waiting for the bike to power on.');
     await _waitForReady(session, generation, timeout: stepTimeout);
@@ -583,23 +571,22 @@ final class BikeHardwareTestController {
       'No configuration was observed after reconnect.',
     );
     _expect(
-      reconnected!.light == lockedTarget.light &&
-          reconnected.assist == lockedTarget.assist,
-      'The locked light and assist values were not restored.',
+      reconnected!.light == setOnConnectTarget.light &&
+          reconnected.assist == setOnConnectTarget.assist,
+      'The Set on connect light and assist values were not applied.',
     );
-    final expectedPacket = BikeProtocol.encodeConfiguration(
-      reconnected,
-      version: session.protocolVersion,
-    );
+    final expectedPacket = BikeProtocol.forVersion(
+      session.protocolVersion,
+    ).encodeConfiguration(reconnected);
     final writtenPacket = connection.configurationWrites.last;
     _expect(
       _listsEqual(writtenPacket, expectedPacket),
-      'The reconnect configuration packet did not match the confirmed state.',
+      'The reconnect configuration packet did not match the acknowledged state.',
     );
     _addLog(
       BikeHardwareTestLogStatus.passed,
-      'Reconnect and locked settings',
-      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and confirmed locked values while preserving unlocked mode ${reconnected.mode}.',
+      'Reconnect and Set on connect',
+      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and applied Set on connect values while preserving mode ${reconnected.mode}.',
     );
 
     _publish(
@@ -693,10 +680,10 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Light toggle',
-      'Changed to ${light.light ? 'on' : 'off'}, confirmed, and restored.',
+      'Changed to ${light.light ? 'on' : 'off'}, acknowledged, and restored.',
     );
 
-    final nextMode = (initial.mode + 1) % 4;
+    final nextMode = (initial.mode + 1) % BikeControlValues.modeCount;
     final mode = await session.setMode(nextMode);
     _checkCurrent(generation);
     _expect(mode.mode == nextMode, 'Mode did not change to $nextMode.');
@@ -705,7 +692,7 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Mode toggle',
-      'Changed to $nextMode, confirmed, and restored to ${initial.mode}.',
+      'Changed to $nextMode, acknowledged, and restored to ${initial.mode}.',
     );
 
     final nextAssist = (initial.assist + 1) % 5;
@@ -720,7 +707,7 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Assist toggle',
-      'Changed to $nextAssist, confirmed, and restored to ${initial.assist}.',
+      'Changed to $nextAssist, acknowledged, and restored to ${initial.assist}.',
     );
   }
 
@@ -744,9 +731,6 @@ final class BikeHardwareTestController {
         return;
       }
       if (current is SessionFailed) {
-        throw current.failure;
-      }
-      if (current is SessionDegraded) {
         throw current.failure;
       }
       if (current is SessionDisposed ||
@@ -886,7 +870,7 @@ final class BikeHardwareTestController {
       try {
         final restorable = await _waitUntilRestorable(session);
         if (restorable) {
-          await session.updatePreferences(const RidePreferences.defaults());
+          session.updateSetOnConnect(const BikeControlPatch());
           var current = session.pending.peek() ?? session.observed.peek();
           if (current?.light != original.light) {
             current = await session.setLight(original.light);
@@ -960,8 +944,7 @@ final class BikeHardwareTestController {
     var retryAttempted = false;
     while (true) {
       final current = session.state.peek();
-      if (session.canChangeConfiguration &&
-          (current is SessionReady || current is SessionDegraded)) {
+      if (session.canChangeConfiguration && current is SessionReady) {
         return true;
       }
       if (current is SessionDisposed ||
@@ -1016,12 +999,8 @@ final class BikeHardwareTestController {
         'Completing the challenge-response handshake.',
       ),
       SessionConnected() || SessionSynchronizing() => (
-        'Confirming bike settings',
-        'Reading versions and waiting for the controller to confirm its settings.',
-      ),
-      SessionDegraded() => (
-        'Connected with a settings warning',
-        'The bike is reachable, but it did not confirm a requested setting.',
+        'Applying bike settings',
+        'Reading versions and applying saved settings.',
       ),
       SessionReconnecting(:final retryAfter) => (
         'Turn the bike ON',
@@ -1120,7 +1099,6 @@ final class BikeHardwareTestController {
       SessionConnected() => 'connected',
       SessionSynchronizing() => 'synchronizing',
       SessionReady() => 'ready',
-      SessionDegraded() => 'degraded',
       SessionReconnecting() => 'reconnecting',
       SessionDisconnected() => 'disconnected',
       SessionFailed() => 'failed',

@@ -458,13 +458,7 @@ final class ActiveBikeCoordinator {
           current?.protocolVersion == bike.bike.protocol) {
         _currentBike = bike;
         current!.updatePreferredRegion(bike.bike.region);
-        try {
-          await current.updatePreferences(bike.preferences);
-        } on BikeSessionFailure {
-          // The session publishes its own retry/degraded state. A settings
-          // enforcement failure must not hide a live bike behind a global
-          // repository-style error.
-        }
+        current.updateSetOnConnect(bike.setOnConnect);
         if (!_disposed &&
             !_discoveryPaused &&
             _session == current &&
@@ -588,8 +582,7 @@ final class ActiveBikeCoordinator {
       sessionState: sessionState,
       isTemporary: _temporaryBikeId != null,
     );
-    if ((sessionState is SessionReady || sessionState is SessionDegraded) &&
-        !_readyRecorded) {
+    if (sessionState is SessionReady && !_readyRecorded) {
       _readyRecorded = true;
       unawaited(
         bikeRepository

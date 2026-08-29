@@ -82,31 +82,49 @@ void main() {
   );
 
   test(
-    'enabling a lock captures the confirmed bike value atomically',
+    'Set on connect values are saved independently of a live bike',
     () async {
       await settingsRepository.initialize();
       await repository.addBike(
         deviceId: 'bike',
       );
 
-      await repository.setModeLock('bike', enabled: true, confirmedValue: 3);
+      await repository.setOnConnect(
+        'bike',
+        const BikeControlPatch(
+          light: true,
+          mode: 3,
+          assist: 4,
+        ),
+      );
 
       final saved = (await repository.getBikes()).single;
-      expect(saved.preferences.keepMode, isTrue);
-      expect(saved.preferences.desiredMode, 3);
+      expect(saved.setOnConnect.light, isTrue);
+      expect(saved.setOnConnect.mode, 3);
+      expect(saved.setOnConnect.assist, 4);
     },
   );
 
-  test('invalid desired values never reach SQLite', () async {
+  test('invalid Set on connect values never reach SQLite', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');
 
     expect(
-      () => repository.saveDesiredSettings('bike', mode: 4),
+      () => repository.setOnConnect(
+        'bike',
+        const BikeControlPatch(
+          mode: 4,
+        ),
+      ),
       throwsRangeError,
     );
     expect(
-      () => repository.saveDesiredSettings('bike', assist: -1),
+      () => repository.setOnConnect(
+        'bike',
+        const BikeControlPatch(
+          assist: -1,
+        ),
+      ),
       throwsRangeError,
     );
   });
@@ -144,24 +162,22 @@ void main() {
     expect(saved.bike.color, BikeColor.midnightSky);
   });
 
-  test('V1 bikes always require a region', () async {
+  test('V1 bikes default a missing region to US', () async {
     await settingsRepository.initialize();
 
-    expect(
-      () => repository.addBike(deviceId: 'bike', region: null),
-      throwsArgumentError,
+    var saved = await repository.addBike(deviceId: 'bike', region: null);
+    expect(saved.bike.region, BikeRegion.us);
+
+    await repository.updateBikeDetails(
+      'bike',
+      displayName: 'Bike',
+      region: null,
+      color: BikeColor.royalHorizon,
+      protocol: BikeProtocolVersion.v1,
     );
-    await repository.addBike(deviceId: 'bike');
-    expect(
-      () => repository.updateBikeDetails(
-        'bike',
-        displayName: 'Bike',
-        region: null,
-        color: BikeColor.royalHorizon,
-        protocol: BikeProtocolVersion.v1,
-      ),
-      throwsArgumentError,
-    );
+
+    saved = (await repository.getBikes()).single;
+    expect(saved.bike.region, BikeRegion.us);
   });
 
   test(

@@ -732,6 +732,12 @@ Protocol v2 uses two records:
 The writable `00D1` or `00C1` value left in `0x155f` is not an authoritative
 state snapshot and may not reflect subsequent physical-button changes.
 
+On every connection, read the complete control state before applying any
+configured set-on-connect patch. Preserve controls absent from the patch. After
+any control write, accept the requested configuration when the GATT write is
+acknowledged. Later telemetry and periodic reads may replace it with newer bike
+state. These rules apply equally to light, mode, and assist.
+
 ### Reading the odometer through history
 
 After authentication, select `0202` for protocol v1 or `00D0` for protocol v2,

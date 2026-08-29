@@ -62,7 +62,7 @@ class BackgroundSyncWorker(
             )
             .apply()
         if (BackgroundSyncEngineRegistry.isActivityForeground) {
-            return finish(mapOf("outcome" to "skippedForeground", "detail" to null))
+            return Result.retry()
         }
         return try {
             val outcome = withTimeout(90_000) {

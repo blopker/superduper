@@ -15,6 +15,7 @@ import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
+import 'package:superduper/src/widgets/bike_value_selector.dart';
 import 'package:superduper/src/widgets/report_actions.dart';
 
 enum BikeSettingsOutcome { forgotten }
@@ -39,12 +40,12 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   Timer? _nameSaveTimer;
   Future<void>? _saveFuture;
   String? _nameError;
-  String? _regionError;
   var _saveRequested = false;
   var _saving = false;
   var _forgetting = false;
   var _closing = false;
   var _changingBackground = false;
+  var _changingSetOnConnect = false;
   var _allowPop = false;
   var _regionFieldRevision = 0;
   var _protocolFieldRevision = 0;
@@ -111,6 +112,8 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           isActive: isActive,
         ),
         const SizedBox(height: 30),
+        ..._buildSetOnConnectSettings(saved, deviceId),
+        const SizedBox(height: 34),
         const SectionHeader(eyebrow: 'Identity', title: 'Bike details'),
         const SizedBox(height: 16),
         SurfacePanel(
@@ -132,10 +135,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                 DropdownButtonFormField<BikeRegion>(
                   key: ValueKey((_region, _regionFieldRevision)),
                   initialValue: _region,
-                  decoration: InputDecoration(
-                    labelText: 'Region',
-                    errorText: _regionError,
-                  ),
+                  decoration: const InputDecoration(labelText: 'Region'),
                   items: [
                     for (final region in BikeRegion.values)
                       DropdownMenuItem(
@@ -385,6 +385,142 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     );
   }
 
+  List<Widget> _buildSetOnConnectSettings(
+    SavedBike saved,
+    String deviceId,
+  ) {
+    return [
+      const SectionHeader(
+        eyebrow: 'Automation',
+        title: 'Set on connect',
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        'Lock in settings when Superduper connects.',
+      ),
+      const SizedBox(height: 16),
+      SurfacePanel(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            SwitchListTile(
+              key: const Key('set-on-connect-light'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.lightbulb_outline_rounded),
+              title: const Text('Turn light on'),
+              value: saved.setOnConnect.light != null,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
+                          deviceId,
+                          saved.setOnConnect.copyWith(
+                            light: enabled ? true : null,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            const Divider(height: 1),
+            SwitchListTile(
+              key: const Key('set-on-connect-mode'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.speed_rounded),
+              title: const Text('Set mode'),
+              value: saved.setOnConnect.mode != null,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
+                          deviceId,
+                          saved.setOnConnect.copyWith(
+                            mode: enabled
+                                ? (saved.setOnConnect.mode ??
+                                      BikeControlValues.minimumMode)
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            if (saved.setOnConnect.mode case final selectedMode?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: BikeValueSelector(
+                  values: BikeControlValues.modes,
+                  selected: selectedMode,
+                  enabled: !_changingSetOnConnect,
+                  semanticLabel: 'Set on connect mode',
+                  label: (mode) => '${mode + 1}',
+                  onChanged: (mode) => unawaited(
+                    _changeSetOnConnect(
+                      () => _services.bikeRepository.setOnConnect(
+                        deviceId,
+                        saved.setOnConnect.copyWith(mode: mode),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const Divider(height: 1),
+            SwitchListTile(
+              key: const Key('set-on-connect-assist'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              secondary: const Icon(Icons.bolt_rounded),
+              title: const Text('Set assist'),
+              value: saved.setOnConnect.assist != null,
+              onChanged: _changingSetOnConnect
+                  ? null
+                  : (enabled) => unawaited(
+                      _changeSetOnConnect(
+                        () => _services.bikeRepository.setOnConnect(
+                          deviceId,
+                          saved.setOnConnect.copyWith(
+                            assist: enabled
+                                ? (saved.setOnConnect.assist ??
+                                      BikeControlValues.minimumAssist)
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            if (saved.setOnConnect.assist case final selectedAssist?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: BikeValueSelector(
+                  values: BikeControlValues.assistLevels,
+                  selected: selectedAssist,
+                  enabled: !_changingSetOnConnect,
+                  semanticLabel: 'Set on connect assist level',
+                  label: (assist) => '$assist',
+                  onChanged: (assist) => unawaited(
+                    _changeSetOnConnect(
+                      () => _services.bikeRepository.setOnConnect(
+                        deviceId,
+                        saved.setOnConnect.copyWith(assist: assist),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
   void _scheduleNameSave(String value) {
     _nameSaveTimer?.cancel();
     _nameSaveTimer = null;
@@ -420,37 +556,34 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     if (region == _region) {
       return;
     }
-    if (_region != null) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Change bike region?'),
-          content: const Text(
-            'The selected region is included the next time Superduper sends settings to the bike. Changing it here does not immediately write to the bike.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Change region'),
-            ),
-          ],
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change bike region?'),
+        content: const Text(
+          'The selected region is included the next time Superduper sends settings to the bike. Changing it here does not immediately write to the bike.',
         ),
-      );
-      if (!mounted) {
-        return;
-      }
-      if (!(confirmed ?? false)) {
-        setState(() => _regionFieldRevision += 1);
-        return;
-      }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Change region'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!(confirmed ?? false)) {
+      setState(() => _regionFieldRevision += 1);
+      return;
     }
     setState(() {
       _region = region;
-      _regionError = null;
       _regionFieldRevision += 1;
     });
     await _queueSaveNow();
@@ -465,7 +598,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       builder: (context) => AlertDialog(
         title: const Text('CHANGE BIKE PROTOCOL?'),
         content: Text(
-          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and Set on connect values may stop working.${protocol == BikeProtocolVersion.v1 && _region == null ? ' V1 will initially use the US region.' : ''}',
+          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and Set on connect values may stop working.',
         ),
         actions: [
           TextButton(
@@ -488,10 +621,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     }
     setState(() {
       _protocol = protocol;
-      _region = protocol == BikeProtocolVersion.v1
-          ? (_region ?? BikeRegion.us)
-          : null;
-      _regionError = null;
+      _region = protocol.normalizeRegion(_region);
       _protocolFieldRevision += 1;
       _regionFieldRevision += 1;
     });
@@ -545,6 +675,26 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     } finally {
       if (mounted) {
         setState(() => _changingBackground = false);
+      }
+    }
+  }
+
+  Future<void> _changeSetOnConnect(Future<void> Function() change) async {
+    if (_changingSetOnConnect) {
+      return;
+    }
+    setState(() => _changingSetOnConnect = true);
+    try {
+      await change();
+    } on Object catch (error) {
+      if (mounted) {
+        _showMessage(
+          userFacingError(error, context: UserErrorContext.saveBike),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _changingSetOnConnect = false);
       }
     }
   }
@@ -608,15 +758,10 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     while (_saveRequested) {
       _saveRequested = false;
       final name = _name.text.trim();
-      if (name.isEmpty ||
-          (_protocol == BikeProtocolVersion.v1 && _region == null)) {
+      if (name.isEmpty) {
         if (mounted) {
           setState(() {
-            _nameError = name.isEmpty ? 'Enter a bike name.' : null;
-            _regionError =
-                _protocol == BikeProtocolVersion.v1 && _region == null
-                ? 'Choose the bike region.'
-                : null;
+            _nameError = 'Enter a bike name.';
           });
         }
         break;

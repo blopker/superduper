@@ -93,17 +93,12 @@ void main() {
     expect(transport.connections, isEmpty);
   });
 
-  test('uses the observed address and confirms locked settings', () async {
+  test('uses the observed address and applies Set on connect', () async {
     await bikes.addBike(
       deviceId: 'saved-address',
       moduleSerial: '00112233aabbccdd',
-      preferences: const RidePreferences(
-        desiredLight: true,
-        desiredMode: 3,
-        desiredAssist: 4,
-        keepLight: false,
-        keepMode: true,
-        keepAssist: false,
+      setOnConnect: const BikeControlPatch(
+        mode: 3,
       ),
       backgroundPreference: const BackgroundPreference(
         requested: true,
@@ -127,9 +122,9 @@ void main() {
     final configurationWrites = connection.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(configurationWrites, hasLength(1));
+    expect(configurationWrites, hasLength(2));
     expect(
-      configurationWrites.single.value,
+      configurationWrites.last.value,
       [0, 0xd1, 0, 2, 3, 0, 0, 0, 0, 0],
     );
     expect(connection.reads, isNotEmpty);

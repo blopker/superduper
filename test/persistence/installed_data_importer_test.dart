@@ -90,47 +90,47 @@ void main() {
     expect(settings.lastViewedBikeId, 'sanitized-bike-02');
   });
 
-  test('imports values, locks, regions, ordering, and last viewed', () async {
-    final bikesSource = [
-      _bike(
-        'first',
-        name: 'First Bike',
-        region: 200,
-        light: true,
-        mode: 3,
-        assist: 4,
-        color: 31,
-        lightLocked: true,
-        modeLocked: true,
-        assistLocked: true,
-        modeLock: true,
-      ),
-      _bike('second', region: 'EU', color: 1),
-    ];
-    await _writeJson(documents, 'bikes.json', bikesSource);
-    await _writeJson(documents, 'settings.json', {'currentBike': 'second'});
+  test(
+    'imports legacy values, flags, regions, ordering, and last viewed',
+    () async {
+      final bikesSource = [
+        _bike(
+          'first',
+          name: 'First Bike',
+          region: 200,
+          light: true,
+          mode: 3,
+          assist: 4,
+          color: 31,
+          lightLocked: true,
+          modeLocked: true,
+          assistLocked: true,
+          modeLock: true,
+        ),
+        _bike('second', region: 'EU', color: 1),
+      ];
+      await _writeJson(documents, 'bikes.json', bikesSource);
+      await _writeJson(documents, 'settings.json', {'currentBike': 'second'});
 
-    final result = await importer.run() as InstalledDataImportSuccess;
-    final repository = BikeRepository(database: database);
-    final bikes = await repository.getBikes();
-    final settings = await SettingsRepository(database: database).get();
+      final result = await importer.run() as InstalledDataImportSuccess;
+      final repository = BikeRepository(database: database);
+      final bikes = await repository.getBikes();
+      final settings = await SettingsRepository(database: database).get();
 
-    expect(result.bikesImported, 2);
-    expect(bikes.map((saved) => saved.bike.deviceId), ['first', 'second']);
-    expect(bikes.first.bike.region, BikeRegion.us);
-    expect(bikes.first.bike.color, BikeColor.midnightSky);
-    expect(bikes.first.preferences.desiredLight, isTrue);
-    expect(bikes.first.preferences.desiredMode, 3);
-    expect(bikes.first.preferences.desiredAssist, 4);
-    expect(bikes.first.preferences.keepLight, isTrue);
-    expect(bikes.first.preferences.keepMode, isTrue);
-    expect(bikes.first.preferences.keepAssist, isTrue);
-    expect(bikes.first.backgroundPreference.requested, isTrue);
-    expect(bikes.first.backgroundPreference.consentVersion, 0);
-    expect(bikes.last.bike.region, BikeRegion.eu);
-    expect(settings.activeBikeId, 'first');
-    expect(settings.lastViewedBikeId, 'second');
-  });
+      expect(result.bikesImported, 2);
+      expect(bikes.map((saved) => saved.bike.deviceId), ['first', 'second']);
+      expect(bikes.first.bike.region, BikeRegion.us);
+      expect(bikes.first.bike.color, BikeColor.midnightSky);
+      expect(bikes.first.setOnConnect.light, isTrue);
+      expect(bikes.first.setOnConnect.mode, 3);
+      expect(bikes.first.setOnConnect.assist, 4);
+      expect(bikes.first.backgroundPreference.requested, isTrue);
+      expect(bikes.first.backgroundPreference.consentVersion, 0);
+      expect(bikes.last.bike.region, BikeRegion.eu);
+      expect(settings.activeBikeId, 'first');
+      expect(settings.lastViewedBikeId, 'second');
+    },
+  );
 
   test('maps every frozen legacy color index to its persistence key', () async {
     await _writeJson(documents, 'bikes.json', [
@@ -177,7 +177,7 @@ void main() {
       await _writeJson(documents, 'bikes.json', [
         _bike('duplicate', name: 'Old'),
         _bike('other', name: 'Other'),
-        _bike('duplicate', name: 'New', mode: 3),
+        _bike('duplicate', name: 'New', mode: 3, modeLocked: true),
       ]);
 
       final result = await importer.run() as InstalledDataImportSuccess;
@@ -186,7 +186,7 @@ void main() {
       expect(bikes.map((saved) => saved.bike.deviceId), ['duplicate', 'other']);
       expect(bikes.first.bike.displayName, 'New');
       expect(bikes.first.bike.sortOrder, 0);
-      expect(bikes.first.preferences.desiredMode, 3);
+      expect(bikes.first.setOnConnect.mode, 3);
       expect(
         result.warnings.any((warning) => warning.code == 'duplicate_bike'),
         isTrue,

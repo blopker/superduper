@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -11,6 +12,49 @@ part 'app_database.g.dart';
 const appDatabaseFilename = 'superduper.sqlite';
 const installedBikesFilename = 'bikes.json';
 const installedSettingsFilename = 'settings.json';
+
+final class BikeControlPatchConverter
+    extends TypeConverter<BikeControlPatch, String> {
+  const BikeControlPatchConverter();
+
+  @override
+  BikeControlPatch fromSql(String fromDb) {
+    final decoded = jsonDecode(fromDb);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Set-on-connect settings must be an object.');
+    }
+    return BikeControlPatch(
+      light: _optionalBool(decoded, 'light'),
+      mode: _optionalInt(decoded, 'mode'),
+      assist: _optionalInt(decoded, 'assist'),
+    );
+  }
+
+  @override
+  String toSql(BikeControlPatch value) {
+    return jsonEncode({
+      'light': ?value.light,
+      'mode': ?value.mode,
+      'assist': ?value.assist,
+    });
+  }
+
+  static bool? _optionalBool(Map<String, dynamic> object, String key) {
+    final value = object[key];
+    if (value == null || value is bool) {
+      return value as bool?;
+    }
+    throw FormatException('Set-on-connect $key must be a boolean.');
+  }
+
+  static int? _optionalInt(Map<String, dynamic> object, String key) {
+    final value = object[key];
+    if (value == null || value is int) {
+      return value as int?;
+    }
+    throw FormatException('Set-on-connect $key must be an integer.');
+  }
+}
 
 @DataClassName('BikeRow')
 class Bikes extends Table {
@@ -46,19 +90,13 @@ class Bikes extends Table {
 class BikePreferences extends Table {
   TextColumn get deviceId =>
       text().references(Bikes, #deviceId, onDelete: KeyAction.cascade)();
-  BoolColumn get desiredLight => boolean()();
-  IntColumn get desiredMode => integer()();
-  IntColumn get desiredAssist => integer()();
-  BoolColumn get keepLight => boolean()();
-  BoolColumn get keepMode => boolean()();
-  BoolColumn get keepAssist => boolean()();
+  TextColumn get setOnConnect =>
+      text().map(const BikeControlPatchConverter())();
   BoolColumn get backgroundRequested => boolean()();
   IntColumn get backgroundConsentVersion => integer()();
 
   @override
   List<String> get customConstraints => [
-    'CHECK (desired_mode BETWEEN 0 AND 3)',
-    'CHECK (desired_assist BETWEEN 0 AND 4)',
     'CHECK (background_consent_version >= 0)',
   ];
 
@@ -189,6 +227,22 @@ final class AppDatabase extends _$AppDatabase {
           await migrator.addColumn(bikes, bikes.odometerReadAtMs);
         });
       }
+      if (from < 3) {
+        await migrator.alterTable(
+          TableMigration(
+            bikePreferences,
+            newColumns: [bikePreferences.setOnConnect],
+            columnTransformer: {
+              bikePreferences.setOnConnect: const CustomExpression<String>(
+                "'{' || "
+                "'\"light\":' || CASE WHEN keep_light = 1 AND desired_light = 1 THEN 'true' ELSE 'null' END || ',' || "
+                "'\"mode\":' || CASE WHEN keep_mode = 1 THEN CAST(desired_mode AS TEXT) ELSE 'null' END || ',' || "
+                "'\"assist\":' || CASE WHEN keep_assist = 1 THEN CAST(desired_assist AS TEXT) ELSE 'null' END || '}'",
+              ),
+            },
+          ),
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -196,5 +250,5 @@ final class AppDatabase extends _$AppDatabase {
   );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 }

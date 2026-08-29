@@ -1,7 +1,9 @@
 import 'package:crypto/crypto.dart';
+import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 
-export 'package:superduper/src/domain/bike.dart' show BikeProtocolVersion;
+export 'package:superduper/src/domain/bike.dart'
+    show BikeConfiguration, BikeControlPatch, BikeProtocolVersion;
 
 abstract final class BikeGatt {
   static const manufacturerId = 0x020f;
@@ -29,46 +31,6 @@ abstract final class BikeGatt {
   static const v2ModeSelector = <int>[0x00, 0xd9];
   static const displayVersionSelector = <int>[0xfc, 0xfc];
   static const componentVersionsSelector = <int>[0xfa, 0xfa];
-}
-
-final class BikeConfiguration {
-  const BikeConfiguration({
-    required this.light,
-    required this.mode,
-    required this.assist,
-    required this.region,
-  });
-
-  final bool light;
-  final int mode;
-  final int assist;
-  final BikeRegion region;
-
-  BikeConfiguration copyWith({
-    bool? light,
-    int? mode,
-    int? assist,
-    BikeRegion? region,
-  }) {
-    return BikeConfiguration(
-      light: light ?? this.light,
-      mode: mode ?? this.mode,
-      assist: assist ?? this.assist,
-      region: region ?? this.region,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is BikeConfiguration &&
-        light == other.light &&
-        mode == other.mode &&
-        assist == other.assist &&
-        region == other.region;
-  }
-
-  @override
-  int get hashCode => Object.hash(light, mode, assist, region);
 }
 
 sealed class BikeProtocolFailure implements Exception {
@@ -104,7 +66,409 @@ final class InvalidAuthenticationValue extends BikeProtocolFailure {
   const InvalidAuthenticationValue(super.message);
 }
 
+typedef BikeProtocolTimeout = Future<T> Function<T>(
+  Future<T> operation,
+  String name,
+);
+
+abstract class BikeProtocolDefinition {
+  BikeProtocolDefinition() : _connection = null, _timed = null;
+
+  BikeProtocolDefinition.connected({
+    required this._connection,
+    required this._timed,
+  });
+
+  final BikeConnection? _connection;
+  final BikeProtocolTimeout? _timed;
+  BikeRegion? _lastWireRegion;
+  List<int>? _lastLatchedHistorySelector;
+
+  Future<BikeConfiguration> readConfiguration({
+    required BikeRegion? preferredRegion,
+    required BikeRegion? fallbackRegion,
+    void Function(int meters)? onOdometer,
+  });
+
+  Future<int> readOdometer({required int? cachedMeters});
+
+  BikeControlPatch? decodeTelemetry(List<int> packet);
+
+  BikeConfiguration? applyTelemetry(
+    List<int> packet,
+    BikeConfiguration current, {
+    required BikeRegion? preferredRegion,
+  }) {
+    final patch = decodeTelemetry(packet);
+    if (patch == null) {
+      return null;
+    }
+    return patch
+        .applyTo(current)
+        .copyWith(region: preferredRegion ?? current.region);
+  }
+
+  List<int> encodeConfiguration(BikeConfiguration configuration);
+
+  bool wireRegionMatches(BikeConfiguration target);
+
+  Future<void> writeConfiguration(BikeConfiguration configuration) {
+    return _run(
+      _bike.writeCharacteristic(
+        serviceUuid: BikeGatt.metricsService,
+        characteristicUuid: BikeGatt.stateRegister,
+        value: encodeConfiguration(configuration),
+      ),
+      'Writing bike settings',
+    );
+  }
+
+  Future<List<int>> readHistoryRecord(List<int> selector) async {
+    final frame = await _tryReadHistoryRecord(selector);
+    if (frame != null) {
+      return frame;
+    }
+    throw UnexpectedBikePacket(
+      expected: BikeProtocol._hexId(selector),
+      actual: 'a different or malformed record',
+    );
+  }
+
+  void reset() {
+    _lastWireRegion = null;
+    _lastLatchedHistorySelector = null;
+  }
+
+  Future<List<int>> readProtocolRecord(
+    List<int> selector, {
+    bool invalidateRetained = false,
+  }) async {
+    if (invalidateRetained) {
+      final previous = _lastLatchedHistorySelector;
+      if (previous == null || _sameSelector(previous, selector)) {
+        await _tryReadHistoryRecord(BikeGatt.displayVersionSelector);
+      }
+    }
+    return readHistoryRecord(selector);
+  }
+
+  Future<List<int>?> _tryReadHistoryRecord(List<int> selector) async {
+    await _run(
+      _bike.writeCharacteristic(
+        serviceUuid: BikeGatt.metricsService,
+        characteristicUuid: BikeGatt.registerSelector,
+        value: selector,
+      ),
+      'Selecting state register',
+    );
+    for (final delay in _historyResultRetryDelays) {
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      final frame = await _run(
+        _bike.readCharacteristic(
+          serviceUuid: BikeGatt.metricsService,
+          characteristicUuid: BikeGatt.stateRegister,
+        ),
+        'Reading bike state',
+      );
+      if (BikeProtocol.hasPacketId(frame, selector)) {
+        _lastLatchedHistorySelector = List<int>.unmodifiable(selector);
+        return frame;
+      }
+    }
+    return null;
+  }
+
+  Future<T> _run<T>(Future<T> operation, String name) {
+    final timed = _timed;
+    if (timed == null) {
+      throw StateError('This protocol object is not connected.');
+    }
+    return timed(operation, name);
+  }
+
+  BikeConnection get _bike =>
+      _connection ??
+      (throw StateError('This protocol object is not connected.'));
+
+  static bool _sameSelector(List<int> left, List<int> right) {
+    return left.length == 2 &&
+        right.length == 2 &&
+        left[0] == right[0] &&
+        left[1] == right[1];
+  }
+
+  static const List<Duration> _historyResultRetryDelays = [
+    Duration.zero,
+    Duration(milliseconds: 10),
+    Duration(milliseconds: 25),
+    Duration(milliseconds: 75),
+  ];
+}
+
+final class V1BikeProtocol extends BikeProtocolDefinition {
+  V1BikeProtocol();
+
+  V1BikeProtocol.connected({
+    required BikeConnection connection,
+    required BikeProtocolTimeout timed,
+  }) : super.connected(connection: connection, timed: timed);
+
+  BikeConfiguration decodeState(List<int> packet) {
+    BikeProtocol._validatePacket(packet, BikeGatt.v1StateSelector);
+    final assist = packet[2];
+    final lightByte = packet[4];
+    final wireMode = packet[5];
+    BikeProtocol._validateControlValues(
+      assist: assist,
+      lightByte: lightByte,
+      mode: wireMode,
+      maximumMode: BikeControlValues.modeCount * BikeRegion.values.length - 1,
+    );
+    return BikeConfiguration(
+      light: lightByte == 1,
+      mode: wireMode % BikeControlValues.modeCount,
+      assist: assist,
+      region: wireMode >= BikeControlValues.modeCount
+          ? BikeRegion.eu
+          : BikeRegion.us,
+    );
+  }
+
+  @override
+  Future<BikeConfiguration> readConfiguration({
+    required BikeRegion? preferredRegion,
+    required BikeRegion? fallbackRegion,
+    void Function(int meters)? onOdometer,
+  }) async {
+    final wire = decodeState(
+      await readProtocolRecord(
+        BikeGatt.v1StateSelector,
+        invalidateRetained: true,
+      ),
+    );
+    _lastWireRegion = wire.region;
+    return wire.copyWith(region: preferredRegion);
+  }
+
+  @override
+  BikeControlPatch? decodeTelemetry(List<int> packet) {
+    if (!BikeProtocol._hasPacketIdValue(packet, 0x0300)) {
+      return null;
+    }
+    final decoded = decodeState(packet);
+    _lastWireRegion = decoded.region;
+    return BikeControlPatch(
+      light: decoded.light,
+      mode: decoded.mode,
+      assist: decoded.assist,
+    );
+  }
+
+  @override
+  BikeConfiguration? applyTelemetry(
+    List<int> packet,
+    BikeConfiguration current, {
+    required BikeRegion? preferredRegion,
+  }) {
+    final patch = decodeTelemetry(packet);
+    if (patch == null) {
+      return null;
+    }
+    return patch
+        .applyTo(current)
+        .copyWith(region: preferredRegion ?? _lastWireRegion);
+  }
+
+  @override
+  List<int> encodeConfiguration(BikeConfiguration configuration) {
+    BikeProtocol._validateConfiguration(configuration);
+    final mode = switch (configuration.region) {
+      BikeRegion.us => configuration.mode,
+      BikeRegion.eu => configuration.mode + BikeControlValues.modeCount,
+    };
+    return [
+      0,
+      0xd1,
+      if (configuration.light) 1 else 0,
+      configuration.assist,
+      mode,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ];
+  }
+
+  int decodeOdometer(List<int> packet) {
+    BikeProtocol._validatePacket(packet, BikeGatt.v1OdometerSelector);
+    return BikeProtocol._readLittleEndian(packet, 6, 4);
+  }
+
+  @override
+  Future<int> readOdometer({required int? cachedMeters}) async {
+    return decodeOdometer(
+      await readProtocolRecord(BikeGatt.v1OdometerSelector),
+    );
+  }
+
+  @override
+  bool wireRegionMatches(BikeConfiguration target) {
+    return _lastWireRegion == target.region;
+  }
+}
+
+final class V2BikeProtocol extends BikeProtocolDefinition {
+  V2BikeProtocol();
+
+  V2BikeProtocol.connected({
+    required BikeConnection connection,
+    required BikeProtocolTimeout timed,
+  }) : super.connected(connection: connection, timed: timed);
+
+  BikeConfiguration decodeState({
+    required List<int> d0,
+    required List<int> d9,
+    required BikeRegion region,
+  }) {
+    BikeProtocol._validatePacket(d0, BikeGatt.v2ControlSelector);
+    BikeProtocol._validatePacket(d9, BikeGatt.v2ModeSelector);
+    final assist = d0[2];
+    final lightByte = d0[4];
+    final mode = d9[5];
+    BikeProtocol._validateControlValues(
+      assist: assist,
+      lightByte: lightByte,
+      mode: mode,
+      maximumMode: BikeControlValues.maximumMode,
+    );
+    return BikeConfiguration(
+      light: lightByte == 1,
+      mode: mode,
+      assist: assist,
+      region: region,
+    );
+  }
+
+  @override
+  Future<BikeConfiguration> readConfiguration({
+    required BikeRegion? preferredRegion,
+    required BikeRegion? fallbackRegion,
+    void Function(int meters)? onOdometer,
+  }) async {
+    final d0 = await readProtocolRecord(
+      BikeGatt.v2ControlSelector,
+      invalidateRetained: true,
+    );
+    onOdometer?.call(decodeOdometer(d0));
+    return decodeState(
+      d0: d0,
+      d9: await readProtocolRecord(BikeGatt.v2ModeSelector),
+      region: preferredRegion ?? fallbackRegion ?? BikeRegion.us,
+    );
+  }
+
+  @override
+  BikeControlPatch? decodeTelemetry(List<int> packet) {
+    if (packet.length < 2) {
+      throw ShortBikeFrame(packet.length);
+    }
+    final packetId = (packet[0] << 8) | packet[1];
+    return switch (packetId) {
+      0x00d0 => _decodeD0Telemetry(packet),
+      0x00d9 => _decodeD9Telemetry(packet),
+      _ => null,
+    };
+  }
+
+  @override
+  List<int> encodeConfiguration(BikeConfiguration configuration) {
+    BikeProtocol._validateConfiguration(configuration);
+    return [
+      0,
+      0xc1,
+      if (configuration.light) 1 else 0,
+      configuration.assist,
+      configuration.mode,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ];
+  }
+
+  int decodeOdometer(List<int> packet) {
+    BikeProtocol._validatePacket(packet, BikeGatt.v2ControlSelector);
+    return BikeProtocol._readLittleEndian(packet, 6, 4);
+  }
+
+  @override
+  Future<int> readOdometer({required int? cachedMeters}) async {
+    return cachedMeters ??
+        decodeOdometer(
+          await readProtocolRecord(BikeGatt.v2ControlSelector),
+        );
+  }
+
+  @override
+  bool wireRegionMatches(BikeConfiguration target) {
+    return true;
+  }
+
+  BikeControlPatch _decodeD0Telemetry(List<int> packet) {
+    BikeProtocol._validatePacket(packet, BikeGatt.v2ControlSelector);
+    final assist = packet[2];
+    final lightByte = packet[4];
+    BikeProtocol._validateControlValues(
+      assist: assist,
+      lightByte: lightByte,
+      mode: BikeControlValues.minimumMode,
+      maximumMode: BikeControlValues.maximumMode,
+    );
+    return BikeControlPatch(light: lightByte == 1, assist: assist);
+  }
+
+  BikeControlPatch _decodeD9Telemetry(List<int> packet) {
+    BikeProtocol._validatePacket(packet, BikeGatt.v2ModeSelector);
+    final mode = packet[5];
+    if (!BikeControlValues.isValidMode(mode)) {
+      throw UnsupportedBikeValue('ride mode', mode);
+    }
+    return BikeControlPatch(mode: mode);
+  }
+}
+
 abstract final class BikeProtocol {
+  static final v1 = V1BikeProtocol();
+  static final v2 = V2BikeProtocol();
+
+  static BikeProtocolDefinition forVersion(BikeProtocolVersion version) {
+    return switch (version) {
+      BikeProtocolVersion.v1 => v1,
+      BikeProtocolVersion.v2 => v2,
+    };
+  }
+
+  static BikeProtocolDefinition connected({
+    required BikeProtocolVersion version,
+    required BikeConnection connection,
+    required BikeProtocolTimeout timed,
+  }) {
+    return switch (version) {
+      BikeProtocolVersion.v1 => V1BikeProtocol.connected(
+        connection: connection,
+        timed: timed,
+      ),
+      BikeProtocolVersion.v2 => V2BikeProtocol.connected(
+        connection: connection,
+        timed: timed,
+      ),
+    };
+  }
+
   static const defaultAuthenticationKey = <int>[
     0xff,
     0xff,
@@ -151,87 +515,6 @@ abstract final class BikeProtocol {
     return serial.toString();
   }
 
-  static BikeConfiguration decodeV1State(List<int> packet) {
-    _validatePacket(packet, BikeGatt.v1StateSelector);
-    final assist = packet[2];
-    final lightByte = packet[4];
-    final wireMode = packet[5];
-    _validateControlValues(
-      assist: assist,
-      lightByte: lightByte,
-      mode: wireMode,
-      maximumMode: 7,
-    );
-    return BikeConfiguration(
-      light: lightByte == 1,
-      mode: wireMode % 4,
-      assist: assist,
-      region: wireMode >= 4 ? BikeRegion.eu : BikeRegion.us,
-    );
-  }
-
-  static BikeConfiguration decodeV2State({
-    required List<int> d0,
-    required List<int> d9,
-    required BikeRegion region,
-  }) {
-    _validatePacket(d0, BikeGatt.v2ControlSelector);
-    _validatePacket(d9, BikeGatt.v2ModeSelector);
-    final assist = d0[2];
-    final lightByte = d0[4];
-    final mode = d9[5];
-    _validateControlValues(
-      assist: assist,
-      lightByte: lightByte,
-      mode: mode,
-      maximumMode: 3,
-    );
-    return BikeConfiguration(
-      light: lightByte == 1,
-      mode: mode,
-      assist: assist,
-      region: region,
-    );
-  }
-
-  static List<int> odometerSelector(BikeProtocolVersion version) {
-    return switch (version) {
-      BikeProtocolVersion.v1 => BikeGatt.v1OdometerSelector,
-      BikeProtocolVersion.v2 => BikeGatt.v2ControlSelector,
-    };
-  }
-
-  static int decodeOdometerMeters({
-    required BikeProtocolVersion version,
-    required List<int> packet,
-  }) {
-    _validatePacket(packet, odometerSelector(version));
-    return _readLittleEndian(packet, 6, 4);
-  }
-
-  static BikeConfiguration? applyTelemetry({
-    required BikeProtocolVersion version,
-    required List<int> packet,
-    required BikeConfiguration? current,
-  }) {
-    if (packet.length < 2) {
-      throw ShortBikeFrame(packet.length);
-    }
-    final packetId = (packet[0] << 8) | packet[1];
-    return switch ((version, packetId)) {
-      (BikeProtocolVersion.v1, 0x0300) => decodeV1State(packet),
-      (BikeProtocolVersion.v2, 0x00d0) when current != null => _applyV2D0(
-        packet,
-        current,
-      ),
-      (BikeProtocolVersion.v2, 0x00d9) when current != null => _applyV2D9(
-        packet,
-        current,
-      ),
-      _ => null,
-    };
-  }
-
   static BikeVersionInfo decodeVersionInfo({
     required String hardwareRevision,
     required String firmwareRevision,
@@ -259,37 +542,6 @@ abstract final class BikeProtocol {
     );
   }
 
-  static List<int> encodeConfiguration(
-    BikeConfiguration configuration, {
-    required BikeProtocolVersion version,
-  }) {
-    if (configuration.mode < 0 || configuration.mode > 3) {
-      throw RangeError.range(configuration.mode, 0, 3, 'mode');
-    }
-    if (configuration.assist < 0 || configuration.assist > 4) {
-      throw RangeError.range(configuration.assist, 0, 4, 'assist');
-    }
-    final mode = switch (version) {
-      BikeProtocolVersion.v1 => switch (configuration.region) {
-        BikeRegion.us => configuration.mode,
-        BikeRegion.eu => configuration.mode + 4,
-      },
-      BikeProtocolVersion.v2 => configuration.mode,
-    };
-    return [
-      0,
-      if (version == BikeProtocolVersion.v1) 0xd1 else 0xc1,
-      if (configuration.light) 1 else 0,
-      configuration.assist,
-      mode,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ];
-  }
-
   static bool hasPacketId(List<int> packet, List<int> packetId) {
     return packet.length == 10 &&
         packetId.length == 2 &&
@@ -297,32 +549,16 @@ abstract final class BikeProtocol {
         packet[1] == packetId[1];
   }
 
-  static BikeConfiguration _applyV2D0(
-    List<int> packet,
-    BikeConfiguration current,
-  ) {
-    _validatePacket(packet, BikeGatt.v2ControlSelector);
-    final assist = packet[2];
-    final lightByte = packet[4];
-    _validateControlValues(
-      assist: assist,
-      lightByte: lightByte,
-      mode: current.mode,
-      maximumMode: 3,
-    );
-    return current.copyWith(light: lightByte == 1, assist: assist);
+  static bool _hasPacketIdValue(List<int> packet, int packetId) {
+    if (packet.length < 2) {
+      throw ShortBikeFrame(packet.length);
+    }
+    return ((packet[0] << 8) | packet[1]) == packetId;
   }
 
-  static BikeConfiguration _applyV2D9(
-    List<int> packet,
-    BikeConfiguration current,
-  ) {
-    _validatePacket(packet, BikeGatt.v2ModeSelector);
-    final mode = packet[5];
-    if (mode < 0 || mode > 3) {
-      throw UnsupportedBikeValue('ride mode', mode);
-    }
-    return current.copyWith(mode: mode);
+  static void _validateConfiguration(BikeConfiguration configuration) {
+    BikeControlValues.validateMode(configuration.mode);
+    BikeControlValues.validateAssist(configuration.assist);
   }
 
   static void _validateAuthenticationBytes(List<int> value, String name) {
@@ -367,13 +603,13 @@ abstract final class BikeProtocol {
     required int mode,
     required int maximumMode,
   }) {
-    if (assist < 0 || assist > 4) {
+    if (!BikeControlValues.isValidAssist(assist)) {
       throw UnsupportedBikeValue('assist', assist);
     }
     if (lightByte != 0 && lightByte != 1) {
       throw UnsupportedBikeValue('light', lightByte);
     }
-    if (mode < 0 || mode > maximumMode) {
+    if (mode < BikeControlValues.minimumMode || mode > maximumMode) {
       throw UnsupportedBikeValue('mode', mode);
     }
   }
