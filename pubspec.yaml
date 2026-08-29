@@ -1,7 +1,7 @@
 name: superduper
 description: Configure your Super73 bike and keep its ride settings consistent.
 publish_to: none
-version: 1.0.6+65
+version: 1.0.7+66
 
 environment:
   sdk: ^3.13.1
