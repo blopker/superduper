@@ -288,7 +288,7 @@ final class BikeSession {
           _clearPendingConfiguration();
           _scheduleReconnect(failure);
         } else {
-          _pending.value = null;
+          _clearPendingConfiguration();
           _state.value = SessionFailed(failure: failure, canRetry: true);
         }
         throw failure;
@@ -480,15 +480,15 @@ final class BikeSession {
         }
         final failure = _asFailure(error);
         if (failure case BikeBluetoothUnavailable(canRetry: false)) {
-          _pending.value = null;
+          _clearPendingConfiguration();
           _state.value = SessionFailed(failure: failure, canRetry: false);
         } else if (failure is _ProtocolSessionFailure ||
             failure is BikeAuthenticationFailed ||
             failure is BikeProtocolNotSupported) {
-          _pending.value = null;
+          _clearPendingConfiguration();
           _state.value = SessionFailed(failure: failure, canRetry: true);
         } else {
-          _pending.value = null;
+          _clearPendingConfiguration();
           _scheduleReconnect(failure);
         }
       }
