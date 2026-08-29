@@ -790,10 +790,8 @@ final class BikeSession {
       _markReady(confirmed);
       return;
     }
-    final target = _protocol.startupTarget(
-      observed: confirmed,
-      intent: intent,
-      preferredRegion: _preferredRegion,
+    final target = intent.applyTo(
+      confirmed.copyWith(region: _preferredRegion ?? confirmed.region),
     );
     var mustWrite = forceSetOnConnectWrite;
     for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
@@ -804,7 +802,7 @@ final class BikeSession {
         return;
       }
       _state.value = SessionSynchronizing(attempt: attempt);
-      await _protocol.writeStartupConfiguration(target, intent: intent);
+      await _protocol.writeConfiguration(target);
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
@@ -873,7 +871,7 @@ final class BikeSession {
         _synchronizationRetryTimer?.cancel();
         late BikeConfiguration confirmed;
         try {
-          await _protocol.writeControls(target, controls: controls);
+          await _protocol.writeConfiguration(target);
           if (!_isCurrent(generation) || !_hasObservedConnection) {
             throw const BikeSessionDisposedFailure();
           }
@@ -883,7 +881,7 @@ final class BikeSession {
               if (_pending.peek() != target) {
                 return Future.value();
               }
-              return _protocol.writeControls(target, controls: controls);
+              return _protocol.writeConfiguration(target);
             },
           );
           if (!_isCurrent(generation) || !_hasObservedConnection) {

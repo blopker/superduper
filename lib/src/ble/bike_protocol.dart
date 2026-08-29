@@ -83,7 +83,6 @@ abstract class BikeProtocolDefinition {
   final BikeProtocolTimeout? _timed;
   BikeRegion? _lastWireRegion;
   List<int>? _lastLatchedHistorySelector;
-  bool? _startupLightOverride;
 
   Future<BikeConfiguration> readConfiguration({
     required BikeRegion? preferredRegion,
@@ -124,39 +123,6 @@ abstract class BikeProtocolDefinition {
     );
   }
 
-  BikeConfiguration startupTarget({
-    required BikeConfiguration observed,
-    required BikeControlPatch intent,
-    required BikeRegion? preferredRegion,
-  }) {
-    return intent.applyTo(
-      observed.copyWith(
-        light: intent.light ?? false,
-        region: preferredRegion ?? observed.region,
-      ),
-    );
-  }
-
-  Future<void> writeStartupConfiguration(
-    BikeConfiguration configuration, {
-    required BikeControlPatch intent,
-  }) async {
-    await writeConfiguration(configuration);
-    if (intent.light == null) {
-      _startupLightOverride = configuration.light;
-    }
-  }
-
-  Future<void> writeControls(
-    BikeConfiguration configuration, {
-    required BikeControlPatch controls,
-  }) {
-    if (controls.light != null) {
-      _startupLightOverride = null;
-    }
-    return writeConfiguration(configuration);
-  }
-
   Future<List<int>> readHistoryRecord(List<int> selector) async {
     final frame = await _tryReadHistoryRecord(selector);
     if (frame != null) {
@@ -171,7 +137,6 @@ abstract class BikeProtocolDefinition {
   void reset() {
     _lastWireRegion = null;
     _lastLatchedHistorySelector = null;
-    _startupLightOverride = null;
   }
 
   Future<List<int>> readProtocolRecord(
@@ -226,22 +191,6 @@ abstract class BikeProtocolDefinition {
   BikeConnection get _bike =>
       _connection ??
       (throw StateError('This protocol object is not connected.'));
-
-  BikeConfiguration _projectRetainedLight(BikeConfiguration configuration) {
-    final override = _startupLightOverride;
-    if (override == null) {
-      return configuration;
-    }
-    if (configuration.light == override) {
-      _startupLightOverride = null;
-      return configuration;
-    }
-    return configuration.copyWith(light: override);
-  }
-
-  void _observeLiveLight() {
-    _startupLightOverride = null;
-  }
 
   static bool _sameSelector(List<int> left, List<int> right) {
     return left.length == 2 &&
@@ -300,7 +249,7 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
       ),
     );
     _lastWireRegion = wire.region;
-    return _projectRetainedLight(wire.copyWith(region: preferredRegion));
+    return wire.copyWith(region: preferredRegion);
   }
 
   @override
@@ -309,7 +258,6 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
       return null;
     }
     final decoded = decodeState(packet);
-    _observeLiveLight();
     _lastWireRegion = decoded.region;
     return BikeControlPatch(
       light: decoded.light,
@@ -415,12 +363,10 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
       invalidateRetained: true,
     );
     onOdometer?.call(decodeOdometer(d0));
-    return _projectRetainedLight(
-      decodeState(
-        d0: d0,
-        d9: await readProtocolRecord(BikeGatt.v2ModeSelector),
-        region: preferredRegion ?? fallbackRegion ?? BikeRegion.us,
-      ),
+    return decodeState(
+      d0: d0,
+      d9: await readProtocolRecord(BikeGatt.v2ModeSelector),
+      region: preferredRegion ?? fallbackRegion ?? BikeRegion.us,
     );
   }
 
@@ -482,7 +428,6 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
       mode: BikeControlValues.minimumMode,
       maximumMode: BikeControlValues.maximumMode,
     );
-    _observeLiveLight();
     return BikeControlPatch(light: lightByte == 1, assist: assist);
   }
 

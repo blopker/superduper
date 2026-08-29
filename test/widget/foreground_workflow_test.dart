@@ -42,7 +42,7 @@ void main() {
     final configurationWrites = fixture.connection.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(configurationWrites.single.value, [0, 0xd1, 0, 2, 3, 0, 0, 0, 0, 0]);
+    expect(configurationWrites.single.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
   });
 
   testWidgets('bike color theme stays scoped to bike routes', (tester) async {
@@ -375,7 +375,7 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
   );
   transport.readFramesOnOpen['active-bike'] = [
     v1StateFrame(light: true, assist: 2),
-    v1StateFrame(mode: 3, assist: 2),
+    v1StateFrame(light: true, mode: 3, assist: 2),
   ];
 
   await tester.runAsync(() async {
