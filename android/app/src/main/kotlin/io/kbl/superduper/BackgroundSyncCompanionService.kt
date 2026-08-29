@@ -8,8 +8,22 @@ import androidx.annotation.RequiresApi
 class BackgroundSyncCompanionService : CompanionDeviceService() {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onDeviceAppeared(address: String) {
-        if (Build.VERSION.SDK_INT < 36) {
+        if (Build.VERSION.SDK_INT < 36 &&
+            !BackgroundSyncEngineRegistry.isActivityForeground
+        ) {
             BackgroundSyncScheduler.enqueue(this, address, "companion")
+        }
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onDeviceDisappeared(address: String) {
+        if (Build.VERSION.SDK_INT < 36) {
+            BackgroundSyncScheduler.enqueue(
+                this,
+                address,
+                "companionDisconnect",
+                initialDelaySeconds = 10,
+            )
         }
     }
 

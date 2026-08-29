@@ -153,13 +153,15 @@ The system association chooser owns its lifetime; the app does not impose a time
 
 Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
 
-BLE appearance callbacks enqueue unique work. On Android 16, a foreground
-Bluetooth connection is distinguished from an actual BLE appearance, and the
-disconnect that releases the foreground connection schedules a short delayed
-transaction so a quick bike power cycle is not lost between presence epochs.
-If Android delivers an actionable callback while the activity is foreground,
-the worker retries after the activity stops. WorkManager keeps a single pending
-transaction when Android reports the same event more than once.
+BLE appearance callbacks enqueue unique work. Android 16 distinguishes a
+foreground Bluetooth connection from an actual BLE appearance. Earlier Android
+versions use the legacy callback, so foreground appearances are ignored. On all
+supported versions, the disappearance that releases the foreground connection
+schedules a short delayed transaction so a quick bike power cycle is not lost
+between presence epochs. If Android delivers another actionable callback while
+the activity is foreground, the worker retries after the activity stops.
+WorkManager keeps a single pending transaction when Android reports the same
+event more than once.
 
 The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
 
