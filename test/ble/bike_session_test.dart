@@ -94,13 +94,69 @@ void main() {
         ),
       );
       expect(
-        connection.writes.where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        ),
-        isEmpty,
+        _configurationWrites(connection).single.value,
+        [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0],
       );
     },
   );
+
+  test('V1 publishes its read before writing it back', () async {
+    connection.readFrames.add([3, 0, 2, 0, 1, 3]);
+    connection.configurationWriteGate = Completer<void>();
+    session = createSession(readDiagnosticsOnConnect: false);
+
+    final connect = session.connect();
+    await _waitUntil(() => connection.configurationWriteStarts == 1);
+
+    expect(
+      session.observed.value,
+      const BikeConfiguration(
+        light: true,
+        mode: 3,
+        assist: 2,
+        region: BikeRegion.us,
+      ),
+    );
+    connection.configurationWriteGate!.complete();
+    await connect;
+
+    expect(
+      _configurationWrites(connection).single.value,
+      [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0],
+    );
+  });
+
+  test('V2 publishes its read before writing it back', () async {
+    connection.readFrames.addAll([
+      [0, 0xd0, 2, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
+    ]);
+    connection.configurationWriteGate = Completer<void>();
+    session = createSession(
+      protocol: BikeProtocolVersion.v2,
+      readDiagnosticsOnConnect: false,
+    );
+
+    final connect = session.connect();
+    await _waitUntil(() => connection.configurationWriteStarts == 1);
+
+    expect(
+      session.observed.value,
+      const BikeConfiguration(
+        light: true,
+        mode: 3,
+        assist: 2,
+        region: BikeRegion.us,
+      ),
+    );
+    connection.configurationWriteGate!.complete();
+    await connect;
+
+    expect(
+      _configurationWrites(connection).single.value,
+      [0, 0xc1, 1, 2, 3, 0, 0, 0, 0, 0],
+    );
+  });
 
   test('session orchestration can use a connected protocol object', () async {
     const configuration = BikeConfiguration(
@@ -120,6 +176,7 @@ void main() {
     expect(session.observed.value, configuration);
     expect(session.state.value, isA<SessionReady>());
     expect(protocol.configurationReads, 1);
+    expect(protocol.configurationWrites, [configuration]);
     expect(
       connection.writes.where(
         (write) => write.characteristicUuid == BikeGatt.registerSelector,
@@ -250,11 +307,11 @@ void main() {
     await session.pauseForBackground();
     await session.resumeFromBackground();
 
-    final configurationWrites = connection.writes
-        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
-        .toList();
-    expect(configurationWrites, hasLength(2));
+    final configurationWrites = _configurationWrites(connection);
+    expect(configurationWrites, hasLength(4));
     expect(configurationWrites.map((write) => write.value), [
+      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
       [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
       [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
     ]);
@@ -262,7 +319,7 @@ void main() {
   });
 
   test(
-    'writes one startup target based on the connection read',
+    'writes back the read before writing the startup target',
     () async {
       connection.readFrames.add([3, 0, 1, 0, 0, 0]);
       session = createSession(
@@ -272,12 +329,12 @@ void main() {
 
       await session.connect();
 
-      final writes = connection.writes
-          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+      final writes = _configurationWrites(connection)
           .map((write) => write.value)
           .toList();
-      expect(writes, hasLength(1));
-      expect(writes.single[3], 1);
+      expect(writes, hasLength(2));
+      expect(writes.first, [0, 0xd1, 0, 1, 0, 0, 0, 0, 0, 0]);
+      expect(writes.last, [0, 0xd1, 0, 1, 3, 0, 0, 0, 0, 0]);
     },
   );
 
@@ -295,9 +352,9 @@ void main() {
 
       await session.connect();
 
-      final write = connection.writes.singleWhere(
-        (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
-      );
+      final writes = _configurationWrites(connection);
+      expect(writes, hasLength(2));
+      final write = writes.last;
       expect(write.value[2], 1);
       expect(session.observed.value?.light, isTrue);
       expect(
@@ -328,9 +385,9 @@ void main() {
 
       await session.connect();
 
-      final write = connection.writes.singleWhere(
-        (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
-      );
+      final writes = _configurationWrites(connection);
+      expect(writes, hasLength(2));
+      final write = writes.last;
       expect(write.value[2], 1);
       expect(session.observed.value?.light, isTrue);
     },
@@ -602,12 +659,7 @@ void main() {
         hasLength(readsBeforeWrite),
       );
       expect(
-        connection.writes
-            .where(
-              (write) => write.characteristicUuid == BikeGatt.stateRegister,
-            )
-            .single
-            .value[2],
+        _configurationWrites(connection).last.value[2],
         0,
       );
     },
@@ -659,10 +711,8 @@ void main() {
       );
 
       expect(
-        connection.writes.where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        ),
-        hasLength(2),
+        _configurationWrites(connection),
+        hasLength(4),
       );
     },
   );
@@ -707,11 +757,9 @@ void main() {
 
     await session.connect();
 
-    final configurationWrites = connection.writes
-        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
-        .toList();
-    expect(configurationWrites, hasLength(1));
-    expect(configurationWrites.single.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
+    final configurationWrites = _configurationWrites(connection);
+    expect(configurationWrites, hasLength(2));
+    expect(configurationWrites.last.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
     expect(session.state.value, isA<SessionReady>());
   });
 
@@ -725,13 +773,9 @@ void main() {
 
     expect(session.state.value, isA<SessionReady>());
     expect(session.observed.value?.mode, 3);
-    final configurationWrites = connection.writes
-        .where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        )
-        .toList();
-    expect(configurationWrites, hasLength(1));
-    expect(configurationWrites.single.value, [0, 0xd1, 0, 0, 3, 0, 0, 0, 0, 0]);
+    final configurationWrites = _configurationWrites(connection);
+    expect(configurationWrites, hasLength(2));
+    expect(configurationWrites.last.value, [0, 0xd1, 0, 0, 3, 0, 0, 0, 0, 0]);
   });
 
   test('serializes live control writes', () async {
@@ -801,6 +845,7 @@ void main() {
 
     final writes = connection.writes
         .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .skip(1)
         .toList();
     expect(writes, hasLength(2));
     expect(writes.first.value[2], 1);
@@ -823,11 +868,9 @@ void main() {
       final on = session.setLight(true);
       await Future.wait([off, on]);
 
-      final writes = connection.writes
-          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
-          .toList();
-      expect(writes, hasLength(1));
-      expect(writes.single.value[2], 1);
+      final writes = _configurationWrites(connection);
+      expect(writes, hasLength(2));
+      expect(writes.last.value[2], 1);
       expect(session.observed.value?.light, isTrue);
     },
   );
@@ -846,7 +889,7 @@ void main() {
       );
 
       final connect = session.connect();
-      await _waitUntil(() => connection.configurationWriteStarts == 1);
+      await _waitUntil(() => connection.configurationWriteStarts >= 2);
       final change = session.setLight(true);
 
       await connect;
@@ -902,10 +945,8 @@ void main() {
     expect(written.light, isTrue);
     expect(session.state.value, isA<SessionReady>());
     expect(
-      connection.writes.where(
-        (write) => write.characteristicUuid == BikeGatt.stateRegister,
-      ),
-      hasLength(1),
+      _configurationWrites(connection),
+      hasLength(2),
     );
     expect(connection.reads, hasLength(readsBeforeWrite));
   });
@@ -938,10 +979,8 @@ void main() {
       expect(session.state.value, isA<SessionReady>());
       expect(session.observed.value?.light, isTrue);
       expect(
-        connection.writes.where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        ),
-        hasLength(1),
+        _configurationWrites(connection),
+        hasLength(2),
       );
     },
   );
@@ -978,17 +1017,34 @@ void main() {
 
       final confirmed = await session.setLight(true);
 
-      final writes = connection.writes
-          .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
-          .toList();
-      expect(writes, hasLength(1));
+      final writes = _configurationWrites(connection);
+      expect(writes, hasLength(2));
       expect(writes.map((write) => write.value[4]), everyElement(5));
       expect(confirmed.region, BikeRegion.eu);
       expect(session.observed.value?.region, BikeRegion.eu);
     },
   );
 
-  test('does not leak periodic poll timers when readiness is republished', () {
+  test('does not schedule configuration polling by default', () {
+    fakeAsync((async) {
+      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+      session = BikeSession(
+        connection: connection,
+        preferredRegion: null,
+        setOnConnect: const BikeControlPatch(),
+        protocol: BikeProtocolVersion.v1,
+        reconnectDelays: const [],
+      );
+      unawaited(session.connect());
+      async.flushMicrotasks();
+      expect(async.periodicTimerCount, 0);
+
+      unawaited(session.dispose());
+      async.flushMicrotasks();
+    });
+  });
+
+  test('does not leak an enabled poll timer when readiness is republished', () {
     fakeAsync((async) {
       connection.readFrames.addAll([
         [0, 0, 0, 0, 0, 0],
@@ -999,6 +1055,7 @@ void main() {
         preferredRegion: null,
         setOnConnect: const BikeControlPatch(),
         protocol: BikeProtocolVersion.v1,
+        pollInterval: const Duration(seconds: 30),
         reconnectDelays: const [],
       );
       unawaited(session.connect());
@@ -1126,7 +1183,7 @@ void main() {
               write.value[1] == 0xc1,
         )
         .length;
-    expect(initialConfigurationWrites, 1);
+    expect(initialConfigurationWrites, 2);
 
     connection.emitNotification([0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0]);
     await _waitUntil(() => session.observed.value?.light == false);
@@ -1162,10 +1219,8 @@ void main() {
 
       expect(session.observed.value?.light, isFalse);
       expect(
-        connection.writes.where(
-          (write) => write.characteristicUuid == BikeGatt.stateRegister,
-        ),
-        hasLength(1),
+        _configurationWrites(connection),
+        hasLength(2),
       );
     },
   );
@@ -1369,25 +1424,21 @@ void main() {
     ]);
     session = createSession();
     await session.connect();
-    final writesBeforeEdit = connection.writes.where(
-      (write) => write.characteristicUuid == BikeGatt.stateRegister,
-    );
+    final writesBeforeEdit = _configurationWrites(connection);
 
     session.updateSetOnConnect(
       const BikeControlPatch(light: true),
     );
     await Future<void>.delayed(Duration.zero);
-    expect(writesBeforeEdit, isEmpty);
+    expect(writesBeforeEdit, hasLength(1));
 
     await session.pauseForBackground();
     await session.resumeFromBackground();
 
     expect(session.state.value, isA<SessionReady>());
     expect(
-      connection.writes.where(
-        (write) => write.characteristicUuid == BikeGatt.stateRegister,
-      ),
-      hasLength(1),
+      _configurationWrites(connection),
+      hasLength(3),
     );
   });
 }
@@ -1397,6 +1448,7 @@ final class _FakeConnectedProtocol extends BikeProtocolDefinition {
 
   final BikeConfiguration configuration;
   int configurationReads = 0;
+  final List<BikeConfiguration> configurationWrites = [];
 
   @override
   BikeControlPatch? decodeTelemetry(List<int> packet) => null;
@@ -1433,7 +1485,9 @@ final class _FakeConnectedProtocol extends BikeProtocolDefinition {
   bool wireRegionMatches(BikeConfiguration target) => true;
 
   @override
-  Future<void> writeConfiguration(BikeConfiguration configuration) async {}
+  Future<void> writeConfiguration(BikeConfiguration configuration) async {
+    configurationWrites.add(configuration);
+  }
 }
 
 Future<void> _waitUntil(bool Function() condition) async {
@@ -1457,3 +1511,9 @@ bool _sameBytes(List<int> left, List<int> right) {
   }
   return true;
 }
+
+List<CharacteristicWrite> _configurationWrites(
+  FakeBikeConnection connection,
+) => connection.writes
+    .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+    .toList();

@@ -88,7 +88,6 @@ final class BackgroundBikeSynchronizer {
         preferredRegion: saved.bike.region,
         setOnConnect: saved.setOnConnect,
         protocol: saved.bike.protocol,
-        pollInterval: null,
         reconnectDelays: const [],
         readDiagnosticsOnConnect: false,
       );

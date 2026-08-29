@@ -229,7 +229,6 @@ final class AddBikeController {
         preferredRegion: null,
         setOnConnect: const BikeControlPatch(),
         protocol: protocol,
-        pollInterval: null,
         reconnectDelays: const [],
       );
       _candidateSession = session;

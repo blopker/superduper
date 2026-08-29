@@ -42,7 +42,7 @@ void main() {
     final configurationWrites = fixture.connection.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(configurationWrites.single.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
+    expect(configurationWrites.last.value, [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0]);
   });
 
   testWidgets('bike color theme stays scoped to bike routes', (tester) async {

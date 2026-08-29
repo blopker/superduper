@@ -376,7 +376,6 @@ final class BikeHardwareTestController {
       onOdometerRead: (_) async {
         odometerReads++;
       },
-      pollInterval: null,
       reconnectDelays: reconnectDelays,
     );
     _session = session;

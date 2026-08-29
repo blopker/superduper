@@ -122,9 +122,9 @@ void main() {
     final configurationWrites = connection.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(configurationWrites, hasLength(1));
+    expect(configurationWrites, hasLength(2));
     expect(
-      configurationWrites.single.value,
+      configurationWrites.last.value,
       [0, 0xd1, 0, 2, 3, 0, 0, 0, 0, 0],
     );
     expect(connection.reads, isNotEmpty);

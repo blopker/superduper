@@ -219,7 +219,8 @@ void main() {
   test('cancel waits for an in-flight toggle before restoring', () async {
     final gate = Completer<void>();
     final connection = FakeBikeConnection(deviceId: 'bike')
-      ..configurationWriteGate = gate;
+      ..configurationWriteGate = gate
+      ..configurationWriteGateAfterStarts = 1;
     connection.readFrames.addAll([
       v1StateFrame(mode: 2, assist: 1),
       v1StateFrame(light: true, mode: 2, assist: 1),
@@ -232,7 +233,7 @@ void main() {
     transport.emitResults(const [
       DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
     ]);
-    await _waitUntil(() => connection.configurationWriteStarts == 1);
+    await _waitUntil(() => connection.configurationWriteStarts == 2);
 
     final cancel = controller.cancel();
     gate.complete();
@@ -240,6 +241,7 @@ void main() {
 
     final writes = connection.writes
         .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .skip(1)
         .toList();
     expect(writes, hasLength(2));
     expect(writes.last.value, [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0]);

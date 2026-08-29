@@ -40,7 +40,6 @@ void main() {
         preferredRegion: bike.bike.region,
         setOnConnect: bike.setOnConnect,
         protocol: bike.bike.protocol,
-        pollInterval: null,
         reconnectDelays: const [],
       ),
     );

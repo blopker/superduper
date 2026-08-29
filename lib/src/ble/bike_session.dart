@@ -127,7 +127,7 @@ final class BikeSession {
     OdometerRead? onOdometerRead,
     this.readDiagnosticsOnConnect = true,
     Duration commandTimeout = const Duration(seconds: 15),
-    Duration? pollInterval = const Duration(seconds: 30),
+    Duration? pollInterval,
     List<Duration> reconnectDelays = const [
       Duration(seconds: 2),
       Duration(seconds: 5),
@@ -466,7 +466,7 @@ final class BikeSession {
           return;
         }
         _state.value = const SessionConnected();
-        await _synchronizeNow(forceSetOnConnectWrite: true);
+        await _synchronizeNow(initialConnection: true);
         _reconnectAttempt = 0;
         if (readDiagnosticsOnConnect &&
             _isCurrent(generation) &&
@@ -681,9 +681,8 @@ final class BikeSession {
       }
       _publishObserved(updated);
     } on BikeProtocolFailure {
-      // Notifications are advisory and may be partial or from an unsupported
-      // telemetry family. Keep the last authoritative configuration; a later
-      // valid notification or scheduled read can still update it.
+      // Ignore malformed or unsupported telemetry; the next valid notification
+      // remains authoritative.
     }
   }
 
@@ -705,27 +704,34 @@ final class BikeSession {
     return configuration;
   }
 
-  Future<void> _synchronizeNow({bool forceSetOnConnectWrite = false}) async {
+  Future<void> _synchronizeNow({bool initialConnection = false}) async {
     final generation = _generation;
     _pollTimer?.cancel();
-    final confirmed = await _readConfiguration();
+    final observed = await _readConfiguration();
     if (!_isCurrent(generation) || !_hasObservedConnection) {
       throw const BikeSessionDisposedFailure();
     }
-    _publishObserved(confirmed);
+    _publishObserved(observed);
+
+    if (initialConnection) {
+      await _protocol.writeConfiguration(observed);
+      if (!_isCurrent(generation) || !_hasObservedConnection) {
+        throw const BikeSessionDisposedFailure();
+      }
+    }
 
     final intent = _connectionIntent;
     if (intent.isEmpty) {
-      _markReady(confirmed);
+      _markReady(observed);
       return;
     }
     final target = intent.applyTo(
-      confirmed.copyWith(region: _preferredRegion ?? confirmed.region),
+      observed.copyWith(region: _preferredRegion ?? observed.region),
     );
-    if (!forceSetOnConnectWrite &&
-        intent.matches(confirmed) &&
+    if (!initialConnection &&
+        intent.matches(observed) &&
         _wireRegionMatches(target)) {
-      _markReady(confirmed);
+      _markReady(observed);
       return;
     }
     _state.value = const SessionSynchronizing(attempt: 1);
