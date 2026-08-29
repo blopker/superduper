@@ -734,9 +734,9 @@ state snapshot and may not reflect subsequent physical-button changes.
 
 On every connection, read the complete control state before applying any
 configured set-on-connect patch. Preserve controls absent from the patch. After
-any control write, read the complete state again and only accept the write when
-the bike reports the requested configuration. These rules apply equally to
-light, mode, and assist.
+any control write, accept the requested configuration when the GATT write is
+acknowledged. Later telemetry and periodic reads may replace it with newer bike
+state. These rules apply equally to light, mode, and assist.
 
 ### Reading the odometer through history
 

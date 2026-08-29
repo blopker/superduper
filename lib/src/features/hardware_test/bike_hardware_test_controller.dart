@@ -101,11 +101,6 @@ final class BikeHardwareTestController {
       Duration(seconds: 5),
       Duration(seconds: 10),
     ],
-    this.confirmationRetryDelays = const [
-      Duration(milliseconds: 250),
-      Duration(milliseconds: 750),
-      Duration(seconds: 1),
-    ],
     this.stepTimeout = const Duration(seconds: 75),
     this.cleanupTimeout = const Duration(seconds: 20),
   });
@@ -116,7 +111,6 @@ final class BikeHardwareTestController {
   final Duration scanDuration;
   final Duration notificationWait;
   final List<Duration> reconnectDelays;
-  final List<Duration> confirmationRetryDelays;
   final Duration stepTimeout;
   final Duration cleanupTimeout;
   late final ExclusiveBluetoothOperation _exclusiveBluetooth =
@@ -384,7 +378,6 @@ final class BikeHardwareTestController {
       },
       pollInterval: null,
       reconnectDelays: reconnectDelays,
-      confirmationRetryDelays: confirmationRetryDelays,
     );
     _session = session;
     _sessionStateCleanup = session.state.subscribe((sessionState) {
@@ -462,7 +455,7 @@ final class BikeHardwareTestController {
     _publish(
       BikeHardwareTestPhase.exercising,
       'Testing every setting',
-      'Each value is changed, confirmed from the bike, and restored before the next setting.',
+      'Each value is changed after the bike acknowledges the write, then restored before the next setting.',
     );
     await _testSettingToggles(session, initial, generation);
 
@@ -589,12 +582,12 @@ final class BikeHardwareTestController {
     final writtenPacket = connection.configurationWrites.last;
     _expect(
       _listsEqual(writtenPacket, expectedPacket),
-      'The reconnect configuration packet did not match the confirmed state.',
+      'The reconnect configuration packet did not match the acknowledged state.',
     );
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Reconnect and Set on connect',
-      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and confirmed Set on connect values while preserving mode ${reconnected.mode}.',
+      'Reauthenticated, reread versions, wrote ${_hex(writtenPacket)}, and applied Set on connect values while preserving mode ${reconnected.mode}.',
     );
 
     _publish(
@@ -688,7 +681,7 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Light toggle',
-      'Changed to ${light.light ? 'on' : 'off'}, confirmed, and restored.',
+      'Changed to ${light.light ? 'on' : 'off'}, acknowledged, and restored.',
     );
 
     final nextMode = (initial.mode + 1) % BikeControlValues.modeCount;
@@ -700,7 +693,7 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Mode toggle',
-      'Changed to $nextMode, confirmed, and restored to ${initial.mode}.',
+      'Changed to $nextMode, acknowledged, and restored to ${initial.mode}.',
     );
 
     final nextAssist = (initial.assist + 1) % 5;
@@ -715,7 +708,7 @@ final class BikeHardwareTestController {
     _addLog(
       BikeHardwareTestLogStatus.passed,
       'Assist toggle',
-      'Changed to $nextAssist, confirmed, and restored to ${initial.assist}.',
+      'Changed to $nextAssist, acknowledged, and restored to ${initial.assist}.',
     );
   }
 
@@ -739,9 +732,6 @@ final class BikeHardwareTestController {
         return;
       }
       if (current is SessionFailed) {
-        throw current.failure;
-      }
-      if (current is SessionDegraded) {
         throw current.failure;
       }
       if (current is SessionDisposed ||
@@ -955,8 +945,7 @@ final class BikeHardwareTestController {
     var retryAttempted = false;
     while (true) {
       final current = session.state.peek();
-      if (session.canChangeConfiguration &&
-          (current is SessionReady || current is SessionDegraded)) {
+      if (session.canChangeConfiguration && current is SessionReady) {
         return true;
       }
       if (current is SessionDisposed ||
@@ -1011,12 +1000,8 @@ final class BikeHardwareTestController {
         'Completing the challenge-response handshake.',
       ),
       SessionConnected() || SessionSynchronizing() => (
-        'Confirming bike settings',
-        'Reading versions and waiting for the controller to confirm its settings.',
-      ),
-      SessionDegraded() => (
-        'Connected with a settings warning',
-        'The bike is reachable, but it did not confirm a requested setting.',
+        'Applying bike settings',
+        'Reading versions and applying saved settings.',
       ),
       SessionReconnecting(:final retryAfter) => (
         'Turn the bike ON',
@@ -1115,7 +1100,6 @@ final class BikeHardwareTestController {
       SessionConnected() => 'connected',
       SessionSynchronizing() => 'synchronizing',
       SessionReady() => 'ready',
-      SessionDegraded() => 'degraded',
       SessionReconnecting() => 'reconnecting',
       SessionDisconnected() => 'disconnected',
       SessionFailed() => 'failed',

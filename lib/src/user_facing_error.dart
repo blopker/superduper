@@ -32,7 +32,6 @@ String userFacingError(
   final known = switch (error) {
     BikeBluetoothUnavailable(:final message) => _bluetoothMessage(message),
     BikeCommandTimedOut() => 'The bike took too long to respond.',
-    BikeSettingsNotApplied() => 'The bike didn’t apply the requested setting. Manual controls are still available.',
     BikeSessionNotReady() =>
       'Wait for the bike to finish connecting, then try again.',
     BikeAuthenticationFailed() =>

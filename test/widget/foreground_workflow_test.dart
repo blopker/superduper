@@ -332,7 +332,6 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
       preferredRegion: bike.bike.region,
       setOnConnect: bike.setOnConnect,
       protocol: bike.bike.protocol,
-      confirmationRetryDelays: const [],
       onVersionsRead: (versions) async {
         await bikeRepository.saveVersions(bike.bike.deviceId, versions);
       },

@@ -90,17 +90,12 @@ final class BackgroundBikeSynchronizer {
         protocol: saved.bike.protocol,
         pollInterval: null,
         reconnectDelays: const [],
-        synchronizationRetryDelays: const [],
         readDiagnosticsOnConnect: false,
       );
       await session.connect().timeout(timeout);
       return switch (session.state.peek()) {
         SessionReady() => const BackgroundSyncResult(
           outcome: BackgroundSyncOutcome.confirmed,
-        ),
-        SessionDegraded(:final failure) => BackgroundSyncResult(
-          outcome: BackgroundSyncOutcome.failed,
-          detail: failure.message,
         ),
         SessionFailed(:final failure) => BackgroundSyncResult(
           outcome: BackgroundSyncOutcome.failed,

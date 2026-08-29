@@ -39,8 +39,9 @@ persisted active bike for riding.
   into its control screen.
 - After connecting, the app reads the current configuration, applies the
   user's enabled Set on connect values, writes one complete configuration if
-  needed, and confirms the result.
-- The app reports ride readiness only after Set on connect is confirmed.
+  needed, and accepts an acknowledged write.
+- The app reports ride readiness only after the initial read and any Set on
+  connect write.
 - Until background operation is proven, this workflow runs while the app is
   foreground-active and repeats the next time the app opens.
 

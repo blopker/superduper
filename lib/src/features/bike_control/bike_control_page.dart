@@ -102,7 +102,6 @@ final class _BikeControlPageState extends State<BikeControlPage> {
                 activeState is ActiveBikeCoordinatorFailure);
     final canRetry =
         coordinatorFailure != null ||
-        sessionState is SessionDegraded ||
         sessionState is SessionDisconnected ||
         switch (sessionState) {
           SessionFailed(:final canRetry) => canRetry,
@@ -207,11 +206,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
               _runConnectionAction(coordinator.retry),
             ),
             icon: const Icon(Icons.refresh_rounded),
-            label: Text(
-              sessionState is SessionDegraded
-                  ? 'Retry saved settings'
-                  : 'Reconnect',
-            ),
+            label: const Text('Reconnect'),
           ),
         ],
       ],

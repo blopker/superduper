@@ -10,7 +10,7 @@ After initial setup, the user should not need to open Superduper before riding:
 2. The operating system wakes Superduper without presenting its UI.
 3. Superduper connects, authenticates, and reads the current configuration.
 4. It applies only enabled Set on connect choices, preserving other values.
-5. It confirms the result and records the outcome.
+5. It records the acknowledged result.
 6. The user rides.
 
 This is needed only on Android and iOS. It is a convenience feature, not a safety mechanism, and the UI must not claim it will work after the user revokes Bluetooth access, disables Bluetooth, force-stops the app where the platform prohibits relaunch, or leaves the phone out of range.
@@ -24,7 +24,7 @@ The first implementation should keep FlutterBluePlus as the sole GATT connection
 - iOS: AccessorySetupKit setup or migration, Core Bluetooth background configuration, and state restoration.
 - Android: Companion Device Manager presence wakes background Dart work.
 
-Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, write, and confirmation path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
+Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, and acknowledged-write path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
 
 ## Verified bike advertisement
 
@@ -82,7 +82,7 @@ bike off
   -> pending connection retained by iOS
   -> bike turns on
   -> connection completes and wakes Superduper
-  -> authenticate, apply, and confirm Set on connect
+  -> authenticate and apply Set on connect
   -> keep the connection idle while the bike remains on
   -> bike turns off and the connection drops
   -> disconnection wakes Superduper
@@ -103,10 +103,9 @@ Apple says a Core Bluetooth wake normally has around ten seconds to finish its w
 4. Read the current configuration.
 5. Merge enabled Set on connect choices while preserving other values.
 6. Write only when needed.
-7. Read back and confirm.
-8. Persist the outcome.
+7. Persist the acknowledged outcome.
 
-Version reads and other diagnostics are secondary. They should run only after configuration is confirmed and only while sufficient execution time remains.
+Version reads and other diagnostics are secondary. They should run only after the configuration write is acknowledged and only while sufficient execution time remains.
 
 ### AccessorySetupKit
 
@@ -144,7 +143,7 @@ stable bike Bluetooth address
   -> unique expedited WorkManager request
   -> existing Flutter engine, or a headless engine only when no engine exists
   -> one-shot Dart BackgroundBikeSynchronizer
-  -> production BikeSession authentication, merge, write, and readback
+  -> production BikeSession authentication, read, merge, and acknowledged write
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
@@ -265,11 +264,11 @@ verify authentication
 read configuration
 merge enabled Set on connect choices
 write configuration when changed
-read back and confirm
+record the acknowledged write
 record result
 ```
 
-This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, manufacturer filters, and confirmation decoding.
+This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, and manufacturer filters.
 
 The native transaction needs an atomic desired-state snapshot containing only:
 
@@ -333,13 +332,13 @@ Test at least a current Pixel and Samsung device:
 - Simulated app hibernation and recovery.
 - Manual Force Stop as an expected failure.
 - One synchronization per presence epoch.
-- Configuration readback proving Set on connect was applied and disabled values were preserved.
+- A validated pre-write configuration read proving disabled values were preserved in the outgoing command.
 
 ### Common success criteria
 
 - The application UI never needs to appear.
 - The production authentication and configuration paths are used.
-- Set on connect values are confirmed by a readback.
+- Set on connect writes are accepted when GATT acknowledges them.
 - Disabled values are never overwritten.
 - No duplicate writes occur in one power session.
 - Failures use bounded retries and cannot loop indefinitely.

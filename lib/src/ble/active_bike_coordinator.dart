@@ -582,8 +582,7 @@ final class ActiveBikeCoordinator {
       sessionState: sessionState,
       isTemporary: _temporaryBikeId != null,
     );
-    if ((sessionState is SessionReady || sessionState is SessionDegraded) &&
-        !_readyRecorded) {
+    if (sessionState is SessionReady && !_readyRecorded) {
       _readyRecorded = true;
       unawaited(
         bikeRepository

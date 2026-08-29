@@ -222,7 +222,7 @@ final class _HomePageState extends State<HomePage> {
     final deviceId = switch (activeState) {
       ActiveBikeSessionStatus(
         :final bike,
-        sessionState: SessionReady() || SessionDegraded(),
+        sessionState: SessionReady(),
         isTemporary: false,
       ) =>
         bike.bike.deviceId,
@@ -243,8 +243,7 @@ final class _HomePageState extends State<HomePage> {
           current is ActiveBikeSessionStatus &&
           current.bike.bike.deviceId == deviceId &&
           !current.isTemporary &&
-          (current.sessionState is SessionReady ||
-              current.sessionState is SessionDegraded);
+          current.sessionState is SessionReady;
       if (!stillReady) {
         return;
       }

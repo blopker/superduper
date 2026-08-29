@@ -40,7 +40,6 @@ void main() {
       scanDuration: const Duration(milliseconds: 100),
       notificationWait: Duration.zero,
       reconnectDelays: const [Duration.zero],
-      confirmationRetryDelays: const [],
     );
   });
 
@@ -270,7 +269,6 @@ void main() {
       scanDuration: const Duration(milliseconds: 100),
       notificationWait: Duration.zero,
       reconnectDelays: const [Duration.zero],
-      confirmationRetryDelays: const [],
       cleanupTimeout: Duration.zero,
     );
     final connection = FakeBikeConnection(deviceId: 'bike');

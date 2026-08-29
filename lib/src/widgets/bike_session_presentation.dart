@@ -44,17 +44,6 @@ final class BikeSessionPresentation {
         detail: 'You can keep making changes while the bike catches up.',
         canRetry: false,
       ),
-      SessionDegraded(:final failure) => BikeSessionPresentation(
-        icon: Icons.warning_amber_rounded,
-        label: 'Connected with warning',
-        color: AppColors.orange,
-        title: 'The bike did not accept a setting',
-        detail: userFacingError(
-          failure,
-          context: UserErrorContext.bikeControl,
-        ),
-        canRetry: true,
-      ),
       SessionReady() => BikeSessionPresentation(
         icon: Icons.check_circle_rounded,
         label: 'Connected',

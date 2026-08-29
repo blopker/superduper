@@ -30,11 +30,6 @@ final class BikeCommandTimedOut extends BikeSessionFailure {
   const BikeCommandTimedOut(String operation) : super('$operation timed out.');
 }
 
-final class BikeSettingsNotApplied extends BikeSessionFailure {
-  const BikeSettingsNotApplied()
-    : super('The bike did not keep the requested settings.');
-}
-
 final class BikeSessionDisposedFailure extends BikeSessionFailure {
   const BikeSessionDisposedFailure() : super('The bike session is disposed.');
 }
@@ -89,13 +84,6 @@ final class SessionReady extends BikeSessionState {
   final BikeConfiguration configuration;
 }
 
-final class SessionDegraded extends BikeSessionState {
-  const SessionDegraded({required this.configuration, required this.failure});
-
-  final BikeConfiguration configuration;
-  final BikeSettingsNotApplied failure;
-}
-
 final class SessionReconnecting extends BikeSessionState {
   const SessionReconnecting({
     required this.attempt,
@@ -145,17 +133,6 @@ final class BikeSession {
       Duration(seconds: 5),
       Duration(seconds: 10),
     ],
-    List<Duration> synchronizationRetryDelays = const [
-      Duration(seconds: 2),
-      Duration(seconds: 5),
-      Duration(seconds: 10),
-    ],
-    List<Duration> confirmationRetryDelays = const [
-      Duration(milliseconds: 250),
-      Duration(milliseconds: 750),
-      Duration(seconds: 1),
-    ],
-    int correctiveAttempts = 2,
     BikeProtocolDefinition? connectedProtocol,
   }) : _protocolVersion = protocol,
        // The public named parameter backs private mutable session state.
@@ -176,12 +153,7 @@ final class BikeSession {
        // The public named parameter keeps connection policy private.
        // ignore: prefer_initializing_formals
        _pollInterval = pollInterval,
-       _reconnectDelays = List.unmodifiable(reconnectDelays),
-       _synchronizationRetryDelays = List.unmodifiable(
-         synchronizationRetryDelays,
-       ),
-       _confirmationRetryDelays = List.unmodifiable(confirmationRetryDelays),
-       _correctiveAttempts = correctiveAttempts {
+       _reconnectDelays = List.unmodifiable(reconnectDelays) {
     _protocol =
         connectedProtocol ??
         BikeProtocol.connected(
@@ -189,31 +161,10 @@ final class BikeSession {
           connection: connection,
           timed: _timed,
         );
-    if (correctiveAttempts < 1) {
-      throw ArgumentError.value(
-        correctiveAttempts,
-        'correctiveAttempts',
-        'Must be at least one.',
-      );
-    }
-    if (confirmationRetryDelays.any((delay) => delay.isNegative)) {
-      throw ArgumentError.value(
-        confirmationRetryDelays,
-        'confirmationRetryDelays',
-        'Must not contain negative durations.',
-      );
-    }
     if (reconnectDelays.any((delay) => delay.isNegative)) {
       throw ArgumentError.value(
         reconnectDelays,
         'reconnectDelays',
-        'Must not contain negative durations.',
-      );
-    }
-    if (synchronizationRetryDelays.any((delay) => delay.isNegative)) {
-      throw ArgumentError.value(
-        synchronizationRetryDelays,
-        'synchronizationRetryDelays',
         'Must not contain negative durations.',
       );
     }
@@ -231,9 +182,6 @@ final class BikeSession {
   final Duration _commandTimeout;
   final Duration? _pollInterval;
   final List<Duration> _reconnectDelays;
-  final List<Duration> _synchronizationRetryDelays;
-  final List<Duration> _confirmationRetryDelays;
-  final int _correctiveAttempts;
   final BikeProtocolVersion _protocolVersion;
   final List<int> _authenticationKey;
   late final BikeProtocolDefinition _protocol;
@@ -266,10 +214,8 @@ final class BikeSession {
   BikeControlPatch _connectionIntent;
   Timer? _pollTimer;
   Timer? _reconnectTimer;
-  Timer? _synchronizationRetryTimer;
   var _generation = 0;
   var _reconnectAttempt = 0;
-  var _synchronizationRetryAttempt = 0;
   var _disposed = false;
   var _manualReconnectPaused = false;
   var _foregroundPaused = false;
@@ -298,7 +244,7 @@ final class BikeSession {
       return false;
     }
     return switch (_state.peek()) {
-      SessionReady() || SessionSynchronizing() || SessionDegraded() => true,
+      SessionReady() || SessionSynchronizing() => true,
       _ => false,
     };
   }
@@ -322,19 +268,11 @@ final class BikeSession {
     _disconnectRequested = false;
     _generation++;
     _reconnectAttempt = 0;
-    _synchronizationRetryAttempt = 0;
     _reconnectTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     return _startConnect();
   }
 
-  Future<void> retry() {
-    if (_state.peek() is SessionDegraded && _hasObservedConnection) {
-      _synchronizationRetryAttempt = 0;
-      return synchronize();
-    }
-    return connect();
-  }
+  Future<void> retry() => connect();
 
   Future<void> synchronize() {
     _ensureNotDisposed();
@@ -346,9 +284,7 @@ final class BikeSession {
         if (failure is BikeSessionDisposedFailure) {
           throw failure;
         }
-        if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
-          _scheduleSynchronizationRetry(failure);
-        } else if (_isConnectionFailure(failure)) {
+        if (_isConnectionFailure(failure)) {
           _clearPendingConfiguration();
           _scheduleReconnect(failure);
         } else {
@@ -413,7 +349,6 @@ final class BikeSession {
     _disconnectRequested = false;
     _generation++;
     _reconnectTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     await _startConnect();
   }
 
@@ -427,7 +362,6 @@ final class BikeSession {
     _expectedDisconnect = true;
     _pollTimer?.cancel();
     _reconnectTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     _commands.dispose();
     _invalidateConfigurationState();
     try {
@@ -500,7 +434,6 @@ final class BikeSession {
       _expectedDisconnect = false;
       _connectionIntent = _nextConnectionIntent;
       _pollTimer?.cancel();
-      _synchronizationRetryTimer?.cancel();
       _invalidateConfigurationState();
       await _disableNotifications(updatePeripheral: false);
       _versions.value = null;
@@ -546,9 +479,7 @@ final class BikeSession {
           return;
         }
         final failure = _asFailure(error);
-        if (failure is BikeSettingsNotApplied && _hasObservedConnection) {
-          _scheduleSynchronizationRetry(failure);
-        } else if (failure case BikeBluetoothUnavailable(canRetry: false)) {
+        if (failure case BikeBluetoothUnavailable(canRetry: false)) {
           _pending.value = null;
           _state.value = SessionFailed(failure: failure, canRetry: false);
         } else if (failure is _ProtocolSessionFailure ||
@@ -764,7 +695,6 @@ final class BikeSession {
     _generation++;
     _hasObservedConnection = false;
     _pollTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     _invalidateConfigurationState();
     unawaited(_disableNotifications(updatePeripheral: false));
     _scheduleReconnect(BikeSessionTransportFailure(error));
@@ -778,8 +708,7 @@ final class BikeSession {
   Future<void> _synchronizeNow({bool forceSetOnConnectWrite = false}) async {
     final generation = _generation;
     _pollTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
-    var confirmed = await _readConfiguration();
+    final confirmed = await _readConfiguration();
     if (!_isCurrent(generation) || !_hasObservedConnection) {
       throw const BikeSessionDisposedFailure();
     }
@@ -793,33 +722,19 @@ final class BikeSession {
     final target = intent.applyTo(
       confirmed.copyWith(region: _preferredRegion ?? confirmed.region),
     );
-    var mustWrite = forceSetOnConnectWrite;
-    for (var attempt = 1; attempt <= _correctiveAttempts; attempt++) {
-      if (!mustWrite &&
-          intent.matches(confirmed) &&
-          _wireRegionMatches(target)) {
-        _markReady(_observed.peek() ?? confirmed);
-        return;
-      }
-      _state.value = SessionSynchronizing(attempt: attempt);
-      await _protocol.writeConfiguration(target);
-      if (!_isCurrent(generation) || !_hasObservedConnection) {
-        throw const BikeSessionDisposedFailure();
-      }
-      mustWrite = false;
-      confirmed = await _readConfigurationUntil(
-        (candidate) => intent.matches(candidate) && _wireRegionMatches(target),
-      );
-      if (!_isCurrent(generation) || !_hasObservedConnection) {
-        throw const BikeSessionDisposedFailure();
-      }
-      final published = _publishObserved(confirmed);
-      if (intent.matches(confirmed) && _wireRegionMatches(target)) {
-        _markReady(published);
-        return;
-      }
+    if (!forceSetOnConnectWrite &&
+        intent.matches(confirmed) &&
+        _wireRegionMatches(target)) {
+      _markReady(confirmed);
+      return;
     }
-    throw const BikeSettingsNotApplied();
+    _state.value = const SessionSynchronizing(attempt: 1);
+    await _protocol.writeConfiguration(target);
+    if (!_isCurrent(generation) || !_hasObservedConnection) {
+      throw const BikeSessionDisposedFailure();
+    }
+    _publishObserved(target);
+    _markReady(target);
   }
 
   Future<BikeConfiguration> _changeConfiguration(BikeControlPatch controls) {
@@ -868,45 +783,17 @@ final class BikeSession {
         // An explicit control must reach the bike even when telemetry claims
         // the cached state already matches; the controller can lag that cache.
         _pollTimer?.cancel();
-        _synchronizationRetryTimer?.cancel();
-        late BikeConfiguration confirmed;
+        late BikeConfiguration written;
         try {
           await _protocol.writeConfiguration(target);
           if (!_isCurrent(generation) || !_hasObservedConnection) {
             throw const BikeSessionDisposedFailure();
           }
-          confirmed = await _readConfigurationUntil(
-            (candidate) => candidate == target && _wireRegionMatches(target),
-            retryWrite: () {
-              if (_pending.peek() != target) {
-                return Future.value();
-              }
-              return _protocol.writeConfiguration(target);
-            },
-          );
-          if (!_isCurrent(generation) || !_hasObservedConnection) {
-            throw const BikeSessionDisposedFailure();
-          }
-          _publishObserved(confirmed);
-          if (confirmed != target || !_wireRegionMatches(target)) {
-            throw const BikeSettingsNotApplied();
-          }
+          written = _publishObserved(target);
         } on Object catch (error) {
           final failure = _asFailure(error);
-          final latest = _pending.peek();
-          final hasNewerTarget = latest != null && latest != target;
-          if (failure is BikeSettingsNotApplied &&
-              hasNewerTarget &&
-              _hasObservedConnection) {
-            continue;
-          }
           _clearPendingConfiguration();
-          final observed = _observed.peek();
-          if (failure is BikeSettingsNotApplied &&
-              _hasObservedConnection &&
-              observed != null) {
-            _markDegraded(observed, failure);
-          } else if (_isConnectionFailure(failure)) {
+          if (_isConnectionFailure(failure)) {
             _scheduleReconnect(failure);
           } else if (failure is! BikeSessionDisposedFailure) {
             _state.value = SessionFailed(failure: failure, canRetry: true);
@@ -918,8 +805,8 @@ final class BikeSession {
         if (_pending.peek() != null) {
           continue;
         }
-        _markReady(confirmed);
-        return confirmed;
+        _markReady(written);
+        return written;
       }
     } finally {
       if (_configurationChangeGeneration == generation) {
@@ -927,32 +814,6 @@ final class BikeSession {
         _configurationChangeGeneration = null;
       }
     }
-  }
-
-  Future<BikeConfiguration> _readConfigurationUntil(
-    bool Function(BikeConfiguration configuration) matches, {
-    Future<void> Function()? retryWrite,
-  }) async {
-    if (_confirmationRetryDelays.isEmpty) {
-      final confirmed = await _readConfiguration();
-      _publishObserved(confirmed);
-      return confirmed;
-    }
-
-    BikeConfiguration? confirmed;
-    for (var index = 0; index < _confirmationRetryDelays.length; index++) {
-      final delay = _confirmationRetryDelays[index];
-      await Future<void>.delayed(delay);
-      if (index > 0) {
-        await retryWrite?.call();
-      }
-      confirmed = await _readConfiguration();
-      _publishObserved(confirmed);
-      if (matches(confirmed)) {
-        return confirmed;
-      }
-    }
-    return confirmed ?? await _readConfiguration();
   }
 
   Future<BikeConfiguration> _readConfiguration() async {
@@ -971,9 +832,7 @@ final class BikeSession {
       return;
     }
     _pollTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     _reconnectTimer?.cancel();
-    _synchronizationRetryAttempt = 0;
     _reconnectAttempt = 0;
     if (completedTarget != null) {
       _clearPendingIf(completedTarget);
@@ -1021,21 +880,6 @@ final class BikeSession {
     });
   }
 
-  void _markDegraded(
-    BikeConfiguration configuration,
-    BikeSettingsNotApplied failure,
-  ) {
-    if (_disposed || !_hasObservedConnection) {
-      return;
-    }
-    _pollTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
-    _state.value = SessionDegraded(
-      configuration: configuration,
-      failure: failure,
-    );
-  }
-
   void _clearPendingIf(BikeConfiguration target) {
     if (_pending.peek() == target) {
       _clearPendingConfiguration();
@@ -1059,7 +903,6 @@ final class BikeSession {
     _expectedDisconnect = true;
     _pollTimer?.cancel();
     _reconnectTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     _invalidateConfigurationState();
     if (hadPendingConnect) {
       try {
@@ -1119,7 +962,6 @@ final class BikeSession {
     _reconnectTimer?.cancel();
     _generation++;
     _pollTimer?.cancel();
-    _synchronizationRetryTimer?.cancel();
     unawaited(_disableNotifications(updatePeripheral: false));
     _scheduleReconnect(
       const BikeSessionTransportFailure('The bike disconnected.'),
@@ -1133,7 +975,6 @@ final class BikeSession {
     if (_reconnectTimer?.isActive ?? false) {
       return;
     }
-    _synchronizationRetryTimer?.cancel();
     _invalidateConfigurationState();
     if (_reconnectDelays.isEmpty) {
       _state.value = SessionFailed(failure: failure, canRetry: true);
@@ -1155,45 +996,6 @@ final class BikeSession {
           !_manualReconnectPaused &&
           !_foregroundPaused) {
         unawaited(_startConnect());
-      }
-    });
-  }
-
-  void _scheduleSynchronizationRetry(BikeSettingsNotApplied failure) {
-    if (_disposed ||
-        _manualReconnectPaused ||
-        _foregroundPaused ||
-        !_hasObservedConnection) {
-      return;
-    }
-    if (_synchronizationRetryTimer?.isActive ?? false) {
-      return;
-    }
-    if (_synchronizationRetryDelays.isEmpty) {
-      final configuration = _observed.peek();
-      if (configuration != null) {
-        _markDegraded(configuration, failure);
-      }
-      return;
-    }
-    if (_synchronizationRetryAttempt >= _synchronizationRetryDelays.length) {
-      final configuration = _observed.peek();
-      if (configuration != null) {
-        _markDegraded(configuration, failure);
-      }
-      return;
-    }
-    final delay = _synchronizationRetryDelays[_synchronizationRetryAttempt];
-    _synchronizationRetryAttempt++;
-    _state.value = SessionSynchronizing(
-      attempt: _synchronizationRetryAttempt,
-    );
-    _synchronizationRetryTimer = Timer(delay, () {
-      if (!_disposed &&
-          !_manualReconnectPaused &&
-          !_foregroundPaused &&
-          _hasObservedConnection) {
-        unawaited(synchronize().catchError((Object _) {}));
       }
     });
   }

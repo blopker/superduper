@@ -93,7 +93,7 @@ void main() {
     expect(transport.connections, isEmpty);
   });
 
-  test('uses the observed address and confirms Set on connect', () async {
+  test('uses the observed address and applies Set on connect', () async {
     await bikes.addBike(
       deviceId: 'saved-address',
       moduleSerial: '00112233aabbccdd',
