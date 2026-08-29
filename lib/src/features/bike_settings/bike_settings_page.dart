@@ -415,14 +415,16 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.lightbulb_outline_rounded),
               title: const Text('Turn light on'),
-              value: saved.setOnConnect.lightEnabled,
+              value: saved.setOnConnect.light != null,
               onChanged: _changingSetOnConnect
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
                         () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          saved.setOnConnect.copyWith(lightEnabled: enabled),
+                          saved.setOnConnect.copyWith(
+                            light: enabled ? true : null,
+                          ),
                         ),
                       ),
                     ),
@@ -436,24 +438,28 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.speed_rounded),
               title: const Text('Set mode'),
-              value: saved.setOnConnect.modeEnabled,
+              value: saved.setOnConnect.mode != null,
               onChanged: _changingSetOnConnect
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
                         () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          saved.setOnConnect.copyWith(modeEnabled: enabled),
+                          saved.setOnConnect.copyWith(
+                            mode: enabled
+                                ? (saved.setOnConnect.mode ?? 0)
+                                : null,
+                          ),
                         ),
                       ),
                     ),
             ),
-            if (saved.setOnConnect.modeEnabled)
+            if (saved.setOnConnect.mode case final selectedMode?)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                 child: BikeValueSelector(
                   values: const [0, 1, 2, 3],
-                  selected: saved.setOnConnect.mode,
+                  selected: selectedMode,
                   enabled: !_changingSetOnConnect,
                   semanticLabel: 'Set on connect mode',
                   label: (mode) => '${mode + 1}',
@@ -461,10 +467,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                     _changeSetOnConnect(
                       () => _services.bikeRepository.setOnConnect(
                         deviceId,
-                        saved.setOnConnect.copyWith(
-                          mode: mode,
-                          modeEnabled: true,
-                        ),
+                        saved.setOnConnect.copyWith(mode: mode),
                       ),
                     ),
                   ),
@@ -479,24 +482,28 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               ),
               secondary: const Icon(Icons.bolt_rounded),
               title: const Text('Set assist'),
-              value: saved.setOnConnect.assistEnabled,
+              value: saved.setOnConnect.assist != null,
               onChanged: _changingSetOnConnect
                   ? null
                   : (enabled) => unawaited(
                       _changeSetOnConnect(
                         () => _services.bikeRepository.setOnConnect(
                           deviceId,
-                          saved.setOnConnect.copyWith(assistEnabled: enabled),
+                          saved.setOnConnect.copyWith(
+                            assist: enabled
+                                ? (saved.setOnConnect.assist ?? 0)
+                                : null,
+                          ),
                         ),
                       ),
                     ),
             ),
-            if (saved.setOnConnect.assistEnabled)
+            if (saved.setOnConnect.assist case final selectedAssist?)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                 child: BikeValueSelector(
                   values: const [0, 1, 2, 3, 4],
-                  selected: saved.setOnConnect.assist,
+                  selected: selectedAssist,
                   enabled: !_changingSetOnConnect,
                   semanticLabel: 'Set on connect assist level',
                   label: (assist) => '$assist',
@@ -504,10 +511,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                     _changeSetOnConnect(
                       () => _services.bikeRepository.setOnConnect(
                         deviceId,
-                        saved.setOnConnect.copyWith(
-                          assist: assist,
-                          assistEnabled: true,
-                        ),
+                        saved.setOnConnect.copyWith(assist: assist),
                       ),
                     ),
                   ),

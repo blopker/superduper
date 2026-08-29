@@ -142,16 +142,18 @@ void main() {
     await tester.pump();
     await tester.runAsync(
       () => _waitUntilAsync(
-        () async => (await fixture.services.bikeRepository.getBikes())
-            .single
-            .setOnConnect
-            .assistEnabled,
+        () async =>
+            (await fixture.services.bikeRepository.getBikes())
+                .single
+                .setOnConnect
+                .assist !=
+            null,
       ),
     );
     await tester.pump();
 
     final saved = (await fixture.services.bikeRepository.getBikes()).single;
-    expect(saved.setOnConnect.assistEnabled, isTrue);
+    expect(saved.setOnConnect.assist, isNotNull);
     expect(fixture.connection.configurationWriteStarts, writesBeforeSettings);
   });
 
@@ -367,12 +369,8 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
   }
   await services.bikeRepository.setOnConnect(
     'active-bike',
-    const SetOnConnectSettings(
-      lightEnabled: false,
+    const BikeControlPatch(
       mode: 3,
-      modeEnabled: true,
-      assist: 0,
-      assistEnabled: false,
     ),
   );
   transport.readFramesOnOpen['active-bike'] = [

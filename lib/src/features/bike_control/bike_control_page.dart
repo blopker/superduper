@@ -167,7 +167,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           onToggleChanged: canControl
               ? (value) => _runCommand(() => session!.setLight(value))
               : null,
-          setOnConnectValue: bike.setOnConnect.lightEnabled ? 'On' : null,
+          setOnConnectValue: bike.setOnConnect.light == true ? 'On' : null,
         ),
         const SizedBox(height: 14),
         _SettingSection(
@@ -181,9 +181,9 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             label: (mode) => '${mode + 1}',
             onChanged: (mode) => _runCommand(() => session!.setMode(mode)),
           ),
-          setOnConnectValue: bike.setOnConnect.modeEnabled
-              ? '${bike.setOnConnect.mode + 1}'
-              : null,
+          setOnConnectValue: bike.setOnConnect.mode == null
+              ? null
+              : '${bike.setOnConnect.mode! + 1}',
         ),
         const SizedBox(height: 14),
         _SettingSection(
@@ -198,9 +198,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
             onChanged: (assist) =>
                 _runCommand(() => session!.setAssist(assist)),
           ),
-          setOnConnectValue: bike.setOnConnect.assistEnabled
-              ? '${bike.setOnConnect.assist}'
-              : null,
+          setOnConnectValue: bike.setOnConnect.assist?.toString(),
         ),
         if (canRetry) ...[
           const SizedBox(height: 18),

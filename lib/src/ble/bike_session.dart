@@ -132,7 +132,7 @@ final class BikeSession {
   BikeSession({
     required this.connection,
     required BikeRegion? preferredRegion,
-    required SetOnConnectSettings setOnConnect,
+    required BikeControlPatch setOnConnect,
     required BikeProtocolVersion protocol,
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     VersionsRead? onVersionsRead,
@@ -162,8 +162,8 @@ final class BikeSession {
        // ignore: prefer_initializing_formals
        _preferredRegion = preferredRegion,
        _authenticationKey = List<int>.unmodifiable(authenticationKey),
-       _setOnConnect = setOnConnect,
-       _connectionIntent = BikeControlPatch.fromSetOnConnect(setOnConnect),
+       _nextConnectionIntent = setOnConnect,
+       _connectionIntent = setOnConnect,
        // The public named parameter keeps the callback implementation private.
        // ignore: prefer_initializing_formals
        _onVersionsRead = onVersionsRead,
@@ -262,7 +262,7 @@ final class BikeSession {
   late final StreamSubscription<BikeConnectionState> _connectionSubscription;
   StreamSubscription<List<int>>? _telemetrySubscription;
   BikeRegion? _preferredRegion;
-  SetOnConnectSettings _setOnConnect;
+  BikeControlPatch _nextConnectionIntent;
   BikeControlPatch _connectionIntent;
   Timer? _pollTimer;
   Timer? _reconnectTimer;
@@ -282,7 +282,6 @@ final class BikeSession {
   Future<BikeConfiguration>? _configurationChangeFuture;
   int? _configurationChangeGeneration;
   BikeControlPatch? _pendingControls;
-  bool? _startupLightOverride;
 
   String get deviceId => connection.deviceId;
   ReadonlySignal<BikeSessionState> get state => _state.readonly();
@@ -383,8 +382,8 @@ final class BikeSession {
     return _changeConfiguration(controls);
   }
 
-  void updateSetOnConnect(SetOnConnectSettings settings) {
-    _setOnConnect = settings;
+  void updateSetOnConnect(BikeControlPatch settings) {
+    _nextConnectionIntent = settings;
   }
 
   void updatePreferredRegion(BikeRegion? region) {
@@ -503,7 +502,7 @@ final class BikeSession {
         return;
       }
       _expectedDisconnect = false;
-      _connectionIntent = BikeControlPatch.fromSetOnConnect(_setOnConnect);
+      _connectionIntent = _nextConnectionIntent;
       _pollTimer?.cancel();
       _synchronizationRetryTimer?.cancel();
       _invalidateConfigurationState();
@@ -741,20 +740,19 @@ final class BikeSession {
       return;
     }
     try {
-      final patch = _protocol.decodeTelemetry(packet);
       final current = _observed.peek();
-      if (patch == null || current == null) {
+      if (current == null) {
         return;
       }
-      var updated = patch.applyTo(current);
-      if (_preferredRegion case final region?) {
-        updated = updated.copyWith(region: region);
-      }
-      _publishObserved(
-        updated,
-        observesLight: patch.light != null,
-        trustLight: patch.light != null,
+      final updated = _protocol.applyTelemetry(
+        packet,
+        current,
+        preferredRegion: _preferredRegion,
       );
+      if (updated == null) {
+        return;
+      }
+      _publishObserved(updated);
     } on BikeProtocolFailure {
       // Notifications are advisory and may be partial or from an unsupported
       // telemetry family. Keep the last authoritative configuration; a later
@@ -776,21 +774,9 @@ final class BikeSession {
     _scheduleReconnect(BikeSessionTransportFailure(error));
   }
 
-  BikeConfiguration _publishObserved(
-    BikeConfiguration configuration, {
-    bool observesLight = true,
-    bool trustLight = false,
-  }) {
-    var published = configuration;
-    if (_startupLightOverride case final light?) {
-      if (observesLight && (trustLight || configuration.light == light)) {
-        _startupLightOverride = null;
-      } else {
-        published = configuration.copyWith(light: light);
-      }
-    }
-    _observed.value = published;
-    return published;
+  BikeConfiguration _publishObserved(BikeConfiguration configuration) {
+    _observed.value = configuration;
+    return configuration;
   }
 
   Future<void> _synchronizeNow({bool forceSetOnConnectWrite = false}) async {
@@ -808,8 +794,9 @@ final class BikeSession {
       _markReady(confirmed);
       return;
     }
-    final target = intent.startupTarget(
-      confirmed,
+    final target = _protocol.startupTarget(
+      observed: confirmed,
+      intent: intent,
       preferredRegion: _preferredRegion,
     );
     var mustWrite = forceSetOnConnectWrite;
@@ -821,10 +808,7 @@ final class BikeSession {
         return;
       }
       _state.value = SessionSynchronizing(attempt: attempt);
-      await _writeConfiguration(target);
-      if (intent.light == null) {
-        _startupLightOverride = target.light;
-      }
+      await _protocol.writeStartupConfiguration(target, intent: intent);
       if (!_isCurrent(generation) || !_hasObservedConnection) {
         throw const BikeSessionDisposedFailure();
       }
@@ -852,9 +836,6 @@ final class BikeSession {
     final current = _pending.peek() ?? _observed.peek();
     if (current == null) {
       throw const BikeSessionNotReady();
-    }
-    if (controls.light != null) {
-      _startupLightOverride = null;
     }
     _pendingControls = _pendingControls?.merge(controls) ?? controls;
     final target = _pendingControls!.applyTo(
@@ -885,7 +866,8 @@ final class BikeSession {
         if (_pending.peek() == null || current == null) {
           throw const BikeSessionNotReady();
         }
-        final target = _pendingControls!.applyTo(
+        final controls = _pendingControls!;
+        final target = controls.applyTo(
           current.copyWith(region: _preferredRegion ?? current.region),
         );
         _pending.value = target;
@@ -895,7 +877,7 @@ final class BikeSession {
         _synchronizationRetryTimer?.cancel();
         late BikeConfiguration confirmed;
         try {
-          await _writeConfiguration(target);
+          await _protocol.writeControls(target, controls: controls);
           if (!_isCurrent(generation) || !_hasObservedConnection) {
             throw const BikeSessionDisposedFailure();
           }
@@ -905,7 +887,7 @@ final class BikeSession {
               if (_pending.peek() != target) {
                 return Future.value();
               }
-              return _writeConfiguration(target);
+              return _protocol.writeControls(target, controls: controls);
             },
           );
           if (!_isCurrent(generation) || !_hasObservedConnection) {
@@ -985,10 +967,6 @@ final class BikeSession {
       fallbackRegion: _observed.peek()?.region,
       onOdometer: (meters) => _odometerMeters.value = meters,
     );
-  }
-
-  Future<void> _writeConfiguration(BikeConfiguration configuration) {
-    return _protocol.writeConfiguration(configuration);
   }
 
   void _markReady(
@@ -1263,7 +1241,6 @@ final class BikeSession {
 
   void _invalidateConfigurationState() {
     _clearPendingConfiguration();
-    _startupLightOverride = null;
     _observed.value = null;
     _protocol.reset();
   }

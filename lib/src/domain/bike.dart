@@ -64,30 +64,31 @@ final class BikeConfiguration {
 }
 
 final class BikeControlPatch {
-  const BikeControlPatch({this.light, this.mode, this.assist, this.region});
-
-  factory BikeControlPatch.fromSetOnConnect(SetOnConnectSettings settings) {
-    return BikeControlPatch(
-      light: settings.lightEnabled ? true : null,
-      mode: settings.modeEnabled ? settings.mode : null,
-      assist: settings.assistEnabled ? settings.assist : null,
-    );
-  }
+  const BikeControlPatch({this.light, this.mode, this.assist});
 
   final bool? light;
   final int? mode;
   final int? assist;
-  final BikeRegion? region;
 
-  bool get isEmpty =>
-      light == null && mode == null && assist == null && region == null;
+  bool get isEmpty => light == null && mode == null && assist == null;
+
+  BikeControlPatch copyWith({
+    Object? light = _unchanged,
+    Object? mode = _unchanged,
+    Object? assist = _unchanged,
+  }) {
+    return BikeControlPatch(
+      light: identical(light, _unchanged) ? this.light : light as bool?,
+      mode: identical(mode, _unchanged) ? this.mode : mode as int?,
+      assist: identical(assist, _unchanged) ? this.assist : assist as int?,
+    );
+  }
 
   BikeConfiguration applyTo(BikeConfiguration base) {
     return base.copyWith(
       light: light,
       mode: mode,
       assist: assist,
-      region: region,
     );
   }
 
@@ -96,29 +97,28 @@ final class BikeControlPatch {
       light: newer.light ?? light,
       mode: newer.mode ?? mode,
       assist: newer.assist ?? assist,
-      region: newer.region ?? region,
-    );
-  }
-
-  BikeConfiguration startupTarget(
-    BikeConfiguration observed, {
-    required BikeRegion? preferredRegion,
-  }) {
-    return applyTo(
-      observed.copyWith(
-        light: light ?? false,
-        region: preferredRegion ?? observed.region,
-      ),
     );
   }
 
   bool matches(BikeConfiguration configuration) {
     return (light == null || configuration.light == light) &&
         (mode == null || configuration.mode == mode) &&
-        (assist == null || configuration.assist == assist) &&
-        (region == null || configuration.region == region);
+        (assist == null || configuration.assist == assist);
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is BikeControlPatch &&
+        light == other.light &&
+        mode == other.mode &&
+        assist == other.assist;
+  }
+
+  @override
+  int get hashCode => Object.hash(light, mode, assist);
 }
+
+const _unchanged = Object();
 
 enum BikeColor {
   royalHorizon('royal_horizon', 'Royal Horizon', 0),
@@ -284,64 +284,6 @@ final class CachedBikeOdometer {
   final DateTime readAt;
 }
 
-final class SetOnConnectSettings {
-  const SetOnConnectSettings({
-    required this.lightEnabled,
-    required this.mode,
-    required this.modeEnabled,
-    required this.assist,
-    required this.assistEnabled,
-  });
-
-  const SetOnConnectSettings.defaults()
-    : lightEnabled = false,
-      mode = 0,
-      modeEnabled = false,
-      assist = 0,
-      assistEnabled = false;
-
-  final bool lightEnabled;
-  final int mode;
-  final bool modeEnabled;
-  final int assist;
-  final bool assistEnabled;
-
-  SetOnConnectSettings copyWith({
-    bool? lightEnabled,
-    int? mode,
-    bool? modeEnabled,
-    int? assist,
-    bool? assistEnabled,
-  }) {
-    return SetOnConnectSettings(
-      lightEnabled: lightEnabled ?? this.lightEnabled,
-      mode: mode ?? this.mode,
-      modeEnabled: modeEnabled ?? this.modeEnabled,
-      assist: assist ?? this.assist,
-      assistEnabled: assistEnabled ?? this.assistEnabled,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is SetOnConnectSettings &&
-        lightEnabled == other.lightEnabled &&
-        mode == other.mode &&
-        modeEnabled == other.modeEnabled &&
-        assist == other.assist &&
-        assistEnabled == other.assistEnabled;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    lightEnabled,
-    mode,
-    modeEnabled,
-    assist,
-    assistEnabled,
-  );
-}
-
 const backgroundSyncConsentVersion = 2;
 
 final class BackgroundPreference {
@@ -366,7 +308,7 @@ final class SavedBike {
   });
 
   final Bike bike;
-  final SetOnConnectSettings setOnConnect;
+  final BikeControlPatch setOnConnect;
   final BackgroundPreference backgroundPreference;
   final CachedBikeVersions? versions;
   final CachedBikeOdometer? odometer;

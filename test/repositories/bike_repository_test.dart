@@ -91,20 +91,16 @@ void main() {
 
       await repository.setOnConnect(
         'bike',
-        const SetOnConnectSettings(
-          lightEnabled: true,
+        const BikeControlPatch(
+          light: true,
           mode: 3,
-          modeEnabled: true,
           assist: 4,
-          assistEnabled: true,
         ),
       );
 
       final saved = (await repository.getBikes()).single;
-      expect(saved.setOnConnect.lightEnabled, isTrue);
-      expect(saved.setOnConnect.modeEnabled, isTrue);
+      expect(saved.setOnConnect.light, isTrue);
       expect(saved.setOnConnect.mode, 3);
-      expect(saved.setOnConnect.assistEnabled, isTrue);
       expect(saved.setOnConnect.assist, 4);
     },
   );
@@ -116,12 +112,8 @@ void main() {
     expect(
       () => repository.setOnConnect(
         'bike',
-        const SetOnConnectSettings(
-          lightEnabled: false,
+        const BikeControlPatch(
           mode: 4,
-          modeEnabled: true,
-          assist: 0,
-          assistEnabled: false,
         ),
       ),
       throwsRangeError,
@@ -129,12 +121,8 @@ void main() {
     expect(
       () => repository.setOnConnect(
         'bike',
-        const SetOnConnectSettings(
-          lightEnabled: false,
-          mode: 0,
-          modeEnabled: false,
+        const BikeControlPatch(
           assist: -1,
-          assistEnabled: true,
         ),
       ),
       throwsRangeError,

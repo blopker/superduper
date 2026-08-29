@@ -91,12 +91,10 @@ void main() {
   test('startup applies every kept value before reporting ready', () async {
     await bikes.setOnConnect(
       'first',
-      const SetOnConnectSettings(
-        lightEnabled: true,
+      const BikeControlPatch(
+        light: true,
         mode: 3,
-        modeEnabled: true,
         assist: 4,
-        assistEnabled: true,
       ),
     );
     connectionFrames['first'] = [

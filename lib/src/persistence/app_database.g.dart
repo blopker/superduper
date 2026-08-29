@@ -835,84 +835,18 @@ class $BikePreferencesTable extends BikePreferences
       'REFERENCES bikes (device_id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _desiredLightMeta = const VerificationMeta(
-    'desiredLight',
-  );
   @override
-  late final GeneratedColumn<bool> desiredLight = GeneratedColumn<bool>(
-    'desired_light',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("desired_light" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _desiredModeMeta = const VerificationMeta(
-    'desiredMode',
-  );
-  @override
-  late final GeneratedColumn<int> desiredMode = GeneratedColumn<int>(
-    'desired_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _desiredAssistMeta = const VerificationMeta(
-    'desiredAssist',
-  );
-  @override
-  late final GeneratedColumn<int> desiredAssist = GeneratedColumn<int>(
-    'desired_assist',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _keepLightMeta = const VerificationMeta(
-    'keepLight',
-  );
-  @override
-  late final GeneratedColumn<bool> keepLight = GeneratedColumn<bool>(
-    'keep_light',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("keep_light" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _keepModeMeta = const VerificationMeta(
-    'keepMode',
-  );
-  @override
-  late final GeneratedColumn<bool> keepMode = GeneratedColumn<bool>(
-    'keep_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("keep_mode" IN (0, 1))',
-    ),
-  );
-  static const VerificationMeta _keepAssistMeta = const VerificationMeta(
-    'keepAssist',
-  );
-  @override
-  late final GeneratedColumn<bool> keepAssist = GeneratedColumn<bool>(
-    'keep_assist',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("keep_assist" IN (0, 1))',
-    ),
-  );
+  late final GeneratedColumnWithTypeConverter<BikeControlPatch, String>
+  setOnConnect =
+      GeneratedColumn<String>(
+        'set_on_connect',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<BikeControlPatch>(
+        $BikePreferencesTable.$convertersetOnConnect,
+      );
   static const VerificationMeta _backgroundRequestedMeta =
       const VerificationMeta('backgroundRequested');
   @override
@@ -940,12 +874,7 @@ class $BikePreferencesTable extends BikePreferences
   @override
   List<GeneratedColumn> get $columns => [
     deviceId,
-    desiredLight,
-    desiredMode,
-    desiredAssist,
-    keepLight,
-    keepMode,
-    keepAssist,
+    setOnConnect,
     backgroundRequested,
     backgroundConsentVersion,
   ];
@@ -968,63 +897,6 @@ class $BikePreferencesTable extends BikePreferences
       );
     } else if (isInserting) {
       context.missing(_deviceIdMeta);
-    }
-    if (data.containsKey('desired_light')) {
-      context.handle(
-        _desiredLightMeta,
-        desiredLight.isAcceptableOrUnknown(
-          data['desired_light']!,
-          _desiredLightMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_desiredLightMeta);
-    }
-    if (data.containsKey('desired_mode')) {
-      context.handle(
-        _desiredModeMeta,
-        desiredMode.isAcceptableOrUnknown(
-          data['desired_mode']!,
-          _desiredModeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_desiredModeMeta);
-    }
-    if (data.containsKey('desired_assist')) {
-      context.handle(
-        _desiredAssistMeta,
-        desiredAssist.isAcceptableOrUnknown(
-          data['desired_assist']!,
-          _desiredAssistMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_desiredAssistMeta);
-    }
-    if (data.containsKey('keep_light')) {
-      context.handle(
-        _keepLightMeta,
-        keepLight.isAcceptableOrUnknown(data['keep_light']!, _keepLightMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_keepLightMeta);
-    }
-    if (data.containsKey('keep_mode')) {
-      context.handle(
-        _keepModeMeta,
-        keepMode.isAcceptableOrUnknown(data['keep_mode']!, _keepModeMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_keepModeMeta);
-    }
-    if (data.containsKey('keep_assist')) {
-      context.handle(
-        _keepAssistMeta,
-        keepAssist.isAcceptableOrUnknown(data['keep_assist']!, _keepAssistMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_keepAssistMeta);
     }
     if (data.containsKey('background_requested')) {
       context.handle(
@@ -1061,30 +933,12 @@ class $BikePreferencesTable extends BikePreferences
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
-      desiredLight: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}desired_light'],
-      )!,
-      desiredMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}desired_mode'],
-      )!,
-      desiredAssist: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}desired_assist'],
-      )!,
-      keepLight: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}keep_light'],
-      )!,
-      keepMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}keep_mode'],
-      )!,
-      keepAssist: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}keep_assist'],
-      )!,
+      setOnConnect: $BikePreferencesTable.$convertersetOnConnect.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}set_on_connect'],
+        )!,
+      ),
       backgroundRequested: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}background_requested'],
@@ -1100,27 +954,20 @@ class $BikePreferencesTable extends BikePreferences
   $BikePreferencesTable createAlias(String alias) {
     return $BikePreferencesTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<BikeControlPatch, String> $convertersetOnConnect =
+      const BikeControlPatchConverter();
 }
 
 class BikePreferenceRow extends DataClass
     implements Insertable<BikePreferenceRow> {
   final String deviceId;
-  final bool desiredLight;
-  final int desiredMode;
-  final int desiredAssist;
-  final bool keepLight;
-  final bool keepMode;
-  final bool keepAssist;
+  final BikeControlPatch setOnConnect;
   final bool backgroundRequested;
   final int backgroundConsentVersion;
   const BikePreferenceRow({
     required this.deviceId,
-    required this.desiredLight,
-    required this.desiredMode,
-    required this.desiredAssist,
-    required this.keepLight,
-    required this.keepMode,
-    required this.keepAssist,
+    required this.setOnConnect,
     required this.backgroundRequested,
     required this.backgroundConsentVersion,
   });
@@ -1128,12 +975,11 @@ class BikePreferenceRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['device_id'] = Variable<String>(deviceId);
-    map['desired_light'] = Variable<bool>(desiredLight);
-    map['desired_mode'] = Variable<int>(desiredMode);
-    map['desired_assist'] = Variable<int>(desiredAssist);
-    map['keep_light'] = Variable<bool>(keepLight);
-    map['keep_mode'] = Variable<bool>(keepMode);
-    map['keep_assist'] = Variable<bool>(keepAssist);
+    {
+      map['set_on_connect'] = Variable<String>(
+        $BikePreferencesTable.$convertersetOnConnect.toSql(setOnConnect),
+      );
+    }
     map['background_requested'] = Variable<bool>(backgroundRequested);
     map['background_consent_version'] = Variable<int>(backgroundConsentVersion);
     return map;
@@ -1142,12 +988,7 @@ class BikePreferenceRow extends DataClass
   BikePreferencesCompanion toCompanion(bool nullToAbsent) {
     return BikePreferencesCompanion(
       deviceId: Value(deviceId),
-      desiredLight: Value(desiredLight),
-      desiredMode: Value(desiredMode),
-      desiredAssist: Value(desiredAssist),
-      keepLight: Value(keepLight),
-      keepMode: Value(keepMode),
-      keepAssist: Value(keepAssist),
+      setOnConnect: Value(setOnConnect),
       backgroundRequested: Value(backgroundRequested),
       backgroundConsentVersion: Value(backgroundConsentVersion),
     );
@@ -1160,12 +1001,7 @@ class BikePreferenceRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BikePreferenceRow(
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      desiredLight: serializer.fromJson<bool>(json['desiredLight']),
-      desiredMode: serializer.fromJson<int>(json['desiredMode']),
-      desiredAssist: serializer.fromJson<int>(json['desiredAssist']),
-      keepLight: serializer.fromJson<bool>(json['keepLight']),
-      keepMode: serializer.fromJson<bool>(json['keepMode']),
-      keepAssist: serializer.fromJson<bool>(json['keepAssist']),
+      setOnConnect: serializer.fromJson<BikeControlPatch>(json['setOnConnect']),
       backgroundRequested: serializer.fromJson<bool>(
         json['backgroundRequested'],
       ),
@@ -1179,12 +1015,7 @@ class BikePreferenceRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'deviceId': serializer.toJson<String>(deviceId),
-      'desiredLight': serializer.toJson<bool>(desiredLight),
-      'desiredMode': serializer.toJson<int>(desiredMode),
-      'desiredAssist': serializer.toJson<int>(desiredAssist),
-      'keepLight': serializer.toJson<bool>(keepLight),
-      'keepMode': serializer.toJson<bool>(keepMode),
-      'keepAssist': serializer.toJson<bool>(keepAssist),
+      'setOnConnect': serializer.toJson<BikeControlPatch>(setOnConnect),
       'backgroundRequested': serializer.toJson<bool>(backgroundRequested),
       'backgroundConsentVersion': serializer.toJson<int>(
         backgroundConsentVersion,
@@ -1194,22 +1025,12 @@ class BikePreferenceRow extends DataClass
 
   BikePreferenceRow copyWith({
     String? deviceId,
-    bool? desiredLight,
-    int? desiredMode,
-    int? desiredAssist,
-    bool? keepLight,
-    bool? keepMode,
-    bool? keepAssist,
+    BikeControlPatch? setOnConnect,
     bool? backgroundRequested,
     int? backgroundConsentVersion,
   }) => BikePreferenceRow(
     deviceId: deviceId ?? this.deviceId,
-    desiredLight: desiredLight ?? this.desiredLight,
-    desiredMode: desiredMode ?? this.desiredMode,
-    desiredAssist: desiredAssist ?? this.desiredAssist,
-    keepLight: keepLight ?? this.keepLight,
-    keepMode: keepMode ?? this.keepMode,
-    keepAssist: keepAssist ?? this.keepAssist,
+    setOnConnect: setOnConnect ?? this.setOnConnect,
     backgroundRequested: backgroundRequested ?? this.backgroundRequested,
     backgroundConsentVersion:
         backgroundConsentVersion ?? this.backgroundConsentVersion,
@@ -1217,20 +1038,9 @@ class BikePreferenceRow extends DataClass
   BikePreferenceRow copyWithCompanion(BikePreferencesCompanion data) {
     return BikePreferenceRow(
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
-      desiredLight: data.desiredLight.present
-          ? data.desiredLight.value
-          : this.desiredLight,
-      desiredMode: data.desiredMode.present
-          ? data.desiredMode.value
-          : this.desiredMode,
-      desiredAssist: data.desiredAssist.present
-          ? data.desiredAssist.value
-          : this.desiredAssist,
-      keepLight: data.keepLight.present ? data.keepLight.value : this.keepLight,
-      keepMode: data.keepMode.present ? data.keepMode.value : this.keepMode,
-      keepAssist: data.keepAssist.present
-          ? data.keepAssist.value
-          : this.keepAssist,
+      setOnConnect: data.setOnConnect.present
+          ? data.setOnConnect.value
+          : this.setOnConnect,
       backgroundRequested: data.backgroundRequested.present
           ? data.backgroundRequested.value
           : this.backgroundRequested,
@@ -1244,12 +1054,7 @@ class BikePreferenceRow extends DataClass
   String toString() {
     return (StringBuffer('BikePreferenceRow(')
           ..write('deviceId: $deviceId, ')
-          ..write('desiredLight: $desiredLight, ')
-          ..write('desiredMode: $desiredMode, ')
-          ..write('desiredAssist: $desiredAssist, ')
-          ..write('keepLight: $keepLight, ')
-          ..write('keepMode: $keepMode, ')
-          ..write('keepAssist: $keepAssist, ')
+          ..write('setOnConnect: $setOnConnect, ')
           ..write('backgroundRequested: $backgroundRequested, ')
           ..write('backgroundConsentVersion: $backgroundConsentVersion')
           ..write(')'))
@@ -1259,12 +1064,7 @@ class BikePreferenceRow extends DataClass
   @override
   int get hashCode => Object.hash(
     deviceId,
-    desiredLight,
-    desiredMode,
-    desiredAssist,
-    keepLight,
-    keepMode,
-    keepAssist,
+    setOnConnect,
     backgroundRequested,
     backgroundConsentVersion,
   );
@@ -1273,79 +1073,44 @@ class BikePreferenceRow extends DataClass
       identical(this, other) ||
       (other is BikePreferenceRow &&
           other.deviceId == this.deviceId &&
-          other.desiredLight == this.desiredLight &&
-          other.desiredMode == this.desiredMode &&
-          other.desiredAssist == this.desiredAssist &&
-          other.keepLight == this.keepLight &&
-          other.keepMode == this.keepMode &&
-          other.keepAssist == this.keepAssist &&
+          other.setOnConnect == this.setOnConnect &&
           other.backgroundRequested == this.backgroundRequested &&
           other.backgroundConsentVersion == this.backgroundConsentVersion);
 }
 
 class BikePreferencesCompanion extends UpdateCompanion<BikePreferenceRow> {
   final Value<String> deviceId;
-  final Value<bool> desiredLight;
-  final Value<int> desiredMode;
-  final Value<int> desiredAssist;
-  final Value<bool> keepLight;
-  final Value<bool> keepMode;
-  final Value<bool> keepAssist;
+  final Value<BikeControlPatch> setOnConnect;
   final Value<bool> backgroundRequested;
   final Value<int> backgroundConsentVersion;
   final Value<int> rowid;
   const BikePreferencesCompanion({
     this.deviceId = const Value.absent(),
-    this.desiredLight = const Value.absent(),
-    this.desiredMode = const Value.absent(),
-    this.desiredAssist = const Value.absent(),
-    this.keepLight = const Value.absent(),
-    this.keepMode = const Value.absent(),
-    this.keepAssist = const Value.absent(),
+    this.setOnConnect = const Value.absent(),
     this.backgroundRequested = const Value.absent(),
     this.backgroundConsentVersion = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BikePreferencesCompanion.insert({
     required String deviceId,
-    required bool desiredLight,
-    required int desiredMode,
-    required int desiredAssist,
-    required bool keepLight,
-    required bool keepMode,
-    required bool keepAssist,
+    required BikeControlPatch setOnConnect,
     required bool backgroundRequested,
     required int backgroundConsentVersion,
     this.rowid = const Value.absent(),
   }) : deviceId = Value(deviceId),
-       desiredLight = Value(desiredLight),
-       desiredMode = Value(desiredMode),
-       desiredAssist = Value(desiredAssist),
-       keepLight = Value(keepLight),
-       keepMode = Value(keepMode),
-       keepAssist = Value(keepAssist),
+       setOnConnect = Value(setOnConnect),
        backgroundRequested = Value(backgroundRequested),
        backgroundConsentVersion = Value(backgroundConsentVersion);
   static Insertable<BikePreferenceRow> custom({
     Expression<String>? deviceId,
-    Expression<bool>? desiredLight,
-    Expression<int>? desiredMode,
-    Expression<int>? desiredAssist,
-    Expression<bool>? keepLight,
-    Expression<bool>? keepMode,
-    Expression<bool>? keepAssist,
+    Expression<String>? setOnConnect,
     Expression<bool>? backgroundRequested,
     Expression<int>? backgroundConsentVersion,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (deviceId != null) 'device_id': deviceId,
-      if (desiredLight != null) 'desired_light': desiredLight,
-      if (desiredMode != null) 'desired_mode': desiredMode,
-      if (desiredAssist != null) 'desired_assist': desiredAssist,
-      if (keepLight != null) 'keep_light': keepLight,
-      if (keepMode != null) 'keep_mode': keepMode,
-      if (keepAssist != null) 'keep_assist': keepAssist,
+      if (setOnConnect != null) 'set_on_connect': setOnConnect,
       if (backgroundRequested != null)
         'background_requested': backgroundRequested,
       if (backgroundConsentVersion != null)
@@ -1356,24 +1121,14 @@ class BikePreferencesCompanion extends UpdateCompanion<BikePreferenceRow> {
 
   BikePreferencesCompanion copyWith({
     Value<String>? deviceId,
-    Value<bool>? desiredLight,
-    Value<int>? desiredMode,
-    Value<int>? desiredAssist,
-    Value<bool>? keepLight,
-    Value<bool>? keepMode,
-    Value<bool>? keepAssist,
+    Value<BikeControlPatch>? setOnConnect,
     Value<bool>? backgroundRequested,
     Value<int>? backgroundConsentVersion,
     Value<int>? rowid,
   }) {
     return BikePreferencesCompanion(
       deviceId: deviceId ?? this.deviceId,
-      desiredLight: desiredLight ?? this.desiredLight,
-      desiredMode: desiredMode ?? this.desiredMode,
-      desiredAssist: desiredAssist ?? this.desiredAssist,
-      keepLight: keepLight ?? this.keepLight,
-      keepMode: keepMode ?? this.keepMode,
-      keepAssist: keepAssist ?? this.keepAssist,
+      setOnConnect: setOnConnect ?? this.setOnConnect,
       backgroundRequested: backgroundRequested ?? this.backgroundRequested,
       backgroundConsentVersion:
           backgroundConsentVersion ?? this.backgroundConsentVersion,
@@ -1387,23 +1142,10 @@ class BikePreferencesCompanion extends UpdateCompanion<BikePreferenceRow> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
-    if (desiredLight.present) {
-      map['desired_light'] = Variable<bool>(desiredLight.value);
-    }
-    if (desiredMode.present) {
-      map['desired_mode'] = Variable<int>(desiredMode.value);
-    }
-    if (desiredAssist.present) {
-      map['desired_assist'] = Variable<int>(desiredAssist.value);
-    }
-    if (keepLight.present) {
-      map['keep_light'] = Variable<bool>(keepLight.value);
-    }
-    if (keepMode.present) {
-      map['keep_mode'] = Variable<bool>(keepMode.value);
-    }
-    if (keepAssist.present) {
-      map['keep_assist'] = Variable<bool>(keepAssist.value);
+    if (setOnConnect.present) {
+      map['set_on_connect'] = Variable<String>(
+        $BikePreferencesTable.$convertersetOnConnect.toSql(setOnConnect.value),
+      );
     }
     if (backgroundRequested.present) {
       map['background_requested'] = Variable<bool>(backgroundRequested.value);
@@ -1423,12 +1165,7 @@ class BikePreferencesCompanion extends UpdateCompanion<BikePreferenceRow> {
   String toString() {
     return (StringBuffer('BikePreferencesCompanion(')
           ..write('deviceId: $deviceId, ')
-          ..write('desiredLight: $desiredLight, ')
-          ..write('desiredMode: $desiredMode, ')
-          ..write('desiredAssist: $desiredAssist, ')
-          ..write('keepLight: $keepLight, ')
-          ..write('keepMode: $keepMode, ')
-          ..write('keepAssist: $keepAssist, ')
+          ..write('setOnConnect: $setOnConnect, ')
           ..write('backgroundRequested: $backgroundRequested, ')
           ..write('backgroundConsentVersion: $backgroundConsentVersion, ')
           ..write('rowid: $rowid')

@@ -210,8 +210,7 @@ void main() {
         isA<BikeControlPatch>()
             .having((patch) => patch.light, 'light', isTrue)
             .having((patch) => patch.mode, 'mode', 3)
-            .having((patch) => patch.assist, 'assist', 4)
-            .having((patch) => patch.region, 'region', BikeRegion.us),
+            .having((patch) => patch.assist, 'assist', 4),
       );
     });
 
@@ -223,6 +222,37 @@ void main() {
         isA<BikeControlPatch>()
             .having((patch) => patch.light, 'light', isTrue)
             .having((patch) => patch.assist, 'assist', 4),
+      );
+    });
+
+    test('V1 applies its wire region unless the user selected one', () {
+      const current = BikeConfiguration(
+        light: false,
+        mode: 0,
+        assist: 0,
+        region: BikeRegion.us,
+      );
+      const telemetry = [3, 0, 4, 0, 1, 7, 0, 0, 0, 0];
+
+      expect(
+        BikeProtocol.v1
+            .applyTelemetry(
+              telemetry,
+              current,
+              preferredRegion: null,
+            )
+            ?.region,
+        BikeRegion.eu,
+      );
+      expect(
+        BikeProtocol.v1
+            .applyTelemetry(
+              telemetry,
+              current,
+              preferredRegion: BikeRegion.us,
+            )
+            ?.region,
+        BikeRegion.us,
       );
     });
 

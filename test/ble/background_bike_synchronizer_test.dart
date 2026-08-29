@@ -97,12 +97,8 @@ void main() {
     await bikes.addBike(
       deviceId: 'saved-address',
       moduleSerial: '00112233aabbccdd',
-      setOnConnect: const SetOnConnectSettings(
+      setOnConnect: const BikeControlPatch(
         mode: 3,
-        assist: 4,
-        lightEnabled: false,
-        modeEnabled: true,
-        assistEnabled: false,
       ),
       backgroundPreference: const BackgroundPreference(
         requested: true,

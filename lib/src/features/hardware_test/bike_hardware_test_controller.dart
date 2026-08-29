@@ -374,7 +374,7 @@ final class BikeHardwareTestController {
     final session = BikeSession(
       connection: connection,
       preferredRegion: _preferredRegion(candidate.deviceId),
-      setOnConnect: const SetOnConnectSettings.defaults(),
+      setOnConnect: const BikeControlPatch(),
       protocol: BikeProtocolVersion.fromAdvertisedName(candidate.name)!,
       onVersionsRead: (_) async {
         versionReads++;
@@ -505,12 +505,9 @@ final class BikeHardwareTestController {
     await session.setAssist(setOnConnectTarget.assist);
     _checkCurrent(generation);
     session.updateSetOnConnect(
-      SetOnConnectSettings(
-        mode: setOnConnectTarget.mode,
+      BikeControlPatch(
+        light: true,
         assist: setOnConnectTarget.assist,
-        lightEnabled: true,
-        modeEnabled: false,
-        assistEnabled: true,
       ),
     );
     await _waitForReady(session, generation, timeout: stepTimeout);
@@ -884,7 +881,7 @@ final class BikeHardwareTestController {
       try {
         final restorable = await _waitUntilRestorable(session);
         if (restorable) {
-          session.updateSetOnConnect(const SetOnConnectSettings.defaults());
+          session.updateSetOnConnect(const BikeControlPatch());
           var current = session.pending.peek() ?? session.observed.peek();
           if (current?.light != original.light) {
             current = await session.setLight(original.light);

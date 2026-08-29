@@ -121,11 +121,9 @@ void main() {
       expect(bikes.map((saved) => saved.bike.deviceId), ['first', 'second']);
       expect(bikes.first.bike.region, BikeRegion.us);
       expect(bikes.first.bike.color, BikeColor.midnightSky);
-      expect(bikes.first.setOnConnect.lightEnabled, isTrue);
+      expect(bikes.first.setOnConnect.light, isTrue);
       expect(bikes.first.setOnConnect.mode, 3);
       expect(bikes.first.setOnConnect.assist, 4);
-      expect(bikes.first.setOnConnect.modeEnabled, isTrue);
-      expect(bikes.first.setOnConnect.assistEnabled, isTrue);
       expect(bikes.first.backgroundPreference.requested, isTrue);
       expect(bikes.first.backgroundPreference.consentVersion, 0);
       expect(bikes.last.bike.region, BikeRegion.eu);
@@ -179,7 +177,7 @@ void main() {
       await _writeJson(documents, 'bikes.json', [
         _bike('duplicate', name: 'Old'),
         _bike('other', name: 'Other'),
-        _bike('duplicate', name: 'New', mode: 3),
+        _bike('duplicate', name: 'New', mode: 3, modeLocked: true),
       ]);
 
       final result = await importer.run() as InstalledDataImportSuccess;

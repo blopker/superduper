@@ -227,7 +227,7 @@ final class AddBikeController {
       final session = BikeSession(
         connection: transport.openConnection(candidate.deviceId),
         preferredRegion: null,
-        setOnConnect: const SetOnConnectSettings.defaults(),
+        setOnConnect: const BikeControlPatch(),
         protocol: protocol,
         pollInterval: null,
         reconnectDelays: const [],
@@ -281,36 +281,17 @@ final class AddBikeController {
       );
     }
 
-    final persistedRegion = switch (current.protocol) {
-      BikeProtocolVersion.v1 =>
-        region ??
-            (throw ArgumentError.value(
-              region,
-              'region',
-              'A V1 bike requires a region.',
-            )),
-      BikeProtocolVersion.v2 => null,
-    };
-
     _state.value = const AddBikeSaving();
     try {
       await _candidateSession?.dispose();
       _candidateSession = null;
-      final configuration = current.configuration;
       final saved = await bikeRepository.addBike(
         deviceId: current.candidate.deviceId,
         advertisedName: current.protocol.advertisedName,
         displayName: normalizedName,
-        region: persistedRegion,
+        region: region,
         color: color,
         moduleSerial: current.candidate.moduleSerial,
-        setOnConnect: SetOnConnectSettings(
-          lightEnabled: false,
-          mode: configuration.mode,
-          modeEnabled: false,
-          assist: configuration.assist,
-          assistEnabled: false,
-        ),
         versions: current.versions,
         odometerMeters: current.odometerMeters,
       );

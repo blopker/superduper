@@ -14,7 +14,7 @@ void main() {
   late BikeSession session;
 
   BikeSession createSession({
-    SetOnConnectSettings setOnConnect = const SetOnConnectSettings.defaults(),
+    BikeControlPatch setOnConnect = const BikeControlPatch(),
     BikeRegion? region,
     BikeProtocolVersion protocol = BikeProtocolVersion.v1,
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
@@ -249,13 +249,7 @@ void main() {
       [0, 0, 4, 0, 1, 3],
     ]);
     session = createSession(
-      setOnConnect: const SetOnConnectSettings(
-        mode: 0,
-        assist: 4,
-        lightEnabled: true,
-        modeEnabled: false,
-        assistEnabled: true,
-      ),
+      setOnConnect: const BikeControlPatch(light: true, assist: 4),
     );
 
     await session.connect();
@@ -282,13 +276,7 @@ void main() {
         [3, 0, 2, 0, 0, 3],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          lightEnabled: false,
-          mode: 3,
-          modeEnabled: true,
-          assist: 0,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(mode: 3),
         readDiagnosticsOnConnect: false,
       );
 
@@ -313,13 +301,7 @@ void main() {
         [3, 0, 2, 0, 1, 3],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          lightEnabled: false,
-          mode: 3,
-          modeEnabled: true,
-          assist: 0,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(mode: 3),
         readDiagnosticsOnConnect: false,
         pollInterval: const Duration(milliseconds: 5),
       );
@@ -374,13 +356,7 @@ void main() {
       ]);
       session = createSession(
         protocol: BikeProtocolVersion.v2,
-        setOnConnect: const SetOnConnectSettings(
-          lightEnabled: false,
-          mode: 3,
-          modeEnabled: true,
-          assist: 0,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(mode: 3),
         readDiagnosticsOnConnect: false,
         pollInterval: const Duration(milliseconds: 5),
       );
@@ -660,12 +636,10 @@ void main() {
         [0, 0, 2, 0, 1, 3],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
+        setOnConnect: const BikeControlPatch(
+          light: true,
           mode: 3,
           assist: 2,
-          lightEnabled: true,
-          modeEnabled: true,
-          assistEnabled: true,
         ),
         correctiveAttempts: 1,
         reconnectDelays: const [Duration.zero],
@@ -721,12 +695,10 @@ void main() {
       [0, 0, 4, 0, 1, 3],
     ]);
     session = createSession(
-      setOnConnect: const SetOnConnectSettings(
+      setOnConnect: const BikeControlPatch(
+        light: true,
         mode: 3,
         assist: 4,
-        lightEnabled: true,
-        modeEnabled: true,
-        assistEnabled: true,
       ),
     );
 
@@ -747,13 +719,7 @@ void main() {
       [0, 0, 0, 0, 0, 0],
     ]);
     session = createSession(
-      setOnConnect: const SetOnConnectSettings(
-        mode: 3,
-        assist: 0,
-        lightEnabled: false,
-        modeEnabled: true,
-        assistEnabled: false,
-      ),
+      setOnConnect: const BikeControlPatch(mode: 3),
     );
 
     await session.connect();
@@ -798,13 +764,7 @@ void main() {
         [0, 0, 0, 0, 0, 3],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          lightEnabled: true,
-          mode: 0,
-          modeEnabled: false,
-          assist: 0,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(light: true),
       );
       await session.connect();
       connection.emitNotification([3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -886,13 +846,7 @@ void main() {
         [0, 0, 0, 0, 1, 3],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          mode: 3,
-          assist: 0,
-          lightEnabled: false,
-          modeEnabled: true,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(mode: 3),
         confirmationRetryDelays: const [Duration(milliseconds: 10)],
       );
 
@@ -921,13 +875,7 @@ void main() {
         [0, 0, 0, 0, 0, 0],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          mode: 0,
-          assist: 0,
-          lightEnabled: true,
-          modeEnabled: false,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(light: true),
       );
       await session.connect();
 
@@ -998,13 +946,7 @@ void main() {
         [0, 0, 0, 0, 1, 0],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          mode: 0,
-          assist: 0,
-          lightEnabled: true,
-          modeEnabled: false,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(light: true),
         confirmationRetryDelays: const [Duration.zero, Duration.zero],
       );
 
@@ -1072,7 +1014,7 @@ void main() {
       session = BikeSession(
         connection: connection,
         preferredRegion: null,
-        setOnConnect: const SetOnConnectSettings.defaults(),
+        setOnConnect: const BikeControlPatch(),
         protocol: BikeProtocolVersion.v1,
         reconnectDelays: const [],
         confirmationRetryDelays: const [],
@@ -1203,13 +1145,7 @@ void main() {
     ]);
     session = createSession(
       protocol: BikeProtocolVersion.v2,
-      setOnConnect: const SetOnConnectSettings(
-        mode: 0,
-        assist: 0,
-        lightEnabled: true,
-        modeEnabled: false,
-        assistEnabled: false,
-      ),
+      setOnConnect: const BikeControlPatch(light: true),
       confirmationRetryDelays: const [Duration.zero],
     );
     await session.connect();
@@ -1249,13 +1185,7 @@ void main() {
         [0, 0, 0, 0, 0, 0],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          mode: 0,
-          assist: 0,
-          lightEnabled: true,
-          modeEnabled: false,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(light: true),
         pollInterval: const Duration(milliseconds: 5),
       );
       await session.connect();
@@ -1380,13 +1310,7 @@ void main() {
         [0, 0, 0, 0, 0, 2],
       ]);
       session = createSession(
-        setOnConnect: const SetOnConnectSettings(
-          mode: 3,
-          assist: 0,
-          lightEnabled: false,
-          modeEnabled: true,
-          assistEnabled: false,
-        ),
+        setOnConnect: const BikeControlPatch(mode: 3),
         correctiveAttempts: 1,
         synchronizationRetryDelays: const [Duration(milliseconds: 1)],
       );
@@ -1508,13 +1432,7 @@ void main() {
     );
 
     session.updateSetOnConnect(
-      const SetOnConnectSettings(
-        lightEnabled: true,
-        mode: 0,
-        modeEnabled: false,
-        assist: 0,
-        assistEnabled: false,
-      ),
+      const BikeControlPatch(light: true),
     );
     await Future<void>.delayed(Duration.zero);
     expect(writesBeforeEdit, isEmpty);

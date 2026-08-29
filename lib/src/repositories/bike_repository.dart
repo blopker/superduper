@@ -43,7 +43,7 @@ final class BikeRepository {
     String? displayName,
     BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
-    SetOnConnectSettings setOnConnect = const SetOnConnectSettings.defaults(),
+    BikeControlPatch setOnConnect = const BikeControlPatch(),
     BackgroundPreference backgroundPreference =
         const BackgroundPreference.defaults(),
     BikeVersionInfo? versions,
@@ -201,18 +201,13 @@ final class BikeRepository {
 
   Future<void> setOnConnect(
     String deviceId,
-    SetOnConnectSettings settings,
+    BikeControlPatch settings,
   ) {
     _validateSetOnConnect(settings);
     return _updatePreferences(
       deviceId,
       BikePreferencesCompanion(
-        desiredLight: Value(settings.lightEnabled),
-        desiredMode: Value(settings.mode),
-        desiredAssist: Value(settings.assist),
-        keepLight: Value(settings.lightEnabled),
-        keepMode: Value(settings.modeEnabled),
-        keepAssist: Value(settings.assistEnabled),
+        setOnConnect: Value(settings),
       ),
     );
   }
@@ -464,13 +459,7 @@ final class BikeRepository {
             : DateTime.fromMillisecondsSinceEpoch(bike.lastConnectedAtMs!),
         moduleSerial: bike.moduleSerial,
       ),
-      setOnConnect: SetOnConnectSettings(
-        lightEnabled: preferences.keepLight && preferences.desiredLight,
-        mode: preferences.desiredMode,
-        modeEnabled: preferences.keepMode,
-        assist: preferences.desiredAssist,
-        assistEnabled: preferences.keepAssist,
-      ),
+      setOnConnect: preferences.setOnConnect,
       backgroundPreference: BackgroundPreference(
         requested: preferences.backgroundRequested,
         consentVersion: preferences.backgroundConsentVersion,
@@ -507,17 +496,12 @@ final class BikeRepository {
 
   BikePreferencesCompanion _setOnConnectInsert(
     String deviceId,
-    SetOnConnectSettings setOnConnect,
+    BikeControlPatch setOnConnect,
     BackgroundPreference backgroundPreference,
   ) {
     return BikePreferencesCompanion.insert(
       deviceId: deviceId,
-      desiredLight: setOnConnect.lightEnabled,
-      desiredMode: setOnConnect.mode,
-      desiredAssist: setOnConnect.assist,
-      keepLight: setOnConnect.lightEnabled,
-      keepMode: setOnConnect.modeEnabled,
-      keepAssist: setOnConnect.assistEnabled,
+      setOnConnect: setOnConnect,
       backgroundRequested: backgroundPreference.requested,
       backgroundConsentVersion: backgroundPreference.consentVersion,
     );
@@ -559,9 +543,20 @@ final class BikeRepository {
     return normalized;
   }
 
-  void _validateSetOnConnect(SetOnConnectSettings settings) {
-    _validateMode(settings.mode);
-    _validateAssist(settings.assist);
+  void _validateSetOnConnect(BikeControlPatch settings) {
+    if (settings.light == false) {
+      throw ArgumentError.value(
+        settings.light,
+        'light',
+        'Set on connect can only turn the light on.',
+      );
+    }
+    if (settings.mode case final mode?) {
+      _validateMode(mode);
+    }
+    if (settings.assist case final assist?) {
+      _validateAssist(assist);
+    }
   }
 
   void _validateBackgroundPreference(BackgroundPreference preference) {
