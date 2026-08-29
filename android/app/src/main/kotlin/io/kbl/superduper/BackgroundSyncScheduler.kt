@@ -10,7 +10,12 @@ import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
 internal object BackgroundSyncScheduler {
-    fun enqueue(context: Context, deviceId: String, source: String) {
+    fun enqueue(
+        context: Context,
+        deviceId: String,
+        source: String,
+        initialDelaySeconds: Long = 0,
+    ) {
         val preferences = BackgroundCompanionManager.preferences(context)
         val storedDeviceId = preferences.getString(
             BackgroundCompanionManager.deviceIdKey,
@@ -21,23 +26,15 @@ internal object BackgroundSyncScheduler {
             null,
         ) ?: return
         if (!storedDeviceId.equals(deviceId, ignoreCase = true)) return
-        if (source == "companion" &&
-            preferences.getBoolean(BackgroundCompanionManager.companionPresentKey, false)
-        ) {
-            return
-        }
 
-        val editor = preferences.edit()
+        preferences.edit()
             .putLong(
                 BackgroundCompanionManager.lastPresenceAtKey,
                 System.currentTimeMillis(),
             )
             .putString(BackgroundCompanionManager.lastPresenceSourceKey, source)
-        if (source == "companion") {
-            editor.putBoolean(BackgroundCompanionManager.companionPresentKey, true)
-        }
-        editor.commit()
-        val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
+            .commit()
+        val requestBuilder = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
             .setInputData(
                 workDataOf(
                     BackgroundCompanionManager.deviceIdKey to storedDeviceId,
@@ -45,8 +42,14 @@ internal object BackgroundSyncScheduler {
                 ),
             )
             .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .build()
+        if (initialDelaySeconds > 0) {
+            requestBuilder.setInitialDelay(initialDelaySeconds, TimeUnit.SECONDS)
+        } else {
+            requestBuilder.setExpedited(
+                OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST,
+            )
+        }
+        val request = requestBuilder.build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             BackgroundCompanionManager.workName(serial),
             ExistingWorkPolicy.KEEP,
