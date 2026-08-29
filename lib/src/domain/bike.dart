@@ -6,6 +6,13 @@ enum BikeProtocolVersion {
 
   final String advertisedName;
 
+  BikeRegion? normalizeRegion(BikeRegion? region) {
+    return switch (this) {
+      BikeProtocolVersion.v1 => region ?? BikeRegion.us,
+      BikeProtocolVersion.v2 => null,
+    };
+  }
+
   static BikeProtocolVersion? fromAdvertisedName(String name) {
     return switch (name) {
       'SUPER73' => BikeProtocolVersion.v1,
@@ -22,6 +29,44 @@ enum BikeRegion {
   const BikeRegion(this.label);
 
   final String label;
+}
+
+abstract final class BikeControlValues {
+  static const minimumMode = 0;
+  static const maximumMode = 3;
+  static const minimumAssist = 0;
+  static const maximumAssist = 4;
+  static const int modeCount = maximumMode - minimumMode + 1;
+
+  static final List<int> modes = List.unmodifiable(
+    List.generate(modeCount, (index) => minimumMode + index),
+  );
+  static final List<int> assistLevels = List.unmodifiable(
+    List.generate(
+      maximumAssist - minimumAssist + 1,
+      (index) => minimumAssist + index,
+    ),
+  );
+
+  static bool isValidMode(int value) {
+    return value >= minimumMode && value <= maximumMode;
+  }
+
+  static bool isValidAssist(int value) {
+    return value >= minimumAssist && value <= maximumAssist;
+  }
+
+  static void validateMode(int value) {
+    if (!isValidMode(value)) {
+      throw RangeError.range(value, minimumMode, maximumMode, 'mode');
+    }
+  }
+
+  static void validateAssist(int value) {
+    if (!isValidAssist(value)) {
+      throw RangeError.range(value, minimumAssist, maximumAssist, 'assist');
+    }
+  }
 }
 
 final class BikeConfiguration {

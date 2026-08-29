@@ -275,13 +275,15 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
       assist: assist,
       lightByte: lightByte,
       mode: wireMode,
-      maximumMode: 7,
+      maximumMode: BikeControlValues.modeCount * BikeRegion.values.length - 1,
     );
     return BikeConfiguration(
       light: lightByte == 1,
-      mode: wireMode % 4,
+      mode: wireMode % BikeControlValues.modeCount,
       assist: assist,
-      region: wireMode >= 4 ? BikeRegion.eu : BikeRegion.us,
+      region: wireMode >= BikeControlValues.modeCount
+          ? BikeRegion.eu
+          : BikeRegion.us,
     );
   }
 
@@ -336,7 +338,7 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
     BikeProtocol._validateConfiguration(configuration);
     final mode = switch (configuration.region) {
       BikeRegion.us => configuration.mode,
-      BikeRegion.eu => configuration.mode + 4,
+      BikeRegion.eu => configuration.mode + BikeControlValues.modeCount,
     };
     return [
       0,
@@ -392,7 +394,7 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
       assist: assist,
       lightByte: lightByte,
       mode: mode,
-      maximumMode: 3,
+      maximumMode: BikeControlValues.maximumMode,
     );
     return BikeConfiguration(
       light: lightByte == 1,
@@ -477,8 +479,8 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
     BikeProtocol._validateControlValues(
       assist: assist,
       lightByte: lightByte,
-      mode: 0,
-      maximumMode: 3,
+      mode: BikeControlValues.minimumMode,
+      maximumMode: BikeControlValues.maximumMode,
     );
     _observeLiveLight();
     return BikeControlPatch(light: lightByte == 1, assist: assist);
@@ -487,7 +489,7 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
   BikeControlPatch _decodeD9Telemetry(List<int> packet) {
     BikeProtocol._validatePacket(packet, BikeGatt.v2ModeSelector);
     final mode = packet[5];
-    if (mode < 0 || mode > 3) {
+    if (!BikeControlValues.isValidMode(mode)) {
       throw UnsupportedBikeValue('ride mode', mode);
     }
     return BikeControlPatch(mode: mode);
@@ -610,12 +612,8 @@ abstract final class BikeProtocol {
   }
 
   static void _validateConfiguration(BikeConfiguration configuration) {
-    if (configuration.mode < 0 || configuration.mode > 3) {
-      throw RangeError.range(configuration.mode, 0, 3, 'mode');
-    }
-    if (configuration.assist < 0 || configuration.assist > 4) {
-      throw RangeError.range(configuration.assist, 0, 4, 'assist');
-    }
+    BikeControlValues.validateMode(configuration.mode);
+    BikeControlValues.validateAssist(configuration.assist);
   }
 
   static void _validateAuthenticationBytes(List<int> value, String name) {
@@ -660,13 +658,13 @@ abstract final class BikeProtocol {
     required int mode,
     required int maximumMode,
   }) {
-    if (assist < 0 || assist > 4) {
+    if (!BikeControlValues.isValidAssist(assist)) {
       throw UnsupportedBikeValue('assist', assist);
     }
     if (lightByte != 0 && lightByte != 1) {
       throw UnsupportedBikeValue('light', lightByte);
     }
-    if (mode < 0 || mode > maximumMode) {
+    if (mode < BikeControlValues.minimumMode || mode > maximumMode) {
       throw UnsupportedBikeValue('mode', mode);
     }
   }

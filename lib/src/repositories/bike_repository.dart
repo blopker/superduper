@@ -73,14 +73,7 @@ final class BikeRepository {
         'Must be a supported bike advertised name.',
       );
     }
-    if (protocol == BikeProtocolVersion.v1 && region == null) {
-      throw ArgumentError.value(
-        region,
-        'region',
-        'A region is required for the V1 protocol.',
-      );
-    }
-    final persistedRegion = protocol == BikeProtocolVersion.v1 ? region : null;
+    final persistedRegion = protocol.normalizeRegion(region);
     final normalizedName = _normalizeName(displayName, normalizedId);
     final normalizedSerial = moduleSerial == null
         ? null
@@ -179,21 +172,12 @@ final class BikeRepository {
         'Must not be empty.',
       );
     }
-    if (protocol == BikeProtocolVersion.v1 && region == null) {
-      throw ArgumentError.value(
-        region,
-        'region',
-        'A region is required for the V1 protocol.',
-      );
-    }
     return _updateBike(
       deviceId,
       BikesCompanion(
         displayName: Value(normalizedName),
         protocol: Value(protocol),
-        region: Value(
-          protocol == BikeProtocolVersion.v1 ? region?.name : null,
-        ),
+        region: Value(protocol.normalizeRegion(region)?.name),
         colorKey: Value(color.key),
       ),
     );
@@ -552,10 +536,10 @@ final class BikeRepository {
       );
     }
     if (settings.mode case final mode?) {
-      _validateMode(mode);
+      BikeControlValues.validateMode(mode);
     }
     if (settings.assist case final assist?) {
-      _validateAssist(assist);
+      BikeControlValues.validateAssist(assist);
     }
   }
 
@@ -608,18 +592,6 @@ final class BikeRepository {
   void _validateUnsigned(int value, int maximum, String name) {
     if (value < 0 || value > maximum) {
       throw RangeError.range(value, 0, maximum, name);
-    }
-  }
-
-  void _validateMode(int mode) {
-    if (mode < 0 || mode > 3) {
-      throw RangeError.range(mode, 0, 3, 'mode');
-    }
-  }
-
-  void _validateAssist(int assist) {
-    if (assist < 0 || assist > 4) {
-      throw RangeError.range(assist, 0, 4, 'assist');
     }
   }
 }

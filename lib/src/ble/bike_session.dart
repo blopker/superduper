@@ -365,16 +365,12 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> setMode(int value) {
-    if (value < 0 || value > 3) {
-      throw RangeError.range(value, 0, 3, 'mode');
-    }
+    BikeControlValues.validateMode(value);
     return setControls(BikeControlPatch(mode: value));
   }
 
   Future<BikeConfiguration> setAssist(int value) {
-    if (value < 0 || value > 4) {
-      throw RangeError.range(value, 0, 4, 'assist');
-    }
+    BikeControlValues.validateAssist(value);
     return setControls(BikeControlPatch(assist: value));
   }
 

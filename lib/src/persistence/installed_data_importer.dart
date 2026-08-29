@@ -214,7 +214,7 @@ final class InstalledDataImporter {
                 displayName: imported.displayName,
                 advertisedName: 'SUPER73',
                 protocol: BikeProtocolVersion.v1,
-                region: Value(imported.region?.name),
+                region: Value(imported.region.name),
                 colorKey: imported.color.key,
                 sortOrder: imported.sortOrder,
                 createdAtMs: now,
@@ -395,14 +395,14 @@ final class InstalledDataImporter {
       return null;
     }
     final mode = source['mode'];
-    if (mode is! int || mode < 0 || mode > 3) {
+    if (mode is! int || !BikeControlValues.isValidMode(mode)) {
       warnings.add(
         ImportWarning(code: 'invalid_bike', record: index, field: 'mode'),
       );
       return null;
     }
     final assist = source['assist'];
-    if (assist is! int || assist < 0 || assist > 4) {
+    if (assist is! int || !BikeControlValues.isValidAssist(assist)) {
       warnings.add(
         ImportWarning(code: 'invalid_bike', record: index, field: 'assist'),
       );
@@ -442,7 +442,7 @@ final class InstalledDataImporter {
     );
   }
 
-  BikeRegion? _parseRegion(
+  BikeRegion _parseRegion(
     Object? value,
     int index,
     List<ImportWarning> warnings,
@@ -569,7 +569,7 @@ final class _ImportedBike {
 
   final String deviceId;
   final String displayName;
-  final BikeRegion? region;
+  final BikeRegion region;
   final BikeColor color;
   final int sortOrder;
   final bool light;

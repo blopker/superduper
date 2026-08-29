@@ -174,7 +174,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           icon: Icons.speed_rounded,
           title: 'Mode',
           control: BikeValueSelector(
-            values: const [0, 1, 2, 3],
+            values: BikeControlValues.modes,
             selected: configuration?.mode,
             enabled: canControl,
             semanticLabel: 'Mode',
@@ -190,7 +190,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
           icon: Icons.bolt_rounded,
           title: 'Assist',
           control: BikeValueSelector(
-            values: const [0, 1, 2, 3, 4],
+            values: BikeControlValues.assistLevels,
             selected: configuration?.assist,
             enabled: canControl,
             semanticLabel: 'Assist level',

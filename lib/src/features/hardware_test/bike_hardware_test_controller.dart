@@ -691,7 +691,7 @@ final class BikeHardwareTestController {
       'Changed to ${light.light ? 'on' : 'off'}, confirmed, and restored.',
     );
 
-    final nextMode = (initial.mode + 1) % 4;
+    final nextMode = (initial.mode + 1) % BikeControlValues.modeCount;
     final mode = await session.setMode(nextMode);
     _checkCurrent(generation);
     _expect(mode.mode == nextMode, 'Mode did not change to $nextMode.');

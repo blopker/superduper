@@ -162,24 +162,22 @@ void main() {
     expect(saved.bike.color, BikeColor.midnightSky);
   });
 
-  test('V1 bikes always require a region', () async {
+  test('V1 bikes default a missing region to US', () async {
     await settingsRepository.initialize();
 
-    expect(
-      () => repository.addBike(deviceId: 'bike', region: null),
-      throwsArgumentError,
+    var saved = await repository.addBike(deviceId: 'bike', region: null);
+    expect(saved.bike.region, BikeRegion.us);
+
+    await repository.updateBikeDetails(
+      'bike',
+      displayName: 'Bike',
+      region: null,
+      color: BikeColor.royalHorizon,
+      protocol: BikeProtocolVersion.v1,
     );
-    await repository.addBike(deviceId: 'bike');
-    expect(
-      () => repository.updateBikeDetails(
-        'bike',
-        displayName: 'Bike',
-        region: null,
-        color: BikeColor.royalHorizon,
-        protocol: BikeProtocolVersion.v1,
-      ),
-      throwsArgumentError,
-    );
+
+    saved = (await repository.getBikes()).single;
+    expect(saved.bike.region, BikeRegion.us);
   });
 
   test(

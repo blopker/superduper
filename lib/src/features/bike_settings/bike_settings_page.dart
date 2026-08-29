@@ -40,7 +40,6 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   Timer? _nameSaveTimer;
   Future<void>? _saveFuture;
   String? _nameError;
-  String? _regionError;
   var _saveRequested = false;
   var _saving = false;
   var _forgetting = false;
@@ -136,10 +135,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                 DropdownButtonFormField<BikeRegion>(
                   key: ValueKey((_region, _regionFieldRevision)),
                   initialValue: _region,
-                  decoration: InputDecoration(
-                    labelText: 'Region',
-                    errorText: _regionError,
-                  ),
+                  decoration: const InputDecoration(labelText: 'Region'),
                   items: [
                     for (final region in BikeRegion.values)
                       DropdownMenuItem(
@@ -447,7 +443,8 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                           deviceId,
                           saved.setOnConnect.copyWith(
                             mode: enabled
-                                ? (saved.setOnConnect.mode ?? 0)
+                                ? (saved.setOnConnect.mode ??
+                                      BikeControlValues.minimumMode)
                                 : null,
                           ),
                         ),
@@ -458,7 +455,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                 child: BikeValueSelector(
-                  values: const [0, 1, 2, 3],
+                  values: BikeControlValues.modes,
                   selected: selectedMode,
                   enabled: !_changingSetOnConnect,
                   semanticLabel: 'Set on connect mode',
@@ -491,7 +488,8 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                           deviceId,
                           saved.setOnConnect.copyWith(
                             assist: enabled
-                                ? (saved.setOnConnect.assist ?? 0)
+                                ? (saved.setOnConnect.assist ??
+                                      BikeControlValues.minimumAssist)
                                 : null,
                           ),
                         ),
@@ -502,7 +500,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
                 child: BikeValueSelector(
-                  values: const [0, 1, 2, 3, 4],
+                  values: BikeControlValues.assistLevels,
                   selected: selectedAssist,
                   enabled: !_changingSetOnConnect,
                   semanticLabel: 'Set on connect assist level',
@@ -558,37 +556,34 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     if (region == _region) {
       return;
     }
-    if (_region != null) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Change bike region?'),
-          content: const Text(
-            'The selected region is included the next time Superduper sends settings to the bike. Changing it here does not immediately write to the bike.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Change region'),
-            ),
-          ],
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change bike region?'),
+        content: const Text(
+          'The selected region is included the next time Superduper sends settings to the bike. Changing it here does not immediately write to the bike.',
         ),
-      );
-      if (!mounted) {
-        return;
-      }
-      if (!(confirmed ?? false)) {
-        setState(() => _regionFieldRevision += 1);
-        return;
-      }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Change region'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!(confirmed ?? false)) {
+      setState(() => _regionFieldRevision += 1);
+      return;
     }
     setState(() {
       _region = region;
-      _regionError = null;
       _regionFieldRevision += 1;
     });
     await _queueSaveNow();
@@ -603,7 +598,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
       builder: (context) => AlertDialog(
         title: const Text('CHANGE BIKE PROTOCOL?'),
         content: Text(
-          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and Set on connect values may stop working.${protocol == BikeProtocolVersion.v1 && _region == null ? ' V1 will initially use the US region.' : ''}',
+          'Superduper will reconnect using ${_protocolLabel(protocol)}. If this does not match the bike, controls and Set on connect values may stop working.',
         ),
         actions: [
           TextButton(
@@ -626,10 +621,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     }
     setState(() {
       _protocol = protocol;
-      _region = protocol == BikeProtocolVersion.v1
-          ? (_region ?? BikeRegion.us)
-          : null;
-      _regionError = null;
+      _region = protocol.normalizeRegion(_region);
       _protocolFieldRevision += 1;
       _regionFieldRevision += 1;
     });
@@ -766,15 +758,10 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     while (_saveRequested) {
       _saveRequested = false;
       final name = _name.text.trim();
-      if (name.isEmpty ||
-          (_protocol == BikeProtocolVersion.v1 && _region == null)) {
+      if (name.isEmpty) {
         if (mounted) {
           setState(() {
-            _nameError = name.isEmpty ? 'Enter a bike name.' : null;
-            _regionError =
-                _protocol == BikeProtocolVersion.v1 && _region == null
-                ? 'Choose the bike region.'
-                : null;
+            _nameError = 'Enter a bike name.';
           });
         }
         break;
