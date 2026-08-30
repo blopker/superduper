@@ -27,6 +27,7 @@ abstract interface class BackgroundSyncPlatformGateway {
     required String deviceId,
     required bool requestAssociation,
   });
+  Future<void> setConnectionPaused(bool paused);
   Future<void> cancel();
 }
 
@@ -38,6 +39,9 @@ final class NoopBackgroundSyncPlatformGateway
 
   @override
   Future<void> cancel() async {}
+
+  @override
+  Future<void> setConnectionPaused(bool paused) async {}
 
   @override
   Future<BackgroundSyncRegistration> configure({
@@ -98,6 +102,23 @@ final class SystemBackgroundSyncPlatformGateway
         await channel.invokeMethod<void>('cancel');
       } on MissingPluginException {
         // Unit tests and non-Android embedders do not install the Android host.
+      }
+    }
+  }
+
+  @override
+  Future<void> setConnectionPaused(bool paused) async {
+    if (_isSupported) {
+      try {
+        await channel.invokeMethod<void>('setConnectionPaused', {
+          'paused': paused,
+        });
+      } on MissingPluginException {
+        // Unit tests and non-Android embedders do not install the Android host.
+      } on PlatformException catch (error) {
+        throw BackgroundSyncConfigurationFailure(
+          error.message ?? 'Android could not update the connection pause.',
+        );
       }
     }
   }

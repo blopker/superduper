@@ -20,15 +20,16 @@ class BackgroundScanReceiver : BroadcastReceiver() {
             BluetoothLeScanner.EXTRA_CALLBACK_TYPE,
             ScanSettings.CALLBACK_TYPE_ALL_MATCHES,
         )
+        val deviceId = BackgroundCompanionManager.preferences(context)
+            .getString(BackgroundCompanionManager.deviceIdKey, null)
+            ?: return
         if (callbackType and ScanSettings.CALLBACK_TYPE_MATCH_LOST != 0) {
             Log.d(logTag, "Background BLE advertisement disappeared")
+            NativeBackgroundSync.noteDisappearance(context, deviceId, "bleScanMatchLost")
             return
         }
         if (callbackType and ScanSettings.CALLBACK_TYPE_FIRST_MATCH == 0) return
 
-        val deviceId = BackgroundCompanionManager.preferences(context)
-            .getString(BackgroundCompanionManager.deviceIdKey, null)
-            ?: return
         Log.d(logTag, "Background BLE advertisement appeared; requesting native sync")
         NativeBackgroundSync.synchronize(context, deviceId, "bleScanFirstMatch")
     }

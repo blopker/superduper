@@ -29,6 +29,9 @@ internal object BackgroundCompanionManager {
     const val lastCompletedAtKey = "last_completed_at_ms"
     const val pendingSyncKey = "pending_sync"
     const val presenceCooldownUntilKey = "presence_cooldown_until_ms"
+    const val presenceSessionSynchronizedKey = "presence_session_synchronized"
+    const val presenceAbsentSinceKey = "presence_absent_since_ms"
+    const val connectionPausedKey = "connection_paused"
     const val scanAction = "io.kbl.superduper.BACKGROUND_SCAN"
 
     private const val legacyPresentKey = "bike_present"
@@ -41,6 +44,19 @@ internal object BackgroundCompanionManager {
 
     fun preferences(context: Context): SharedPreferences =
         context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+
+    fun setConnectionPaused(context: Context, paused: Boolean) {
+        val editor = preferences(context).edit()
+        if (paused) {
+            editor
+                .putBoolean(connectionPausedKey, true)
+                .remove(pendingSyncKey)
+                .apply()
+            NativeBackgroundSync.cancel("The connection was manually paused")
+        } else {
+            editor.remove(connectionPausedKey).apply()
+        }
+    }
 
     fun normalizeDeviceId(value: String): String {
         val normalized = value.uppercase()
@@ -90,6 +106,10 @@ internal object BackgroundCompanionManager {
             NativeBackgroundSync.cancel("Background Sync bike changed")
             stopObserving(context, previousAddress)
             disassociate(context, previousAddress)
+            preferences.edit()
+                .remove(presenceSessionSynchronizedKey)
+                .remove(presenceAbsentSinceKey)
+                .apply()
         }
         preferences
             .edit()
@@ -141,6 +161,8 @@ internal object BackgroundCompanionManager {
             .remove(legacySerialKey)
             .remove(pendingSyncKey)
             .remove(presenceCooldownUntilKey)
+            .remove(presenceSessionSynchronizedKey)
+            .remove(presenceAbsentSinceKey)
             .remove(legacyPresentKey)
             .remove(legacyCompanionPresentKey)
             .apply()

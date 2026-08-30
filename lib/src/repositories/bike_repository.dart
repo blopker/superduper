@@ -272,6 +272,7 @@ final class BikeRepository {
           updatedAtMs: Value(_clock().millisecondsSinceEpoch),
         ),
       );
+      await database.refreshBackgroundSyncPlan();
       return true;
     });
   }

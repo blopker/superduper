@@ -37,6 +37,8 @@ final class AppServices {
         permissions ?? SystemBluetoothPermissionGateway();
     final resolvedExternalLinks =
         externalLinks ?? const SystemExternalLinkLauncher();
+    final resolvedBackgroundSyncPlatform =
+        backgroundSyncPlatform ?? const NoopBackgroundSyncPlatformGateway();
     final resolvedIdentityResolver = BikeIdentityResolver(
       bikeRepository: resolvedBikeRepository,
       transport: resolvedTransport,
@@ -65,10 +67,10 @@ final class AppServices {
                 meters,
               );
             },
+            onManualConnectionPauseChanged:
+                resolvedBackgroundSyncPlatform.setConnectionPaused,
           ),
         );
-    final resolvedBackgroundSyncPlatform =
-        backgroundSyncPlatform ?? const NoopBackgroundSyncPlatformGateway();
     final resolvedBackgroundSyncCoordinator =
         backgroundSyncCoordinator ??
         BackgroundSyncCoordinator(

@@ -386,6 +386,36 @@ void main() {
     );
   });
 
+  test('saving a module serial refreshes the native scan filter', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'AA:BB:CC:DD:EE:FF',
+      moduleSerial: '00112233aabbccdd',
+      setOnConnect: const BikeControlPatch(light: true),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncPlans).getSingle())
+          .scanManufacturerData,
+      [0, 17, 34, 51, 170, 187, 204, 221],
+    );
+
+    await repository.saveModuleSerial(
+      'AA:BB:CC:DD:EE:FF',
+      'ffeeddccbbaa9988',
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncPlans).getSingle())
+          .scanManufacturerData,
+      [255, 238, 221, 204, 187, 170, 153, 136],
+    );
+  });
+
   test('duplicate bikes report a domain error', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');

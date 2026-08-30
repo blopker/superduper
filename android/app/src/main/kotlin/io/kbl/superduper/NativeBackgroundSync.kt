@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -67,6 +68,37 @@ internal object NativeBackgroundSync {
         )
     }
 
+    fun noteDisappearance(context: Context, deviceId: String, source: String) {
+        val applicationContext = context.applicationContext
+        mainHandler.post {
+            val preferences = BackgroundCompanionManager.preferences(applicationContext)
+            val configuredDeviceId = preferences.getString(
+                BackgroundCompanionManager.deviceIdKey,
+                null,
+            )
+            if (configuredDeviceId?.equals(deviceId, ignoreCase = true) != true) return@post
+
+            val nowMs = System.currentTimeMillis()
+            val cooldownUntil = preferences.getLong(
+                BackgroundCompanionManager.presenceCooldownUntilKey,
+                0L,
+            )
+            val credible = !loading && active == null && nowMs >= cooldownUntil
+            val previousState = readPresenceSession(preferences)
+            val nextState = PresenceSessionGate.onDisappearance(
+                previousState,
+                nowMs,
+                credible,
+            )
+            writePresenceSession(preferences, nextState)
+            if (nextState != previousState) {
+                Log.d(logTag, "Bike absence observed via $source; waiting to confirm power cycle")
+            } else if (!credible) {
+                Log.d(logTag, "Bike disappearance via $source ignored during synchronization")
+            }
+        }
+    }
+
     private fun synchronizeOnMain(context: Context, deviceId: String, source: String) {
         val preferences = BackgroundCompanionManager.preferences(context)
         preferences.edit()
@@ -80,6 +112,17 @@ internal object NativeBackgroundSync {
         )
         if (configuredDeviceId?.equals(deviceId, ignoreCase = true) != true) {
             record(context, "skippedDeviceMismatch", null)
+            return
+        }
+        if (preferences.getBoolean(BackgroundCompanionManager.connectionPausedKey, false)) {
+            preferences.edit().remove(BackgroundCompanionManager.pendingSyncKey).apply()
+            record(context, "skippedConnectionPaused", null)
+            return
+        }
+        val appearance = PresenceSessionGate.onAppearance(readPresenceSession(preferences))
+        writePresenceSession(preferences, appearance.state)
+        if (!appearance.shouldSynchronize) {
+            Log.d(logTag, "Native sync request ignored for an already synchronized power session")
             return
         }
         val cooldownUntil = preferences.getLong(
@@ -134,6 +177,14 @@ internal object NativeBackgroundSync {
             record(context, "skippedForeground", null)
             return
         }
+        if (BackgroundCompanionManager.preferences(context).getBoolean(
+                BackgroundCompanionManager.connectionPausedKey,
+                false,
+            )
+        ) {
+            record(context, "skippedConnectionPaused", null)
+            return
+        }
         val plan = result.getOrElse { error ->
             record(context, "failed", error.message ?: error.javaClass.simpleName)
             return
@@ -173,6 +224,13 @@ internal object NativeBackgroundSync {
         if (outcome == "failed" && !isBluetoothEnabled(transaction.context)) {
             deferUntilBluetoothOn(transaction.context)
             return
+        }
+        if (outcome == "confirmed") {
+            val preferences = BackgroundCompanionManager.preferences(transaction.context)
+            writePresenceSession(
+                preferences,
+                PresenceSessionGate.onConfirmed(readPresenceSession(preferences)),
+            )
         }
         startPresenceCooldown(transaction.context)
         record(transaction.context, outcome, detail)
@@ -226,6 +284,41 @@ internal object NativeBackgroundSync {
                 System.currentTimeMillis() + presenceCooldownMs,
             )
             .apply()
+    }
+
+    private fun readPresenceSession(preferences: SharedPreferences) =
+        PresenceSessionState(
+            synchronized = preferences.getBoolean(
+                BackgroundCompanionManager.presenceSessionSynchronizedKey,
+                false,
+            ),
+            absentSinceMs = if (
+                preferences.contains(BackgroundCompanionManager.presenceAbsentSinceKey)
+            ) {
+                preferences.getLong(BackgroundCompanionManager.presenceAbsentSinceKey, 0L)
+            } else {
+                null
+            },
+        )
+
+    private fun writePresenceSession(
+        preferences: SharedPreferences,
+        state: PresenceSessionState,
+    ) {
+        val editor = preferences.edit()
+            .putBoolean(
+                BackgroundCompanionManager.presenceSessionSynchronizedKey,
+                state.synchronized,
+            )
+        if (state.absentSinceMs == null) {
+            editor.remove(BackgroundCompanionManager.presenceAbsentSinceKey)
+        } else {
+            editor.putLong(
+                BackgroundCompanionManager.presenceAbsentSinceKey,
+                state.absentSinceMs,
+            )
+        }
+        editor.apply()
     }
 
     private const val adapterResumeDelayMs = 1_000L
@@ -296,6 +389,7 @@ private class NativeBikeTransaction(
     }
 
     @SuppressLint("MissingPermission")
+    @Synchronized
     fun start() {
         mainHandler.postDelayed(timeout, transactionTimeoutMs)
         try {

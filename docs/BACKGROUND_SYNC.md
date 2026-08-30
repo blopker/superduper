@@ -148,17 +148,30 @@ The bike-settings page exposes the consented “Background Sync” switch on And
 
 The system association chooser owns its lifetime; the app does not impose a timeout while the user is deciding. Before the chooser appears, a native watchdog reports a failed device search because Android 12 and 12L can otherwise end that search without invoking either association callback. If Android's association is later removed outside the app, reconciliation turns off the stored Background Sync request instead of failing app startup or leaving an enabled switch with no native registration.
 
-Android restores presence observation and the manufacturer-data scan after boot, package replacement, the next app open, and Bluetooth becoming available. The association remains system-owned while enabled. Both the companion service and the scan receiver can wake a dead process.
+Android requests restoration of presence observation and the manufacturer-data
+scan after boot, package replacement, and the next app open. While the app
+process is alive, a runtime Bluetooth-state receiver retries restoration and any
+deferred transaction when the adapter becomes available. The association remains
+system-owned while enabled. Both the companion service and the scan receiver can
+wake a dead process.
 
 A CDM BLE-appeared event or the scan's first matching advertisement starts
-synchronization. Disconnect and disappearance events are ignored, including the
-disconnect produced by the native transaction itself. The service serializes
-transactions, ignores duplicates while one is loading or connected, and uses a
-short cooldown to ignore the advertisement caused by its own GATT disconnect.
+synchronization. A confirmed transaction latches that bike-presence session, so
+later appearance events cannot reapply Set on connect after the rider changes a
+physical control. The latch is cleared only when a subsequent appearance follows
+a credible Android disappearance event. Disappearances during a transaction or its
+cooldown are ignored, including the advertising interruption produced by the native
+transaction itself. The service also serializes transactions and ignores duplicates
+while one is loading or connected.
 It also bails out while the activity is foreground. When the activity enters the
 foreground, it cancels and closes any native GATT client before FlutterBluePlus
 resumes ownership. If Android reports appearance while Bluetooth is transitioning,
 the request is retained and resumed after the adapter reaches `STATE_ON`.
+
+The user-facing connection pause is shared with the native executor. A manual
+disconnect suppresses wake-triggered transactions as well as foreground
+reconnection. An explicit reconnect or reopening the app clears that pause.
+Lifecycle backgrounding uses a separate session path and does not set it.
 
 Drift is the only writer of the background plan. Whenever the active bike,
 protocol, region, consent, or Set on connect choices change, Dart atomically

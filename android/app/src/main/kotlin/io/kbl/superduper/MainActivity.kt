@@ -38,6 +38,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        BackgroundCompanionManager.setConnectionPaused(applicationContext, false)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             backgroundSyncChannel,
@@ -58,6 +59,15 @@ class MainActivity : FlutterActivity() {
                     "cancel" -> {
                         cancelPendingAssociation("Bike association was cancelled")
                         BackgroundCompanionManager.cancel(applicationContext)
+                        result.success(null)
+                    }
+                    "setConnectionPaused" -> {
+                        val paused = call.argument<Boolean>("paused")
+                            ?: throw IllegalArgumentException("paused is required")
+                        BackgroundCompanionManager.setConnectionPaused(
+                            applicationContext,
+                            paused,
+                        )
                         result.success(null)
                     }
                     else -> result.notImplemented()

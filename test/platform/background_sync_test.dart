@@ -343,6 +343,24 @@ void main() {
     );
   });
 
+  test('hands the manual connection pause to Android', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel(backgroundSyncChannelName);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'setConnectionPaused');
+          expect(call.arguments, {'paused': true});
+          return null;
+        });
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    await SystemBackgroundSyncPlatformGateway().setConnectionPaused(true);
+  });
+
   test('reports a missing native companion association as state', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     const channel = MethodChannel(backgroundSyncChannelName);
@@ -464,6 +482,9 @@ final class _FakeBackgroundSyncPlatform
       cancelled.complete();
     }
   }
+
+  @override
+  Future<void> setConnectionPaused(bool paused) async {}
 
   @override
   Future<BackgroundSyncRegistration> configure({

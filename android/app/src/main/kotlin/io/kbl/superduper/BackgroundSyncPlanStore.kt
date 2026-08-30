@@ -25,6 +25,40 @@ internal data class BackgroundSyncPlan(
     val commands: List<ByteArray>,
 )
 
+private data class BackgroundSyncPlanMetadata(
+    val scanManufacturerId: Int,
+    val scanManufacturerData: ByteArray,
+    val scanManufacturerMask: ByteArray,
+    val authenticationServiceUuid: UUID,
+    val authenticationChallengeUuid: UUID,
+    val authenticationResponseUuid: UUID,
+    val authenticationStateUuid: UUID,
+    val authenticationChallengeLength: Int,
+    val authenticationDigest: String,
+    val authenticationKey: ByteArray,
+    val authenticatedState: ByteArray,
+    val commandServiceUuid: UUID,
+    val commandCharacteristicUuid: UUID,
+) {
+    fun toPlan(deviceId: String, commands: List<ByteArray>) = BackgroundSyncPlan(
+        deviceId = deviceId,
+        scanManufacturerId = scanManufacturerId,
+        scanManufacturerData = scanManufacturerData,
+        scanManufacturerMask = scanManufacturerMask,
+        authenticationServiceUuid = authenticationServiceUuid,
+        authenticationChallengeUuid = authenticationChallengeUuid,
+        authenticationResponseUuid = authenticationResponseUuid,
+        authenticationStateUuid = authenticationStateUuid,
+        authenticationChallengeLength = authenticationChallengeLength,
+        authenticationDigest = authenticationDigest,
+        authenticationKey = authenticationKey,
+        authenticatedState = authenticatedState,
+        commandServiceUuid = commandServiceUuid,
+        commandCharacteristicUuid = commandCharacteristicUuid,
+        commands = commands,
+    )
+}
+
 internal object BackgroundSyncPlanStore {
     private const val databaseFilename = "superduper.sqlite"
     private const val minimumSchemaVersion = 5
@@ -65,7 +99,7 @@ internal object BackgroundSyncPlanStore {
                 """.trimIndent(),
                 null,
             ).use { cursor ->
-                var plan: BackgroundSyncPlan? = null
+                var metadata: BackgroundSyncPlanMetadata? = null
                 val commands = mutableListOf<ByteArray>()
                 while (cursor.moveToNext()) {
                     check(cursor.getInt(0) == supportedPlanVersion) {
@@ -80,9 +114,8 @@ internal object BackgroundSyncPlanStore {
                     }
                     val command = cursor.getBlob(16)
                     validateCommand(command)
-                    if (plan == null) {
-                        plan = BackgroundSyncPlan(
-                            deviceId = expectedDeviceId,
+                    if (metadata == null) {
+                        metadata = BackgroundSyncPlanMetadata(
                             scanManufacturerId = cursor.getInt(2),
                             scanManufacturerData = cursor.getBlob(3),
                             scanManufacturerMask = cursor.getBlob(4),
@@ -96,12 +129,13 @@ internal object BackgroundSyncPlanStore {
                             authenticatedState = cursor.getBlob(12),
                             commandServiceUuid = cursor.uuid(13),
                             commandCharacteristicUuid = cursor.uuid(14),
-                            commands = commands,
-                        ).also(::validatePlan)
+                        )
                     }
                     commands.add(command)
                 }
-                plan
+                metadata
+                    ?.toPlan(expectedDeviceId, commands.toList())
+                    ?.also(::validatePlan)
             }
         }
     }
