@@ -31,7 +31,7 @@ The distinction between a GATT service and an advertised service is important. T
 A passive Core Bluetooth scan of a powered-on protocol V1 bike returned:
 
 ```text
-Complete local name: SUPER73
+Complete local name: V1 local-name identifier
 Advertised service UUIDs: none
 Overflow service UUIDs: none
 Solicited service UUIDs: none

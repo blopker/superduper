@@ -204,7 +204,7 @@ void main() {
     await repository.addBike(
       deviceId: 'second',
       moduleSerial: 'ffeeddccbbaa2211',
-      advertisedName: 'S73 FTEX',
+      advertisedName: BikeProtocolVersion.v2.advertisedName,
       setOnConnect: const BikeControlPatch(mode: 3),
       backgroundPreference: const BackgroundPreference(
         requested: true,
@@ -294,7 +294,10 @@ void main() {
       );
 
       var saved = (await repository.getBikes()).single;
-      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(
+        saved.bike.advertisedName,
+        BikeProtocolVersion.v1.advertisedName,
+      );
       expect(saved.bike.protocol, BikeProtocolVersion.v2);
       expect(saved.bike.region, equals(null));
 
@@ -307,7 +310,10 @@ void main() {
       );
 
       saved = (await repository.getBikes()).single;
-      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(
+        saved.bike.advertisedName,
+        BikeProtocolVersion.v1.advertisedName,
+      );
       expect(saved.bike.protocol, BikeProtocolVersion.v1);
       expect(saved.bike.region, BikeRegion.us);
     },
@@ -459,12 +465,12 @@ void main() {
       await settingsRepository.initialize();
       await repository.addBike(
         deviceId: 'bike',
-        advertisedName: 'S73 FTEX',
+        advertisedName: BikeProtocolVersion.v2.advertisedName,
         region: BikeRegion.eu,
       );
 
       final v2 = (await repository.getBikes()).single.bike;
-      expect(v2.advertisedName, 'S73 FTEX');
+      expect(v2.advertisedName, BikeProtocolVersion.v2.advertisedName);
       expect(v2.protocol, BikeProtocolVersion.v2);
       expect(v2.region, equals(null));
 
@@ -474,7 +480,7 @@ void main() {
         region: BikeRegion.eu,
       );
       final v1 = (await repository.getBikes()).single.bike;
-      expect(v1.advertisedName, 'SUPER73');
+      expect(v1.advertisedName, BikeProtocolVersion.v1.advertisedName);
       expect(v1.protocol, BikeProtocolVersion.v1);
       expect(v1.region, BikeRegion.eu);
     },

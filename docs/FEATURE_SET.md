@@ -8,7 +8,7 @@ product contract below.
 
 ## Product at a glance
 
-SuperDuper is a local-first mobile controller for compatible SUPER73 ebikes. It
+SuperDuper is a local-first mobile controller for compatible ebikes. It
 discovers nearby bikes over Bluetooth Low Energy (BLE), saves multiple bikes,
 and controls their light, regulatory mode, and pedal-assist level.
 
@@ -75,7 +75,7 @@ the interface:
 - The scan action toggles between starting and stopping a scan. An empty state
   also offers a scan action.
 - Android attempts to turn Bluetooth on when a scan starts.
-- Scan results are limited to advertisements matching `SUPER73` or `S73 FTEX`.
+- Scan results are limited to the two supported protocol-local-name identifiers.
 - Previously saved bikes and newly found bikes are shown in separate lists.
 - Each entry shows a friendly name and the BLE device identifier.
 - Newly found bikes receive a stable, friendly adjective-and-animal name derived
@@ -240,7 +240,7 @@ Uninstalling the app or clearing its app data removes these records.
 ## BLE compatibility contract
 
 Compatibility is based on advertised name and GATT shape rather than an explicit
-model list. The repository documents successful use across SUPER73 models, but
+model list. The repository documents successful use across compatible models, but
 the app does not branch by model or expose a compatibility check.
 
 The state protocol uses these GATT identifiers:

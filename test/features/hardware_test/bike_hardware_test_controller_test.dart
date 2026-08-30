@@ -74,10 +74,10 @@ void main() {
 
       final run = controller.start();
       await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
-      transport.emitResults(const [
+      transport.emitResults([
         DiscoveredBike(
           deviceId: 'bike',
-          name: 'SUPER73',
+          name: BikeProtocolVersion.v1.advertisedName,
           rssi: -42,
           moduleSerial: '0102030405060708',
         ),
@@ -185,7 +185,10 @@ void main() {
       expect(report, contains('Result: PASSED'));
       expect(report, contains('App: 1.2.3 (45)'));
       expect(report, contains('bike BLE identifier and module serial'));
-      expect(report, contains('SUPER73 bike RSSI -42'));
+      expect(
+        report,
+        contains('${BikeProtocolVersion.v1.advertisedName} bike RSSI -42'),
+      );
       expect(report, contains('0102030405060708'));
       expect(report, contains('[PASS] Reconnect and Set on connect'));
       expect(report, contains('BLE TRACE'));
@@ -199,8 +202,12 @@ void main() {
   );
 
   test('a repeated run does not select a replayed scan result', () async {
-    transport.replayedScanResults = const [
-      DiscoveredBike(deviceId: 'stale', name: 'SUPER73', rssi: -20),
+    transport.replayedScanResults = [
+      DiscoveredBike(
+        deviceId: 'stale',
+        name: BikeProtocolVersion.v1.advertisedName,
+        rssi: -20,
+      ),
     ];
 
     final run = controller.start();
@@ -230,8 +237,12 @@ void main() {
 
     final run = controller.start();
     await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
-    transport.emitResults(const [
-      DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
+    transport.emitResults([
+      DiscoveredBike(
+        deviceId: 'bike',
+        name: BikeProtocolVersion.v1.advertisedName,
+        rssi: -42,
+      ),
     ]);
     await _waitUntil(() => connection.configurationWriteStarts == 2);
 
@@ -295,8 +306,12 @@ void main() {
 
     final run = controller.start();
     await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
-    transport.emitResults(const [
-      DiscoveredBike(deviceId: 'bike', name: 'SUPER73', rssi: -42),
+    transport.emitResults([
+      DiscoveredBike(
+        deviceId: 'bike',
+        name: BikeProtocolVersion.v1.advertisedName,
+        rssi: -42,
+      ),
     ]);
     await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOff);
 

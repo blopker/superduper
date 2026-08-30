@@ -39,7 +39,7 @@ final class BikeRepository {
 
   Future<SavedBike> addBike({
     required String deviceId,
-    String advertisedName = 'SUPER73',
+    String? advertisedName,
     String? displayName,
     BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
@@ -62,7 +62,8 @@ final class BikeRepository {
     if (odometerMeters != null) {
       _validateUnsigned(odometerMeters, 0xffffffff, 'odometerMeters');
     }
-    final normalizedAdvertisedName = advertisedName.trim();
+    final normalizedAdvertisedName =
+        (advertisedName ?? BikeProtocolVersion.v1.advertisedName).trim();
     final protocol = BikeProtocolVersion.fromAdvertisedName(
       normalizedAdvertisedName,
     );

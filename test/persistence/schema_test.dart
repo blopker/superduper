@@ -28,8 +28,9 @@ void main() {
       schema.newConnection(),
       1,
     );
+    final advertisedName = BikeProtocolVersion.v1.advertisedName;
     await oldDatabase.customStatement(
-      "INSERT INTO bikes (device_id, display_name, advertised_name, protocol, region, color_key, sort_order, created_at_ms, updated_at_ms, module_serial) VALUES ('bike', 'Commuter', 'SUPER73', 'v1', 'us', 'deep_space', 0, 1, 2, '00112233aabbccdd')",
+      "INSERT INTO bikes (device_id, display_name, advertised_name, protocol, region, color_key, sort_order, created_at_ms, updated_at_ms, module_serial) VALUES ('bike', 'Commuter', '$advertisedName', 'v1', 'us', 'deep_space', 0, 1, 2, '00112233aabbccdd')",
     );
     await oldDatabase.close();
 
@@ -52,8 +53,9 @@ void main() {
       schema.newConnection(),
       2,
     );
+    final advertisedName = BikeProtocolVersion.v1.advertisedName;
     await oldDatabase.customStatement(
-      "INSERT INTO bikes (device_id, display_name, advertised_name, protocol, region, color_key, sort_order, created_at_ms, updated_at_ms, module_serial) VALUES ('bike', 'Commuter', 'SUPER73', 'v1', 'us', 'deep_space', 0, 1, 2, '00112233aabbccdd')",
+      "INSERT INTO bikes (device_id, display_name, advertised_name, protocol, region, color_key, sort_order, created_at_ms, updated_at_ms, module_serial) VALUES ('bike', 'Commuter', '$advertisedName', 'v1', 'us', 'deep_space', 0, 1, 2, '00112233aabbccdd')",
     );
     await oldDatabase.customStatement(
       "INSERT INTO bike_preferences (device_id, desired_light, desired_mode, desired_assist, keep_light, keep_mode, keep_assist, background_requested, background_consent_version) VALUES ('bike', 1, 3, 4, 1, 0, 1, 1, 2)",

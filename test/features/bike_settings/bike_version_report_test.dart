@@ -54,7 +54,10 @@ void main() {
     expect(report, contains('Build: 42'));
     expect(report, contains('OS: macOS 15.6 Build 24G84'));
     expect(report, contains('Name: Commuter'));
-    expect(report, contains('Advertised name: SUPER73'));
+    expect(
+      report,
+      contains('Advertised name: ${BikeProtocolVersion.v1.advertisedName}'),
+    );
     expect(report, contains('Protocol: V1 (advertised name)'));
     expect(report, contains('BLE identifier: ${bike.deviceId}'));
     expect(report, contains('Module serial: 00112233aabbccdd'));
@@ -78,7 +81,7 @@ void main() {
     final bike = Bike(
       deviceId: 'v2-bike',
       displayName: 'V2 Bike',
-      advertisedName: 'S73 FTEX',
+      advertisedName: BikeProtocolVersion.v2.advertisedName,
       protocol: BikeProtocolVersion.v2,
       region: null,
       color: BikeColor.deepSpace,
@@ -114,7 +117,10 @@ void main() {
     );
 
     expect(report, isNot(contains('Region:')));
-    expect(report, contains('Advertised name: S73 FTEX'));
+    expect(
+      report,
+      contains('Advertised name: ${BikeProtocolVersion.v2.advertisedName}'),
+    );
     expect(report, contains('Protocol: V2 (advertised name)'));
   });
 
@@ -155,7 +161,10 @@ void main() {
       ),
     );
 
-    expect(report, contains('Advertised name: SUPER73'));
+    expect(
+      report,
+      contains('Advertised name: ${BikeProtocolVersion.v1.advertisedName}'),
+    );
     expect(report, contains('Protocol: V2 (manual override)'));
   });
 }

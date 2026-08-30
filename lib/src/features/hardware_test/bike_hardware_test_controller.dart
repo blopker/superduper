@@ -625,7 +625,7 @@ final class BikeHardwareTestController {
         BikeHardwareTestPhase.scanning,
         firstAttempt ? 'Looking for a bike' : 'Turn a bike ON',
         firstAttempt
-            ? 'Scanning for SUPER73 or S73 FTEX advertisements.'
+            ? 'Scanning for compatible bike advertisements.'
             : 'No bike was found. Scanning continues automatically.',
       );
       _addTrace('scan.start', 'Timeout ${scanDuration.inSeconds}s.');

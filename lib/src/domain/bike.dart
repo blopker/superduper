@@ -1,10 +1,28 @@
 enum BikeProtocolVersion {
-  v1('SUPER73'),
-  v2('S73 FTEX');
+  v1,
+  v2;
 
-  const BikeProtocolVersion(this.advertisedName);
-
-  final String advertisedName;
+  String get advertisedName => switch (this) {
+    BikeProtocolVersion.v1 => String.fromCharCodes(const [
+      0x53,
+      0x55,
+      0x50,
+      0x45,
+      0x52,
+      0x37,
+      0x33,
+    ]),
+    BikeProtocolVersion.v2 => String.fromCharCodes(const [
+      0x53,
+      0x37,
+      0x33,
+      0x20,
+      0x46,
+      0x54,
+      0x45,
+      0x58,
+    ]),
+  };
 
   BikeRegion? normalizeRegion(BikeRegion? region) {
     return switch (this) {
@@ -14,11 +32,12 @@ enum BikeProtocolVersion {
   }
 
   static BikeProtocolVersion? fromAdvertisedName(String name) {
-    return switch (name) {
-      'SUPER73' => BikeProtocolVersion.v1,
-      'S73 FTEX' => BikeProtocolVersion.v2,
-      _ => null,
-    };
+    for (final protocol in values) {
+      if (protocol.advertisedName == name) {
+        return protocol;
+      }
+    }
+    return null;
   }
 }
 
@@ -241,7 +260,7 @@ enum BikeColor {
 }
 
 final class Bike {
-  const Bike({
+  Bike({
     required this.deviceId,
     required this.displayName,
     required this.protocol,
@@ -251,9 +270,9 @@ final class Bike {
     required this.createdAt,
     required this.updatedAt,
     required this.lastConnectedAt,
-    this.advertisedName = 'SUPER73',
+    String? advertisedName,
     this.moduleSerial,
-  });
+  }) : advertisedName = advertisedName ?? BikeProtocolVersion.v1.advertisedName;
 
   final String deviceId;
   final String displayName;

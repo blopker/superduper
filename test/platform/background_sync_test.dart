@@ -220,10 +220,10 @@ void main() {
   test('discovers and saves a missing module serial while enabling', () async {
     await bikes.addBike(deviceId: 'bike');
     await coordinator.start();
-    transport.replayedScanResults = const [
+    transport.replayedScanResults = [
       DiscoveredBike(
         deviceId: 'BIKE',
-        name: 'SUPER73',
+        name: BikeProtocolVersion.v1.advertisedName,
         rssi: -20,
         moduleSerial: '00112233aabbccdd',
       ),
