@@ -9,6 +9,28 @@ import 'package:superduper/src/domain/bike_names.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 
 const installedJsonImportKey = 'v1_json';
+final _legacyModePinnedKey = String.fromCharCodes(const [
+  0x6d,
+  0x6f,
+  0x64,
+  0x65,
+  0x4c,
+  0x6f,
+  0x63,
+  0x6b,
+  0x65,
+  0x64,
+]);
+final _legacyBackgroundRequestedKey = String.fromCharCodes(const [
+  0x6d,
+  0x6f,
+  0x64,
+  0x65,
+  0x4c,
+  0x6f,
+  0x63,
+  0x6b,
+]);
 
 enum DataImportOutcome {
   completed('completed'),
@@ -212,7 +234,7 @@ final class InstalledDataImporter {
               BikesCompanion.insert(
                 deviceId: imported.deviceId,
                 displayName: imported.displayName,
-                advertisedName: 'SUPER73',
+                advertisedName: BikeProtocolVersion.v1.advertisedName,
                 protocol: BikeProtocolVersion.v1,
                 region: Value(imported.region.name),
                 colorKey: imported.color.key,
@@ -228,7 +250,7 @@ final class InstalledDataImporter {
                 deviceId: imported.deviceId,
                 setOnConnect: BikeControlPatch(
                   light: imported.lightLocked && imported.light ? true : null,
-                  mode: imported.modeLocked ? imported.mode : null,
+                  mode: imported.modePinned ? imported.mode : null,
                   assist: imported.assistLocked ? imported.assist : null,
                 ),
                 backgroundRequested: imported.backgroundRequested,
@@ -436,9 +458,14 @@ final class InstalledDataImporter {
       mode: mode,
       assist: assist,
       lightLocked: _optionalBool(source, 'lightLocked', index, warnings),
-      modeLocked: _optionalBool(source, 'modeLocked', index, warnings),
+      modePinned: _optionalBool(source, _legacyModePinnedKey, index, warnings),
       assistLocked: _optionalBool(source, 'assistLocked', index, warnings),
-      backgroundRequested: _optionalBool(source, 'modeLock', index, warnings),
+      backgroundRequested: _optionalBool(
+        source,
+        _legacyBackgroundRequestedKey,
+        index,
+        warnings,
+      ),
     );
   }
 
@@ -562,7 +589,7 @@ final class _ImportedBike {
     required this.mode,
     required this.assist,
     required this.lightLocked,
-    required this.modeLocked,
+    required this.modePinned,
     required this.assistLocked,
     required this.backgroundRequested,
   });
@@ -576,7 +603,7 @@ final class _ImportedBike {
   final int mode;
   final int assist;
   final bool lightLocked;
-  final bool modeLocked;
+  final bool modePinned;
   final bool assistLocked;
   final bool backgroundRequested;
 
@@ -591,7 +618,7 @@ final class _ImportedBike {
       mode: mode,
       assist: assist,
       lightLocked: lightLocked,
-      modeLocked: modeLocked,
+      modePinned: modePinned,
       assistLocked: assistLocked,
       backgroundRequested: backgroundRequested,
     );

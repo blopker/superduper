@@ -195,12 +195,12 @@ void main() {
         'Daily Rider',
       );
       expect(find.text('Saved'), findsOneWidget);
-      expect(find.text('V1 — SUPER73'), findsOneWidget);
-      await tester.ensureVisible(find.text('V1 — SUPER73'));
+      expect(find.text('V1'), findsOneWidget);
+      await tester.ensureVisible(find.text('V1'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('V1 — SUPER73'));
+      await tester.tap(find.text('V1'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('V2 — S73 FTEX').last);
+      await tester.tap(find.text('V2').last);
       await tester.pumpAndSettle();
 
       expect(find.text('CHANGE BIKE PROTOCOL?'), findsOneWidget);
@@ -357,10 +357,10 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
     color: BikeColor.frostedMint,
   );
   if (moduleSerial == null) {
-    transport.replayedScanResults = const [
+    transport.replayedScanResults = [
       DiscoveredBike(
         deviceId: 'ACTIVE-BIKE',
-        name: 'SUPER73',
+        name: BikeProtocolVersion.v1.advertisedName,
         rssi: -20,
         moduleSerial: '00112233aabbccdd',
       ),

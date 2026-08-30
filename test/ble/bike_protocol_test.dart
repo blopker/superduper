@@ -33,15 +33,29 @@ void main() {
   group('protocol identification', () {
     test('uses only complete documented advertised names', () {
       expect(
-        BikeProtocolVersion.fromAdvertisedName('SUPER73'),
+        BikeProtocolVersion.fromAdvertisedName(
+          BikeProtocolVersion.v1.advertisedName,
+        ),
         BikeProtocolVersion.v1,
       );
       expect(
-        BikeProtocolVersion.fromAdvertisedName('S73 FTEX'),
+        BikeProtocolVersion.fromAdvertisedName(
+          BikeProtocolVersion.v2.advertisedName,
+        ),
         BikeProtocolVersion.v2,
       );
-      expect(BikeProtocolVersion.fromAdvertisedName('SUPER73-X'), isNull);
-      expect(BikeProtocolVersion.fromAdvertisedName(' SUPER73 '), isNull);
+      expect(
+        BikeProtocolVersion.fromAdvertisedName(
+          '${BikeProtocolVersion.v1.advertisedName}-X',
+        ),
+        isNull,
+      );
+      expect(
+        BikeProtocolVersion.fromAdvertisedName(
+          ' ${BikeProtocolVersion.v1.advertisedName} ',
+        ),
+        isNull,
+      );
     });
   });
 

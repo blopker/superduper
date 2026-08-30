@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
@@ -144,6 +145,101 @@ void main() {
     expect(saved.backgroundPreference.consentVersion, 1);
   });
 
+  test('materializes a V1 background command with nullable controls', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'AA:BB:CC:DD:EE:FF',
+      moduleSerial: '00112233aabbccdd',
+      region: BikeRegion.eu,
+      setOnConnect: const BikeControlPatch(light: true, mode: 2),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    final plan = await database
+        .select(database.backgroundSyncPlans)
+        .getSingle();
+    final command = await database
+        .select(database.backgroundSyncCommands)
+        .getSingle();
+
+    expect(plan.deviceId, 'AA:BB:CC:DD:EE:FF');
+    expect(plan.planVersion, 2);
+    expect(plan.scanManufacturerId, BikeGatt.manufacturerId);
+    expect(plan.scanManufacturerData, [0, 17, 34, 51, 170, 187, 204, 221]);
+    expect(plan.scanManufacturerMask, List<int>.filled(8, 0xff));
+    expect(plan.authenticationServiceUuid, BikeGatt.authenticationService);
+    expect(
+      plan.authenticationChallengeUuid,
+      BikeGatt.authenticationChallenge,
+    );
+    expect(plan.authenticationResponseUuid, BikeGatt.authenticationResponse);
+    expect(plan.authenticationStateUuid, BikeGatt.authenticationState);
+    expect(
+      plan.authenticationChallengeLength,
+      BikeProtocol.defaultAuthenticationKey.length,
+    );
+    expect(plan.authenticationDigest, 'SHA-1');
+    expect(plan.authenticationKey, BikeProtocol.defaultAuthenticationKey);
+    expect(plan.authenticatedState, [1]);
+    expect(plan.commandServiceUuid, BikeGatt.metricsService);
+    expect(plan.commandCharacteristicUuid, BikeGatt.stateRegister);
+    expect(command.sequence, 0);
+    expect(command.payload, [0, 0xd1, 1, 0xff, 6, 0, 0, 0, 0, 0]);
+  });
+
+  test('rebuilds and removes the native background command plan', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'first',
+      moduleSerial: '00112233aabbccdd',
+      setOnConnect: const BikeControlPatch(assist: 4),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    await repository.addBike(
+      deviceId: 'second',
+      moduleSerial: 'ffeeddccbbaa2211',
+      advertisedName: BikeProtocolVersion.v2.advertisedName,
+      setOnConnect: const BikeControlPatch(mode: 3),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncCommands).getSingle())
+          .payload,
+      [0, 0xd1, 0xff, 4, 0xff, 0, 0, 0, 0, 0],
+    );
+
+    await settingsRepository.makeBikeActive('second');
+    expect(
+      (await database.select(database.backgroundSyncCommands).getSingle())
+          .payload,
+      [0, 0xc1, 0xff, 0xff, 3, 0, 0, 0, 0, 0],
+    );
+
+    await repository.setOnConnect('second', const BikeControlPatch());
+    expect(await database.select(database.backgroundSyncPlans).get(), isEmpty);
+
+    await repository.setBackgroundPreference(
+      'second',
+      requested: false,
+      consentVersion: backgroundSyncConsentVersion,
+    );
+    expect(await database.select(database.backgroundSyncPlans).get(), isEmpty);
+    expect(
+      await database.select(database.backgroundSyncCommands).get(),
+      isEmpty,
+    );
+  });
+
   test('bike details update together with a normalized name', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');
@@ -198,7 +294,10 @@ void main() {
       );
 
       var saved = (await repository.getBikes()).single;
-      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(
+        saved.bike.advertisedName,
+        BikeProtocolVersion.v1.advertisedName,
+      );
       expect(saved.bike.protocol, BikeProtocolVersion.v2);
       expect(saved.bike.region, equals(null));
 
@@ -211,7 +310,10 @@ void main() {
       );
 
       saved = (await repository.getBikes()).single;
-      expect(saved.bike.advertisedName, 'SUPER73');
+      expect(
+        saved.bike.advertisedName,
+        BikeProtocolVersion.v1.advertisedName,
+      );
       expect(saved.bike.protocol, BikeProtocolVersion.v1);
       expect(saved.bike.region, BikeRegion.us);
     },
@@ -290,6 +392,36 @@ void main() {
     );
   });
 
+  test('saving a module serial refreshes the native scan filter', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'AA:BB:CC:DD:EE:FF',
+      moduleSerial: '00112233aabbccdd',
+      setOnConnect: const BikeControlPatch(light: true),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncPlans).getSingle())
+          .scanManufacturerData,
+      [0, 17, 34, 51, 170, 187, 204, 221],
+    );
+
+    await repository.saveModuleSerial(
+      'AA:BB:CC:DD:EE:FF',
+      'ffeeddccbbaa9988',
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncPlans).getSingle())
+          .scanManufacturerData,
+      [255, 238, 221, 204, 187, 170, 153, 136],
+    );
+  });
+
   test('duplicate bikes report a domain error', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');
@@ -333,12 +465,12 @@ void main() {
       await settingsRepository.initialize();
       await repository.addBike(
         deviceId: 'bike',
-        advertisedName: 'S73 FTEX',
+        advertisedName: BikeProtocolVersion.v2.advertisedName,
         region: BikeRegion.eu,
       );
 
       final v2 = (await repository.getBikes()).single.bike;
-      expect(v2.advertisedName, 'S73 FTEX');
+      expect(v2.advertisedName, BikeProtocolVersion.v2.advertisedName);
       expect(v2.protocol, BikeProtocolVersion.v2);
       expect(v2.region, equals(null));
 
@@ -348,7 +480,7 @@ void main() {
         region: BikeRegion.eu,
       );
       final v1 = (await repository.getBikes()).single.bike;
-      expect(v1.advertisedName, 'SUPER73');
+      expect(v1.advertisedName, BikeProtocolVersion.v1.advertisedName);
       expect(v1.protocol, BikeProtocolVersion.v1);
       expect(v1.region, BikeRegion.eu);
     },

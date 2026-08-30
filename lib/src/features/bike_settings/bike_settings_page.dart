@@ -833,7 +833,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
   }
 
   static String _protocolLabel(BikeProtocolVersion protocol) {
-    return '${protocol.name.toUpperCase()} — ${protocol.advertisedName}';
+    return protocol.name.toUpperCase();
   }
 
   Future<void> _runCoordinatorAction(Future<void> Function() action) async {

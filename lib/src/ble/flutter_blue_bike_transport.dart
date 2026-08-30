@@ -51,7 +51,9 @@ final class FlutterBlueBikeTransport implements BikeTransport {
     try {
       await fbp.FlutterBluePlus.startScan(
         timeout: timeout,
-        withKeywords: const ['SUPER73', 'S73 FTEX'],
+        withKeywords: BikeProtocolVersion.values
+            .map((protocol) => protocol.advertisedName)
+            .toList(growable: false),
         continuousUpdates: true,
         continuousDivisor: 2,
       );

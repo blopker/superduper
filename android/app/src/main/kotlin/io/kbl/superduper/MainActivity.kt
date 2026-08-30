@@ -20,7 +20,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private data class PendingAssociation(
         val deviceId: String,
-        val moduleSerial: String,
         val result: MethodChannel.Result,
         var chooserLaunched: Boolean = false,
     )
@@ -39,23 +38,20 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        BackgroundSyncEngineRegistry.attach(flutterEngine)
+        BackgroundCompanionManager.setConnectionPaused(applicationContext, false)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            BackgroundSyncChannels.control,
+            backgroundSyncChannel,
         ).setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
                     "configure" -> {
                         val deviceId = call.argument<String>("deviceId")
                             ?: throw IllegalArgumentException("deviceId is required")
-                        val serial = call.argument<String>("moduleSerial")
-                            ?: throw IllegalArgumentException("moduleSerial is required")
                         val requestAssociation =
                             call.argument<Boolean>("requestAssociation") ?: false
                         configureBackgroundSync(
                             deviceId,
-                            serial,
                             requestAssociation,
                             result,
                         )
@@ -63,6 +59,15 @@ class MainActivity : FlutterActivity() {
                     "cancel" -> {
                         cancelPendingAssociation("Bike association was cancelled")
                         BackgroundCompanionManager.cancel(applicationContext)
+                        result.success(null)
+                    }
+                    "setConnectionPaused" -> {
+                        val paused = call.argument<Boolean>("paused")
+                            ?: throw IllegalArgumentException("paused is required")
+                        BackgroundCompanionManager.setConnectionPaused(
+                            applicationContext,
+                            paused,
+                        )
                         result.success(null)
                     }
                     else -> result.notImplemented()
@@ -77,20 +82,20 @@ class MainActivity : FlutterActivity() {
         cancelPendingAssociation("Bike association was interrupted")
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            BackgroundSyncChannels.control,
+            backgroundSyncChannel,
         ).setMethodCallHandler(null)
-        BackgroundSyncEngineRegistry.detach(flutterEngine)
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onStart() {
+        BackgroundSyncRuntime.isActivityForeground = true
+        NativeBackgroundSync.cancel("The app entered the foreground")
         super.onStart()
-        BackgroundSyncEngineRegistry.isActivityForeground = true
     }
 
     override fun onStop() {
-        BackgroundSyncEngineRegistry.isActivityForeground = false
         super.onStop()
+        BackgroundSyncRuntime.isActivityForeground = false
     }
 
     @Deprecated("Association uses the platform chooser result on Android 12")
@@ -124,12 +129,10 @@ class MainActivity : FlutterActivity() {
 
     private fun configureBackgroundSync(
         deviceId: String,
-        moduleSerial: String,
         requestAssociation: Boolean,
         result: MethodChannel.Result,
     ) {
         val address = BackgroundCompanionManager.normalizeDeviceId(deviceId)
-        val serial = BackgroundCompanionManager.normalizeSerial(moduleSerial)
         if (!BackgroundCompanionManager.hasCompanionSupport(applicationContext)) {
             if (requestAssociation) {
                 throw IllegalStateException(
@@ -142,7 +145,6 @@ class MainActivity : FlutterActivity() {
         if (BackgroundCompanionManager.configureIfAssociated(
                 applicationContext,
                 address,
-                serial,
             )
         ) {
             result.success(true)
@@ -159,8 +161,8 @@ class MainActivity : FlutterActivity() {
             throw IllegalStateException("The previous bike association is still closing")
         }
 
-        BackgroundCompanionManager.cancelLegacyScan(applicationContext)
-        pendingAssociation = PendingAssociation(address, serial, result)
+        BackgroundCompanionManager.stopAdvertisementScan(applicationContext)
+        pendingAssociation = PendingAssociation(address, result)
         try {
             val manager = getSystemService(CompanionDeviceManager::class.java)
             val request = BackgroundCompanionManager.associationRequest(address)
@@ -289,7 +291,6 @@ class MainActivity : FlutterActivity() {
             BackgroundCompanionManager.configureIfAssociated(
                 applicationContext,
                 pending.deviceId,
-                pending.moduleSerial,
             )
         } catch (error: Exception) {
             failAssociation(error.message ?: error.javaClass.simpleName)
@@ -350,6 +351,7 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        private const val backgroundSyncChannel = "io.kbl.superduper/background_sync"
         private const val logTag = "BackgroundSync"
         private const val companionAssociationRequestCode = 8107
         private const val associationPersistenceAttempts = 100

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
+import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 
 void main() {
@@ -47,10 +48,11 @@ void main() {
       required String protocol,
       required String region,
     }) {
+      final advertisedName = BikeProtocolVersion.v1.advertisedName;
       return database.customStatement(
         'INSERT INTO bikes '
         '(device_id, display_name, advertised_name, protocol, region, color_key, sort_order, created_at_ms, updated_at_ms) '
-        "VALUES ('$id', 'Bike', 'SUPER73', '$protocol', $region, 'dark_mode', 0, 0, 0)",
+        "VALUES ('$id', 'Bike', '$advertisedName', '$protocol', $region, 'dark_mode', 0, 0, 0)",
       );
     }
 

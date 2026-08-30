@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/background_bike_synchronizer.dart';
 import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
@@ -51,11 +50,6 @@ void main() {
       bikeRepository: bikes,
       settingsRepository: settings,
       activeBikeCoordinator: activeBike,
-      synchronizer: BackgroundBikeSynchronizer(
-        bikeRepository: bikes,
-        settingsRepository: settings,
-        transport: transport,
-      ),
       transport: transport,
       permissions: permissions,
       identityResolver: BikeIdentityResolver(
@@ -91,12 +85,9 @@ void main() {
       expect(platform.configurations, [
         const _Configuration(
           deviceId: 'bike',
-          moduleSerial: '00112233aabbccdd',
           requestAssociation: false,
         ),
       ]);
-      expect(platform.handler, isNotNull);
-
       await bikes.setBackgroundPreference(
         'bike',
         requested: false,
@@ -229,10 +220,10 @@ void main() {
   test('discovers and saves a missing module serial while enabling', () async {
     await bikes.addBike(deviceId: 'bike');
     await coordinator.start();
-    transport.replayedScanResults = const [
+    transport.replayedScanResults = [
       DiscoveredBike(
         deviceId: 'BIKE',
-        name: 'SUPER73',
+        name: BikeProtocolVersion.v1.advertisedName,
         rssi: -20,
         moduleSerial: '00112233aabbccdd',
       ),
@@ -246,8 +237,11 @@ void main() {
     expect(platform.configurations, [
       const _Configuration(
         deviceId: 'bike',
-        moduleSerial: '00112233aabbccdd',
         requestAssociation: true,
+      ),
+      const _Configuration(
+        deviceId: 'bike',
+        requestAssociation: false,
       ),
     ]);
     expect(transport.scanStarts, 1);
@@ -271,7 +265,8 @@ void main() {
       final releasedPause = await activeBike.acquireDiscoveryPause();
       expect(releasedPause, isNotNull);
       await releasedPause!.release();
-      expect(platform.configurations.single.requestAssociation, isTrue);
+      expect(platform.configurations.first.requestAssociation, isTrue);
+      expect(platform.configurations.last.requestAssociation, isFalse);
     },
   );
 
@@ -312,31 +307,6 @@ void main() {
     expect(platform.configurations, isEmpty);
   });
 
-  test('does not release an exclusive operation it did not acquire', () async {
-    await bikes.addBike(
-      deviceId: 'bike',
-      moduleSerial: '00112233aabbccdd',
-      backgroundPreference: const BackgroundPreference(
-        requested: true,
-        consentVersion: backgroundSyncConsentVersion,
-      ),
-    );
-    await coordinator.start();
-    final pause = await activeBike.acquireDiscoveryPause();
-    expect(pause, isNotNull);
-
-    final result = await platform.handler!(
-      const BackgroundSyncRequest(
-        deviceId: 'observed-address',
-        moduleSerial: '00112233aabbccdd',
-      ),
-    );
-
-    expect(result.outcome, BackgroundSyncOutcome.skippedBusy);
-    expect(await activeBike.acquireDiscoveryPause(), isNull);
-    await pause!.release();
-  });
-
   test('preserves the native companion association error', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     const channel = MethodChannel(backgroundSyncChannelName);
@@ -345,7 +315,6 @@ void main() {
           expect(call.method, 'configure');
           expect(call.arguments, {
             'deviceId': 'AA:BB:CC:DD:EE:FF',
-            'moduleSerial': '00112233aabbccdd',
             'requestAssociation': true,
           });
           throw PlatformException(
@@ -362,7 +331,6 @@ void main() {
     await expectLater(
       SystemBackgroundSyncPlatformGateway().configure(
         deviceId: 'AA:BB:CC:DD:EE:FF',
-        moduleSerial: '00112233aabbccdd',
         requestAssociation: true,
       ),
       throwsA(
@@ -373,6 +341,24 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('hands the manual connection pause to Android', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel(backgroundSyncChannelName);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'setConnectionPaused');
+          expect(call.arguments, {'paused': true});
+          return null;
+        });
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    await SystemBackgroundSyncPlatformGateway().setConnectionPaused(true);
   });
 
   test('reports a missing native companion association as state', () async {
@@ -388,7 +374,6 @@ void main() {
 
     final registration = await SystemBackgroundSyncPlatformGateway().configure(
       deviceId: 'AA:BB:CC:DD:EE:FF',
-      moduleSerial: '00112233aabbccdd',
       requestAssociation: false,
     );
 
@@ -416,7 +401,6 @@ void main() {
           configurationTimeout: Duration.zero,
         ).configure(
           deviceId: 'AA:BB:CC:DD:EE:FF',
-          moduleSerial: '00112233aabbccdd',
           requestAssociation: false,
         ),
         throwsA(
@@ -448,7 +432,6 @@ void main() {
             configurationTimeout: Duration.zero,
           ).configure(
             deviceId: 'AA:BB:CC:DD:EE:FF',
-            moduleSerial: '00112233aabbccdd',
             requestAssociation: true,
           );
       await Future<void>.delayed(Duration.zero);
@@ -466,23 +449,20 @@ void main() {
 final class _Configuration {
   const _Configuration({
     required this.deviceId,
-    required this.moduleSerial,
     required this.requestAssociation,
   });
 
   final String deviceId;
-  final String moduleSerial;
   final bool requestAssociation;
 
   @override
   bool operator ==(Object other) =>
       other is _Configuration &&
       other.deviceId == deviceId &&
-      other.moduleSerial == moduleSerial &&
       other.requestAssociation == requestAssociation;
 
   @override
-  int get hashCode => Object.hash(deviceId, moduleSerial, requestAssociation);
+  int get hashCode => Object.hash(deviceId, requestAssociation);
 }
 
 final class _FakeBackgroundSyncPlatform
@@ -490,7 +470,6 @@ final class _FakeBackgroundSyncPlatform
   final List<_Configuration> configurations = [];
   final Completer<void> cancelled = Completer<void>();
   int cancelCount = 0;
-  BackgroundWakeHandler? handler;
   Error? configureError;
   BackgroundSyncRegistration configureResult =
       BackgroundSyncRegistration.configured;
@@ -505,9 +484,11 @@ final class _FakeBackgroundSyncPlatform
   }
 
   @override
+  Future<void> setConnectionPaused(bool paused) async {}
+
+  @override
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   }) async {
     if (configureError case final error?) {
@@ -517,16 +498,10 @@ final class _FakeBackgroundSyncPlatform
     configurations.add(
       _Configuration(
         deviceId: deviceId,
-        moduleSerial: moduleSerial,
         requestAssociation: requestAssociation,
       ),
     );
     return configureResult;
-  }
-
-  @override
-  void setWakeHandler(BackgroundWakeHandler? handler) {
-    this.handler = handler;
   }
 }
 

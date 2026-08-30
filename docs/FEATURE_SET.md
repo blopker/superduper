@@ -8,7 +8,7 @@ product contract below.
 
 ## Product at a glance
 
-SuperDuper is a local-first mobile controller for compatible SUPER73 ebikes. It
+SuperDuper is a local-first mobile controller for compatible ebikes. It
 discovers nearby bikes over Bluetooth Low Energy (BLE), saves multiple bikes,
 and controls their light, regulatory mode, and pedal-assist level.
 
@@ -75,7 +75,7 @@ the interface:
 - The scan action toggles between starting and stopping a scan. An empty state
   also offers a scan action.
 - Android attempts to turn Bluetooth on when a scan starts.
-- Scan results are limited to advertisements matching `SUPER73` or `S73 FTEX`.
+- Scan results are limited to the two supported protocol-local-name identifiers.
 - Previously saved bikes and newly found bikes are shown in separate lists.
 - Each entry shows a friendly name and the BLE device identifier.
 - Newly found bikes receive a stable, friendly adjective-and-animal name derived
@@ -175,21 +175,20 @@ small lock-and-value indicators on Bike Control; tapping one opens Bike Settings
 ### 6. Android Background Sync
 
 Background Sync applies the normal Set on connect behavior when Android wakes
-the app for a companion bike presence event. Enabling it:
+the process for a companion bike presence event. Enabling it:
 
-- Requests notification permission.
-- Requests exemption from Android battery optimization.
-- Starts a low-priority connected-device foreground service.
 - Registers the selected bike as a companion device.
-- Schedules bounded background synchronization when that bike appears.
+- Materializes exact Set on connect commands in SQLite whenever settings change.
+- Runs a bounded native authentication and write transaction when that bike appears.
 
 Disabling Background Sync removes the companion association. The preference is
 saved per bike, and the control is not shown on iOS.
 
-The current foreground task has no independent polling callback; it relies on
-the app's normal connection and state-sync work remaining active. Screen-off,
-backgrounded, dismissed-from-recents, and force-stopped behavior therefore need
-separate acceptance tests in the modernization effort.
+The background path does not start Flutter or a foreground service. FlutterBluePlus
+owns foreground connections; Android owns only the short presence-triggered
+transaction and closes it before the app resumes. Screen-off, backgrounded,
+dismissed-from-recents, and force-stopped behavior remain physical-device
+acceptance-test cases.
 
 ### 7. Personalize and remove a bike
 
@@ -241,7 +240,7 @@ Uninstalling the app or clearing its app data removes these records.
 ## BLE compatibility contract
 
 Compatibility is based on advertised name and GATT shape rather than an explicit
-model list. The repository documents successful use across SUPER73 models, but
+model list. The repository documents successful use across compatible models, but
 the app does not branch by model or expose a compatibility check.
 
 The state protocol uses these GATT identifiers:

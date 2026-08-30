@@ -20,6 +20,7 @@ void main() {
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     VersionsRead? onVersionsRead,
     OdometerRead? onOdometerRead,
+    ManualConnectionPauseChanged? onManualConnectionPauseChanged,
     List<Duration> reconnectDelays = const [],
     bool readDiagnosticsOnConnect = true,
     Duration? pollInterval,
@@ -33,6 +34,7 @@ void main() {
       authenticationKey: authenticationKey,
       onVersionsRead: onVersionsRead,
       onOdometerRead: onOdometerRead,
+      onManualConnectionPauseChanged: onManualConnectionPauseChanged,
       readDiagnosticsOnConnect: readDiagnosticsOnConnect,
       pollInterval: pollInterval,
       reconnectDelays: reconnectDelays,
@@ -1250,6 +1252,26 @@ void main() {
       );
     },
   );
+
+  test('manual disconnect and reconnect hand off the pause state', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
+    ]);
+    final pauseChanges = <bool>[];
+    session = createSession(
+      onManualConnectionPauseChanged: (paused) async {
+        pauseChanges.add(paused);
+      },
+    );
+
+    await session.connect();
+    await session.disconnect();
+    await session.retry();
+
+    expect(pauseChanges, [false, true, false]);
+    expect(session.state.value, isA<SessionReady>());
+  });
 
   test(
     'disconnect waits for a pending command without overlapping GATT',

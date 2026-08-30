@@ -1,6 +1,6 @@
 # Background Set on connect synchronization
 
-Status: feasibility and architecture recommendation, based on platform behavior current as of August 2026. An Android Companion Device Manager implementation is ready for physical-device validation.
+Status: the Android Companion Device Manager implementation is ready for physical-device validation. The iOS design remains a feasibility recommendation.
 
 ## Goal
 
@@ -8,7 +8,7 @@ After initial setup, the user should not need to open Superduper before riding:
 
 1. The user turns on the active bike.
 2. The operating system wakes Superduper without presenting its UI.
-3. Superduper connects, authenticates, and reads the current configuration.
+3. Superduper connects and authenticates.
 4. It applies only enabled Set on connect choices, preserving other values.
 5. It records the acknowledged result.
 6. The user rides.
@@ -17,14 +17,12 @@ This is needed only on Android and iOS. It is a convenience feature, not a safet
 
 ## Recommendation
 
-Proceed with platform feasibility prototypes, starting with iOS. Do not replace FlutterBluePlus before those prototypes show that it is necessary.
-
-The first implementation should keep FlutterBluePlus as the sole GATT connection owner and add narrow native integrations for the operating-system features it does not provide:
+Keep FlutterBluePlus as the foreground GATT connection owner and use narrow native integrations for background execution:
 
 - iOS: AccessorySetupKit setup or migration, Core Bluetooth background configuration, and state restoration.
-- Android: Companion Device Manager presence wakes background Dart work.
+- Android: Companion Device Manager presence runs a bounded native GATT transaction.
 
-Both platforms should initially run the existing Dart `BikeSession` connection, authentication, merge, and acknowledged-write path. If cold-starting Flutter is not reliable enough, move only the fixed background synchronization transaction into Swift and Kotlin. A general-purpose replacement BLE library should be the last option, not the starting point.
+Dart owns the bike protocol semantics and materializes literal background command frames in Drift. Android reads those frames without starting Flutter. A future iOS implementation can consume the same plan. A general-purpose replacement BLE library should be the last option, not the starting point.
 
 ## Verified bike advertisement
 
@@ -33,7 +31,7 @@ The distinction between a GATT service and an advertised service is important. T
 A passive Core Bluetooth scan of a powered-on protocol V1 bike returned:
 
 ```text
-Complete local name: SUPER73
+Complete local name: V1 local-name identifier
 Advertised service UUIDs: none
 Overflow service UUIDs: none
 Solicited service UUIDs: none
@@ -137,13 +135,12 @@ Source: [Android background BLE guidance](https://developer.android.com/develop/
 The Android implementation follows this lifecycle:
 
 ```text
-stable bike Bluetooth address
-  -> Companion Device Manager association
-  -> CompanionDeviceService presence callback
-  -> unique expedited WorkManager request
-  -> existing Flutter engine, or a headless engine only when no engine exists
-  -> one-shot Dart BackgroundBikeSynchronizer
-  -> production BikeSession authentication, read, merge, and acknowledged write
+stable bike identity
+  -> Companion Device Manager association and background privilege
+  -> CDM presence callback or manufacturer-data PendingIntent scan
+  -> read the materialized command plan from Drift
+  -> native GATT connect and application authentication
+  -> write each pre-encoded command in order
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
@@ -151,19 +148,41 @@ The bike-settings page exposes the consented “Background Sync” switch on And
 
 The system association chooser owns its lifetime; the app does not impose a timeout while the user is deciding. Before the chooser appears, a native watchdog reports a failed device search because Android 12 and 12L can otherwise end that search without invoking either association callback. If Android's association is later removed outside the app, reconciliation turns off the stored Background Sync request instead of failing app startup or leaving an enabled switch with no native registration.
 
-Android restores presence observation after boot, package replacement, the next app open, and a Bluetooth-on event received while the process is alive. The association remains system-owned while enabled. A dead process does not depend on an application manifest Bluetooth-state receiver because Android binds `CompanionDeviceService` when the associated bike appears.
+Android requests restoration of presence observation and the manufacturer-data
+scan after boot, package replacement, and the next app open. While the app
+process is alive, a runtime Bluetooth-state receiver retries restoration and any
+deferred transaction when the adapter becomes available. The association remains
+system-owned while enabled. Both the companion service and the scan receiver can
+wake a dead process.
 
-BLE appearance callbacks enqueue unique work. Android 16 distinguishes a
-foreground Bluetooth connection from an actual BLE appearance. Earlier Android
-versions use the legacy callback, so foreground appearances are ignored. On all
-supported versions, the disappearance that releases the foreground connection
-schedules a short delayed transaction so a quick bike power cycle is not lost
-between presence epochs. If Android delivers another actionable callback while
-the activity is foreground, the worker retries after the activity stops.
-WorkManager keeps a single pending transaction when Android reports the same
-event more than once.
+A CDM BLE-appeared event or the scan's first matching advertisement starts
+synchronization. A confirmed transaction latches that bike-presence session, so
+later appearance events cannot reapply Set on connect after the rider changes a
+physical control. The latch is cleared only when a subsequent appearance follows
+a credible Android disappearance event. Disappearances during a transaction or its
+cooldown are ignored, including the advertising interruption produced by the native
+transaction itself. The service also serializes transactions and ignores duplicates
+while one is loading or connected.
+It also bails out while the activity is foreground. When the activity enters the
+foreground, it cancels and closes any native GATT client before FlutterBluePlus
+resumes ownership. If Android reports appearance while Bluetooth is transitioning,
+the request is retained and resumed after the adapter reaches `STATE_ON`.
 
-The one-shot Dart path re-reads the database after every wake and rejects work when the feature is disabled, its consent version is stale, the active bike changed, or the advertisement serial no longer matches. It disables polling, reconnect loops, and secondary version and odometer reads. Foreground and background work reuse a single running Flutter engine where possible; the active foreground UI takes precedence over a worker. If a Flutter engine exists before its background handler is ready, the worker retries instead of starting a concurrent headless engine against the same database and Bluetooth stack.
+The user-facing connection pause is shared with the native executor. A manual
+disconnect suppresses wake-triggered transactions as well as foreground
+reconnection. An explicit reconnect or reopening the app clears that pause.
+Lifecycle backgrounding uses a separate session path and does not set it.
+
+Drift is the only writer of the background plan. Whenever the active bike,
+protocol, region, consent, or Set on connect choices change, Dart atomically
+replaces the complete native execution plan: the exact manufacturer-data scan
+filter, GATT service and characteristic identifiers, authentication inputs and
+expected state, and the ordered command payloads. Disabled fields are encoded
+as `0xFF`, which the display's independent range checks ignore. Kotlin opens the
+database read-only, validates the plan's transport-level shape, then supplies
+that data to Android's scan, digest, and GATT APIs. It contains no bike UUIDs,
+manufacturer IDs, authentication secrets, or light, mode, assist, region, and
+protocol semantics. An absent plan is a no-op.
 
 The implementation still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung/Xiaomi hardware matrix.
 
@@ -181,7 +200,7 @@ Use a debug build and a physical bike whose module serial appears under Bike inf
    adb shell run-as io.kbl.superduper cat shared_prefs/background_sync.xml
    ```
 
-   `last_presence_source` should be `companion`, `last_presence_at_ms` and `last_worker_started_at_ms` should be recent, and `last_outcome` should be `confirmed`. If restoration failed, `registration_error_detail` records the native reason.
+   `last_presence_source` should be `bleAppeared` or `bleScanFirstMatch`, `last_presence_at_ms` and `last_sync_started_at_ms` should be recent, and `last_outcome` should be `confirmed`. If restoration failed, `registration_error_detail` records the native reason.
 6. Open the app and confirm Set on connect was applied while every disabled value remained unchanged.
 
 For the cold-process case, `adb shell am kill io.kbl.superduper` may be used only after the app is backgrounded. Do not use `am force-stop`: Force Stop intentionally cancels this path until the user opens the app again.
@@ -196,13 +215,13 @@ The Android 12-and-later path is:
 
 Companion Device Manager does not establish the GATT connection and does not replace the custom authentication protocol. It supplies the association, background privileges, and presence lifecycle.
 
-The association request filters on the exact saved Bluetooth address. Physical testing has established that the bike address is stable across power cycles. The module serial remains a second identity check inside Dart before any connection or setting write.
+The association request filters on the exact saved Bluetooth address. Physical testing has established that the bike address is stable across power cycles. The read-only native plan must name that same address before any connection or setting write.
 
 Source: [Companion-device pairing](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing).
 
 ### Executing the synchronization
 
-The presence service enqueues short-lived background Dart work and runs the existing `BikeSession` through FlutterBluePlus. Android recommends a Worker or Job for short companion-device communication.
+The presence service runs a short native bike-specific state machine: connect, discover the fixed characteristics, complete challenge-response authentication, write the materialized commands, and close the GATT client. It does not start Flutter, WorkManager, polling, notifications, version reads, or odometer reads.
 
 If the operation cannot reliably finish as short work, a `connectedDevice` foreground service is the supported fallback. That introduces a user-visible notification and should not be the default unless testing proves it necessary.
 
@@ -243,48 +262,48 @@ FlutterBluePlus describes background BLE as an advanced use case that may requir
 
 Source: [FlutterBluePlus background documentation](https://pub.dev/packages/flutter_blue_plus#using-ble-in-app-background).
 
-### Incremental implementation strategy
+### Connection ownership strategy
 
-#### Stage 1: retain FlutterBluePlus
+#### Foreground transport
 
 Add a small platform integration that only performs setup and wake orchestration:
 
 - iOS native code owns AccessorySetupKit presentation and migration. After migration, FlutterBluePlus owns Core Bluetooth and uses state restoration.
-- Android native code owns companion association and presence observation. It wakes registered background Dart work but does not open a GATT connection.
-- Dart opens the database and runs the existing production `BikeSession` path.
+- Android native code owns companion association, presence observation, and the bounded background GATT transaction.
+- Dart owns foreground connections and writes the native background command plan.
 
 This keeps a single connection owner and tests whether a cold Flutter launch is sufficiently fast and reliable.
 
-#### Stage 2: native background transaction only
+#### Native background transaction
 
-If cold Flutter or plugin restoration is unreliable, retain FlutterBluePlus for foreground use but implement the fixed background transaction natively:
+The Android background path is deliberately smaller than the foreground session:
 
 ```text
+load the materialized execution plan
 connect
-discover fixed services and characteristics
-read authentication challenge
-write authentication response
-verify authentication
-read configuration
-merge enabled Set on connect choices
-write configuration when changed
+discover the plan's services and characteristics
+read the plan's authentication challenge
+write the computed authentication response
+verify the plan's expected authentication state
+write its commands in order
 record the acknowledged write
 record result
 ```
 
-This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, and manufacturer filters.
+This is a bounded plan executor, not a general BLE library. Dart owns the bike-specific golden fixtures for authentication inputs, V1 and V2 packet encoding, configuration merging, and manufacturer filters. Native implementations validate and execute the same materialized plan format.
 
-The native transaction needs an atomic desired-state snapshot containing only:
+The native transaction consumes an atomic execution snapshot containing:
 
-- whether automatic synchronization is enabled;
-- active bike platform identifier and module serial;
-- selected protocol;
-- Set on connect enabled flags and values; and
-- a monotonically increasing configuration generation.
+- a plan-format version;
+- the active bike Bluetooth address; and
+- an exact manufacturer-data scan filter;
+- service and characteristic identifiers;
+- authentication algorithm inputs and expected state; and
+- ordered, literal command payloads.
 
-It should write back the last attempt, last confirmed generation and configuration, timestamps, and a bounded diagnostic record. It should not independently mutate the primary Drift model.
+It writes timestamps and a bounded diagnostic outcome to Android shared preferences. It never mutates Drift.
 
-#### Stage 3: replace the transport only if ownership fails
+#### Transport replacement fallback
 
 Build a minimal app-owned BLE plugin only if foreground FlutterBluePlus and the native background transaction cannot hand ownership over safely. That plugin should implement the existing `BikeTransport` contract rather than a generic public GATT API.
 
@@ -336,16 +355,16 @@ Test at least a current Pixel and Samsung device:
 - Simulated app hibernation and recovery.
 - Manual Force Stop as an expected failure.
 - One synchronization per presence epoch.
-- A validated pre-write configuration read proving disabled values were preserved in the outgoing command.
+- Physical verification that `0xFF` fields are ignored independently on both protocol versions.
 
 ### Common success criteria
 
 - The application UI never needs to appear.
-- The production authentication and configuration paths are used.
+- Authentication and command bytes match the documented production protocol.
 - Set on connect writes are accepted when GATT acknowledges them.
 - Disabled values are never overwritten.
 - No duplicate writes occur in one power session.
-- Failures use bounded retries and cannot loop indefinitely.
+- Each appearance starts at most one bounded attempt and cannot loop indefinitely.
 - The last outcome is available to the foreground app and support report.
 - Disabling the feature cancels pending platform work and connections.
 - Logs never include the authentication secret or challenge response.

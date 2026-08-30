@@ -39,7 +39,7 @@ final class BikeRepository {
 
   Future<SavedBike> addBike({
     required String deviceId,
-    String advertisedName = 'SUPER73',
+    String? advertisedName,
     String? displayName,
     BikeRegion? region = BikeRegion.us,
     BikeColor color = BikeColor.royalHorizon,
@@ -62,7 +62,8 @@ final class BikeRepository {
     if (odometerMeters != null) {
       _validateUnsigned(odometerMeters, 0xffffffff, 'odometerMeters');
     }
-    final normalizedAdvertisedName = advertisedName.trim();
+    final normalizedAdvertisedName =
+        (advertisedName ?? BikeProtocolVersion.v1.advertisedName).trim();
     final protocol = BikeProtocolVersion.fromAdvertisedName(
       normalizedAdvertisedName,
     );
@@ -134,6 +135,8 @@ final class BikeRepository {
         );
       }
 
+      await database.refreshBackgroundSyncPlan();
+
       return (await _getBikeOrNull(normalizedId))!;
     });
   }
@@ -154,6 +157,7 @@ final class BikeRepository {
           ),
         );
       }
+      await database.refreshBackgroundSyncPlan();
     });
   }
 
@@ -269,6 +273,7 @@ final class BikeRepository {
           updatedAtMs: Value(_clock().millisecondsSinceEpoch),
         ),
       );
+      await database.refreshBackgroundSyncPlan();
       return true;
     });
   }
@@ -305,6 +310,9 @@ final class BikeRepository {
       await (database.update(
         database.bikes,
       )..where((table) => table.deviceId.equals(deviceId))).write(update);
+      if (touchUpdatedAt) {
+        await database.refreshBackgroundSyncPlan();
+      }
     });
   }
 
@@ -322,6 +330,7 @@ final class BikeRepository {
       )..where((table) => table.deviceId.equals(deviceId))).write(
         BikesCompanion(updatedAtMs: Value(_clock().millisecondsSinceEpoch)),
       );
+      await database.refreshBackgroundSyncPlan();
     });
   }
 

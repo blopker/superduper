@@ -115,6 +115,7 @@ final class SessionDisposed extends BikeSessionState {
 
 typedef VersionsRead = Future<void> Function(BikeVersionInfo versions);
 typedef OdometerRead = Future<void> Function(int meters);
+typedef ManualConnectionPauseChanged = Future<void> Function(bool paused);
 
 final class BikeSession {
   BikeSession({
@@ -125,6 +126,7 @@ final class BikeSession {
     List<int> authenticationKey = BikeProtocol.defaultAuthenticationKey,
     VersionsRead? onVersionsRead,
     OdometerRead? onOdometerRead,
+    ManualConnectionPauseChanged? onManualConnectionPauseChanged,
     this.readDiagnosticsOnConnect = true,
     Duration commandTimeout = const Duration(seconds: 15),
     Duration? pollInterval,
@@ -147,6 +149,9 @@ final class BikeSession {
        // The public named parameter keeps the callback implementation private.
        // ignore: prefer_initializing_formals
        _onOdometerRead = onOdometerRead,
+       // The public named parameter keeps the callback implementation private.
+       // ignore: prefer_initializing_formals
+       _onManualConnectionPauseChanged = onManualConnectionPauseChanged,
        // The public named parameter keeps command policy private.
        // ignore: prefer_initializing_formals
        _commandTimeout = commandTimeout,
@@ -178,6 +183,7 @@ final class BikeSession {
   final BikeConnection connection;
   final VersionsRead? _onVersionsRead;
   final OdometerRead? _onOdometerRead;
+  final ManualConnectionPauseChanged? _onManualConnectionPauseChanged;
   final bool readDiagnosticsOnConnect;
   final Duration _commandTimeout;
   final Duration? _pollInterval;
@@ -223,6 +229,7 @@ final class BikeSession {
   var _expectedDisconnect = false;
   var _hasObservedConnection = false;
   Future<void>? _connectFuture;
+  Future<void>? _connectRequestFuture;
   int? _connectFutureGeneration;
   int? _platformConnectGeneration;
   Future<BikeConfiguration>? _configurationChangeFuture;
@@ -251,6 +258,10 @@ final class BikeSession {
 
   Future<void> connect() {
     _ensureNotDisposed();
+    final request = _connectRequestFuture;
+    if (request != null) {
+      return request;
+    }
     final pending = _connectFuture;
     if (_connectFutureGeneration == _generation && pending != null) {
       return pending;
@@ -262,6 +273,31 @@ final class BikeSession {
             currentState is SessionSynchronizing)) {
       return Future.value();
     }
+    late final Future<void> next;
+    next = _connectAfterManualPause().whenComplete(() {
+      if (identical(_connectRequestFuture, next)) {
+        _connectRequestFuture = null;
+      }
+    });
+    _connectRequestFuture = next;
+    return next;
+  }
+
+  Future<void> _connectAfterManualPause() async {
+    await _onManualConnectionPauseChanged?.call(false);
+    _ensureNotDisposed();
+    final pending = _connectFuture;
+    if (_connectFutureGeneration == _generation && pending != null) {
+      await pending;
+      return;
+    }
+    final currentState = _state.peek();
+    if (!_disconnectRequested &&
+        _hasObservedConnection &&
+        (currentState is SessionReady ||
+            currentState is SessionSynchronizing)) {
+      return;
+    }
     _invalidateConfigurationState();
     _manualReconnectPaused = false;
     _foregroundPaused = false;
@@ -269,7 +305,7 @@ final class BikeSession {
     _generation++;
     _reconnectAttempt = 0;
     _reconnectTimer?.cancel();
-    return _startConnect();
+    await _startConnect();
   }
 
   Future<void> retry() => connect();
@@ -328,9 +364,20 @@ final class BikeSession {
 
   Future<void> disconnect() async {
     _ensureNotDisposed();
+    final wasManuallyPaused = _manualReconnectPaused;
     _manualReconnectPaused = true;
     _foregroundPaused = false;
-    await _enqueueDisconnect(manuallyPaused: true, abortPendingConnect: true);
+    final disconnect = _enqueueDisconnect(
+      manuallyPaused: true,
+      abortPendingConnect: true,
+    );
+    try {
+      if (!wasManuallyPaused) {
+        await _onManualConnectionPauseChanged?.call(true);
+      }
+    } finally {
+      await disconnect;
+    }
   }
 
   Future<void> pauseForBackground() async {

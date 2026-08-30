@@ -11,8 +11,13 @@ import io.flutter.app.FlutterApplication
 class SuperduperApplication : FlutterApplication() {
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                BluetoothAdapter.STATE_ON -> BackgroundCompanionManager.restoreStored(context)
+            val state = intent.getIntExtra(
+                BluetoothAdapter.EXTRA_STATE,
+                BluetoothAdapter.ERROR,
+            )
+            if (state == BluetoothAdapter.STATE_ON) {
+                BackgroundCompanionManager.restoreStored(context)
+                NativeBackgroundSync.resumePending(context)
             }
         }
     }

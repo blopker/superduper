@@ -151,13 +151,13 @@ void main() {
       [0, 0, 3, 0, 1, 6],
     ];
     await controller.start();
-    const candidate = DiscoveredBike(
+    final candidate = DiscoveredBike(
       deviceId: 'new-bike',
-      name: 'SUPER73',
+      name: BikeProtocolVersion.v1.advertisedName,
       rssi: -42,
       moduleSerial: '00112233aabbccdd',
     );
-    transport.emitResults(const [candidate]);
+    transport.emitResults([candidate]);
     await _waitFor(
       controller.state,
       (state) => state is AddBikeScanning && state.results.contains(candidate),
@@ -167,7 +167,10 @@ void main() {
     final confirmation = controller.state.value as AddBikeConfirming;
     expect(confirmation.configuration.mode, 2);
     expect(confirmation.configuration.region, BikeRegion.eu);
-    expect(confirmation.suggestedName, isNot('SUPER73'));
+    expect(
+      confirmation.suggestedName,
+      isNot(BikeProtocolVersion.v1.advertisedName),
+    );
 
     final saved = await controller.confirm(
       displayName: 'My Bike',
@@ -177,7 +180,10 @@ void main() {
 
     expect(controller.state.value, isA<AddBikeCompleted>());
     expect(saved.bike.displayName, 'My Bike');
-    expect(saved.bike.advertisedName, 'SUPER73');
+    expect(
+      saved.bike.advertisedName,
+      BikeProtocolVersion.v1.advertisedName,
+    );
     expect(saved.bike.protocol, BikeProtocolVersion.v1);
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
@@ -202,9 +208,9 @@ void main() {
   test(
     'firmware revision is metadata and does not affect setup',
     () async {
-      const candidate = DiscoveredBike(
+      final candidate = DiscoveredBike(
         deviceId: 'future-bike',
-        name: 'SUPER73',
+        name: BikeProtocolVersion.v1.advertisedName,
         rssi: -42,
       );
       (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
@@ -222,9 +228,9 @@ void main() {
   );
 
   test('V2 bikes are persisted without a region', () async {
-    const candidate = DiscoveredBike(
+    final candidate = DiscoveredBike(
       deviceId: 'v2-bike',
-      name: 'S73 FTEX',
+      name: BikeProtocolVersion.v2.advertisedName,
       rssi: -42,
     );
     (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
@@ -248,7 +254,10 @@ void main() {
     );
 
     expect(saved.bike.region, isNull);
-    expect(saved.bike.advertisedName, 'S73 FTEX');
+    expect(
+      saved.bike.advertisedName,
+      BikeProtocolVersion.v2.advertisedName,
+    );
     expect(saved.bike.protocol, BikeProtocolVersion.v2);
   });
 
@@ -256,14 +265,18 @@ void main() {
     await bikes.addBike(deviceId: 'saved');
     await controller.start();
 
-    transport.emitResults(const [
+    transport.emitResults([
       DiscoveredBike(
         deviceId: 'saved',
-        name: 'SUPER73',
+        name: BikeProtocolVersion.v1.advertisedName,
         rssi: -20,
         moduleSerial: '00112233aabbccdd',
       ),
-      DiscoveredBike(deviceId: 'new', name: 'SUPER73', rssi: -30),
+      DiscoveredBike(
+        deviceId: 'new',
+        name: BikeProtocolVersion.v1.advertisedName,
+        rssi: -30,
+      ),
     ]);
     final state = await _waitFor(
       controller.state,
@@ -326,12 +339,12 @@ void main() {
       [0, 0, 3, 0, 1, 2],
     ];
     await controller.start();
-    const candidate = DiscoveredBike(
+    final candidate = DiscoveredBike(
       deviceId: 'new-bike',
-      name: 'SUPER73',
+      name: BikeProtocolVersion.v1.advertisedName,
       rssi: -42,
     );
-    transport.emitResults(const [candidate]);
+    transport.emitResults([candidate]);
     await _waitFor(
       controller.state,
       (state) => state is AddBikeScanning && state.results.contains(candidate),
@@ -356,9 +369,9 @@ void main() {
   });
 
   test('an incompatible GATT shape fails before confirmation', () async {
-    const candidate = DiscoveredBike(
+    final candidate = DiscoveredBike(
       deviceId: 'unsupported',
-      name: 'SUPER73',
+      name: BikeProtocolVersion.v1.advertisedName,
       rssi: -40,
     );
     (transport.openConnection(

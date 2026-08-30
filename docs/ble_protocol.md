@@ -1,4 +1,4 @@
-# SUPER73 display BLE protocol
+# Compatible display BLE protocol
 
 This document describes the BLE behavior recovered from the `221122` and
 `250426` display application firmwares. It calls the `221122` interface
@@ -14,15 +14,15 @@ The GAP device name differs by protocol version:
 
 | Protocol | Display firmware | Complete advertised name |
 | --- | --- | --- |
-| v1 | `221122` | `SUPER73` |
-| v2 | `250426` | `S73 FTEX` |
+| v1 | `221122` | V1 local-name identifier |
+| v2 | `250426` | V2 local-name identifier |
 
-The advertised name is the recommended protocol discriminator. `FTEX` identifies
-the newer motor-controller architecture used by protocol v2. A client can select
-the packet layout during scanning, before connecting:
+The advertised name is the recommended protocol discriminator. The V2 name
+identifies the newer motor-controller architecture. A client can select the
+packet layout during scanning, before connecting:
 
-- `SUPER73` selects protocol v1;
-- `S73 FTEX` selects protocol v2;
+- the V1 local-name identifier selects protocol v1;
+- the V2 local-name identifier selects protocol v2;
 - any other name leaves the protocol unknown.
 
 Device Information remains useful as confirmation after connecting and as a
@@ -248,7 +248,7 @@ Unless a packet section says otherwise, unused bytes should be zero.
 
 | Interface | Protocol v1 (`221122`) | Protocol v2 (`250426`) |
 | --- | --- | --- |
-| Advertised name | `SUPER73` | `S73 FTEX` |
+| Advertised name | V1 local-name identifier | V2 local-name identifier |
 | Bike-control write | `00D1` | `00C1` |
 | Control-state telemetry | `0300` operating state | `00D0` assist/lights and `00D9` ride state |
 | Device Information | `v3.2.0`, `221122` | `v3.3.0`, `250426` |
@@ -667,7 +667,7 @@ Service, and authenticated application records:
 
 | Source | Value | Protocol v1 | Protocol v2 |
 | --- | --- | --- | --- |
-| GAP advertising | Protocol/display family | `SUPER73` | `S73 FTEX` |
+| GAP advertising | Protocol/display family | V1 local-name identifier | V2 local-name identifier |
 | Manufacturer data `0x020f` | Per-radio module ID | 8-byte `DEVICEID1 || DEVICEID0` | Same |
 | DIS `0x2a29` | Manufacturer | `COMODULE` | `COMODULE` |
 | DIS `0x2a27` | Display hardware revision | `v3.2.0` | `v3.3.0` |
@@ -764,7 +764,7 @@ not probe by sending both control commands.
 A client using the application protocol should:
 
 1. Scan for the complete local name.
-2. Select protocol v1 for `SUPER73` or protocol v2 for `S73 FTEX`.
+2. Select protocol v1 or v2 from the corresponding local-name identifier.
 3. For an unknown name, connect and read Device Information Firmware Revision
    UUID `0x2a26`; select v1 for `221122`, v2 for `250426`, or reject an unknown
    build.
@@ -811,4 +811,5 @@ different addresses.
 | `0x32ba8` | CANopen `0x2008:00` parser and controller-version producer |
 | `0x33234` | `00C1` vehicle-control handler |
 
-The advertised name is initialized at flash address `0x47514` as the nine-byte string `S73 FTEX\0`.
+The V2 advertised name is initialized at flash address `0x47514` as a
+nine-byte, null-terminated string.

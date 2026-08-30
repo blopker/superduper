@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/background_bike_synchronizer.dart';
 import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/ble/exclusive_bluetooth_operation.dart';
@@ -13,12 +12,6 @@ import 'package:superduper/src/repositories/bike_repository.dart';
 import 'package:superduper/src/repositories/settings_repository.dart';
 
 const backgroundSyncChannelName = 'io.kbl.superduper/background_sync';
-const backgroundSyncWorkerChannelName =
-    'io.kbl.superduper/background_sync_worker';
-
-typedef BackgroundWakeHandler = Future<BackgroundSyncResult> Function(
-  BackgroundSyncRequest request,
-);
 
 final class BackgroundSyncConfigurationFailure implements Exception {
   const BackgroundSyncConfigurationFailure(this.message);
@@ -32,11 +25,10 @@ final class BackgroundSyncConfigurationFailure implements Exception {
 abstract interface class BackgroundSyncPlatformGateway {
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   });
+  Future<void> setConnectionPaused(bool paused);
   Future<void> cancel();
-  void setWakeHandler(BackgroundWakeHandler? handler);
 }
 
 enum BackgroundSyncRegistration { configured, needsAssociation }
@@ -49,14 +41,13 @@ final class NoopBackgroundSyncPlatformGateway
   Future<void> cancel() async {}
 
   @override
-  Future<BackgroundSyncRegistration> configure({
-    required String deviceId,
-    required String moduleSerial,
-    required bool requestAssociation,
-  }) async => BackgroundSyncRegistration.configured;
+  Future<void> setConnectionPaused(bool paused) async {}
 
   @override
-  void setWakeHandler(BackgroundWakeHandler? handler) {}
+  Future<BackgroundSyncRegistration> configure({
+    required String deviceId,
+    required bool requestAssociation,
+  }) async => BackgroundSyncRegistration.configured;
 }
 
 final class SystemBackgroundSyncPlatformGateway
@@ -68,14 +59,12 @@ final class SystemBackgroundSyncPlatformGateway
 
   final MethodChannel channel;
   final Duration configurationTimeout;
-  BackgroundWakeHandler? _handler;
 
   bool get _isSupported => defaultTargetPlatform == TargetPlatform.android;
 
   @override
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   }) async {
     if (!_isSupported) {
@@ -84,7 +73,6 @@ final class SystemBackgroundSyncPlatformGateway
     try {
       final pending = channel.invokeMethod<bool>('configure', {
         'deviceId': deviceId,
-        'moduleSerial': moduleSerial,
         'requestAssociation': requestAssociation,
       });
       final associated = requestAssociation
@@ -119,28 +107,20 @@ final class SystemBackgroundSyncPlatformGateway
   }
 
   @override
-  void setWakeHandler(BackgroundWakeHandler? handler) {
-    _handler = handler;
-    channel.setMethodCallHandler(handler == null ? null : _handleMethod);
-  }
-
-  Future<Object?> _handleMethod(MethodCall call) async {
-    if (call.method != 'run') {
-      throw MissingPluginException('Unknown method ${call.method}.');
+  Future<void> setConnectionPaused(bool paused) async {
+    if (_isSupported) {
+      try {
+        await channel.invokeMethod<void>('setConnectionPaused', {
+          'paused': paused,
+        });
+      } on MissingPluginException {
+        // Unit tests and non-Android embedders do not install the Android host.
+      } on PlatformException catch (error) {
+        throw BackgroundSyncConfigurationFailure(
+          error.message ?? 'Android could not update the connection pause.',
+        );
+      }
     }
-    final arguments = Map<Object?, Object?>.from(call.arguments as Map);
-    final request = BackgroundSyncRequest(
-      deviceId: arguments['deviceId']! as String,
-      moduleSerial: arguments['moduleSerial']! as String,
-    );
-    final handler = _handler;
-    if (handler == null) {
-      return const BackgroundSyncResult(
-        outcome: BackgroundSyncOutcome.failed,
-        detail: 'The background synchronization handler is unavailable.',
-      ).toJson();
-    }
-    return (await handler(request)).toJson();
   }
 }
 
@@ -149,7 +129,6 @@ final class BackgroundSyncCoordinator {
     required this.bikeRepository,
     required this.settingsRepository,
     required this.activeBikeCoordinator,
-    required this.synchronizer,
     required this.transport,
     required this.permissions,
     required this.identityResolver,
@@ -160,7 +139,6 @@ final class BackgroundSyncCoordinator {
   final BikeRepository bikeRepository;
   final SettingsRepository settingsRepository;
   final ActiveBikeCoordinator activeBikeCoordinator;
-  final BackgroundBikeSynchronizer synchronizer;
   final BikeTransport transport;
   final BluetoothPermissionGateway permissions;
   final BikeIdentityResolver identityResolver;
@@ -190,7 +168,6 @@ final class BackgroundSyncCoordinator {
       return;
     }
     _started = true;
-    platform.setWakeHandler(_handleWake);
     final bikesReady = Completer<void>();
     final settingsReady = Completer<void>();
     _bikesSubscription = bikeRepository.watchBikes().listen((bikes) {
@@ -218,22 +195,6 @@ final class BackgroundSyncCoordinator {
       await _scheduleRefresh();
     } on Object {
       // Background Sync is optional and must not prevent the app from starting.
-    }
-  }
-
-  Future<BackgroundSyncResult> _handleWake(
-    BackgroundSyncRequest request,
-  ) async {
-    final pause = await activeBikeCoordinator.acquireDiscoveryPause();
-    if (pause == null) {
-      return const BackgroundSyncResult(
-        outcome: BackgroundSyncOutcome.skippedBusy,
-      );
-    }
-    try {
-      return await synchronizer.synchronize(request);
-    } finally {
-      await pause.release();
     }
   }
 
@@ -267,12 +228,12 @@ final class BackgroundSyncCoordinator {
         await _exclusiveBluetooth.release(stopScan: false);
         rethrow;
       }
+      var preferenceEnabled = false;
       try {
         _requireBluetoothAccess(access);
         final serial = await _moduleSerialFor(matches.single);
         final registration = await platform.configure(
           deviceId: matches.single.bike.deviceId,
-          moduleSerial: serial,
           requestAssociation: true,
         );
         if (registration != BackgroundSyncRegistration.configured) {
@@ -280,17 +241,34 @@ final class BackgroundSyncCoordinator {
             'Android did not save the bike association. Try enabling Background Sync again.',
           );
         }
-        _configured = (
-          deviceId: matches.single.bike.deviceId,
-          moduleSerial: serial,
-        );
-        _configurationKnown = true;
         await bikeRepository.setBackgroundPreference(
           deviceId,
           requested: true,
           consentVersion: backgroundSyncConsentVersion,
         );
+        preferenceEnabled = true;
+        final refreshedRegistration = await platform.configure(
+          deviceId: matches.single.bike.deviceId,
+          requestAssociation: false,
+        );
+        if (refreshedRegistration != BackgroundSyncRegistration.configured) {
+          throw const BackgroundSyncConfigurationFailure(
+            'Android did not retain the bike association. Try enabling Background Sync again.',
+          );
+        }
+        _configured = (
+          deviceId: matches.single.bike.deviceId,
+          moduleSerial: serial,
+        );
+        _configurationKnown = true;
       } on Object {
+        if (preferenceEnabled) {
+          await bikeRepository.setBackgroundPreference(
+            deviceId,
+            requested: false,
+            consentVersion: backgroundSyncConsentVersion,
+          );
+        }
         _configured = null;
         await platform.cancel();
         rethrow;
@@ -437,7 +415,6 @@ final class BackgroundSyncCoordinator {
     } else {
       final registration = await platform.configure(
         deviceId: next.deviceId,
-        moduleSerial: next.moduleSerial,
         requestAssociation: false,
       );
       if (registration == BackgroundSyncRegistration.needsAssociation) {
@@ -465,7 +442,6 @@ final class BackgroundSyncCoordinator {
     if (!_disposeSignal.isCompleted) {
       _disposeSignal.complete();
     }
-    platform.setWakeHandler(null);
     await _bikesSubscription?.cancel();
     await _settingsSubscription?.cancel();
   }

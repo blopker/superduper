@@ -458,7 +458,7 @@ final class _CandidateTile extends StatelessWidget {
                     children: [
                       Text(
                         candidate.name.isEmpty
-                            ? 'SUPER73 bike'
+                            ? 'Compatible bike'
                             : candidate.name,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
