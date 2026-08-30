@@ -56,6 +56,7 @@ final class SettingsRepository {
           : !activeExists;
 
       if (!needsRepair) {
+        await database.refreshBackgroundSyncPlan();
         return const SettingsInitialization(activeBikeRepaired: false);
       }
 
@@ -65,6 +66,7 @@ final class SettingsRepository {
           migrationNoticePending: const Value(true),
         ),
       );
+      await database.refreshBackgroundSyncPlan();
       return const SettingsInitialization(activeBikeRepaired: true);
     });
   }
@@ -74,6 +76,7 @@ final class SettingsRepository {
       await _requireBike(deviceId);
       await _ensureSettings();
       await _update(AppSettingsCompanion(activeBikeId: Value(deviceId)));
+      await database.refreshBackgroundSyncPlan();
     });
   }
 

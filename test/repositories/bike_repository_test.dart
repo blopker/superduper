@@ -144,6 +144,79 @@ void main() {
     expect(saved.backgroundPreference.consentVersion, 1);
   });
 
+  test('materializes a V1 background command with nullable controls', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'AA:BB:CC:DD:EE:FF',
+      region: BikeRegion.eu,
+      setOnConnect: const BikeControlPatch(light: true, mode: 2),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    final plan = await database
+        .select(database.backgroundSyncPlans)
+        .getSingle();
+    final command = await database
+        .select(database.backgroundSyncCommands)
+        .getSingle();
+
+    expect(plan.deviceId, 'AA:BB:CC:DD:EE:FF');
+    expect(plan.planVersion, 1);
+    expect(command.sequence, 0);
+    expect(command.payload, [0, 0xd1, 1, 0xff, 6, 0, 0, 0, 0, 0]);
+  });
+
+  test('rebuilds and removes the native background command plan', () async {
+    await settingsRepository.initialize();
+    await repository.addBike(
+      deviceId: 'first',
+      setOnConnect: const BikeControlPatch(assist: 4),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+    await repository.addBike(
+      deviceId: 'second',
+      advertisedName: 'S73 FTEX',
+      setOnConnect: const BikeControlPatch(mode: 3),
+      backgroundPreference: const BackgroundPreference(
+        requested: true,
+        consentVersion: backgroundSyncConsentVersion,
+      ),
+    );
+
+    expect(
+      (await database.select(database.backgroundSyncCommands).getSingle())
+          .payload,
+      [0, 0xd1, 0xff, 4, 0xff, 0, 0, 0, 0, 0],
+    );
+
+    await settingsRepository.makeBikeActive('second');
+    expect(
+      (await database.select(database.backgroundSyncCommands).getSingle())
+          .payload,
+      [0, 0xc1, 0xff, 0xff, 3, 0, 0, 0, 0, 0],
+    );
+
+    await repository.setOnConnect('second', const BikeControlPatch());
+    expect(await database.select(database.backgroundSyncPlans).get(), isEmpty);
+
+    await repository.setBackgroundPreference(
+      'second',
+      requested: false,
+      consentVersion: backgroundSyncConsentVersion,
+    );
+    expect(await database.select(database.backgroundSyncPlans).get(), isEmpty);
+    expect(
+      await database.select(database.backgroundSyncCommands).get(),
+      isEmpty,
+    );
+  });
+
   test('bike details update together with a normalized name', () async {
     await settingsRepository.initialize();
     await repository.addBike(deviceId: 'bike');

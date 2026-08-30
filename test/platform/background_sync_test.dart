@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/active_bike_coordinator.dart';
-import 'package:superduper/src/ble/background_bike_synchronizer.dart';
 import 'package:superduper/src/ble/bike_identity_resolver.dart';
 import 'package:superduper/src/ble/bike_session.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
@@ -51,11 +50,6 @@ void main() {
       bikeRepository: bikes,
       settingsRepository: settings,
       activeBikeCoordinator: activeBike,
-      synchronizer: BackgroundBikeSynchronizer(
-        bikeRepository: bikes,
-        settingsRepository: settings,
-        transport: transport,
-      ),
       transport: transport,
       permissions: permissions,
       identityResolver: BikeIdentityResolver(
@@ -95,8 +89,6 @@ void main() {
           requestAssociation: false,
         ),
       ]);
-      expect(platform.handler, isNotNull);
-
       await bikes.setBackgroundPreference(
         'bike',
         requested: false,
@@ -312,31 +304,6 @@ void main() {
     expect(platform.configurations, isEmpty);
   });
 
-  test('does not release an exclusive operation it did not acquire', () async {
-    await bikes.addBike(
-      deviceId: 'bike',
-      moduleSerial: '00112233aabbccdd',
-      backgroundPreference: const BackgroundPreference(
-        requested: true,
-        consentVersion: backgroundSyncConsentVersion,
-      ),
-    );
-    await coordinator.start();
-    final pause = await activeBike.acquireDiscoveryPause();
-    expect(pause, isNotNull);
-
-    final result = await platform.handler!(
-      const BackgroundSyncRequest(
-        deviceId: 'observed-address',
-        moduleSerial: '00112233aabbccdd',
-      ),
-    );
-
-    expect(result.outcome, BackgroundSyncOutcome.skippedBusy);
-    expect(await activeBike.acquireDiscoveryPause(), isNull);
-    await pause!.release();
-  });
-
   test('preserves the native companion association error', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     const channel = MethodChannel(backgroundSyncChannelName);
@@ -490,7 +457,6 @@ final class _FakeBackgroundSyncPlatform
   final List<_Configuration> configurations = [];
   final Completer<void> cancelled = Completer<void>();
   int cancelCount = 0;
-  BackgroundWakeHandler? handler;
   Error? configureError;
   BackgroundSyncRegistration configureResult =
       BackgroundSyncRegistration.configured;
@@ -522,11 +488,6 @@ final class _FakeBackgroundSyncPlatform
       ),
     );
     return configureResult;
-  }
-
-  @override
-  void setWakeHandler(BackgroundWakeHandler? handler) {
-    this.handler = handler;
   }
 }
 

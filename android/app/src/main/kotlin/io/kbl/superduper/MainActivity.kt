@@ -39,10 +39,9 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        BackgroundSyncEngineRegistry.attach(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            BackgroundSyncChannels.control,
+            backgroundSyncChannel,
         ).setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
@@ -77,20 +76,20 @@ class MainActivity : FlutterActivity() {
         cancelPendingAssociation("Bike association was interrupted")
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            BackgroundSyncChannels.control,
+            backgroundSyncChannel,
         ).setMethodCallHandler(null)
-        BackgroundSyncEngineRegistry.detach(flutterEngine)
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onStart() {
+        BackgroundSyncRuntime.isActivityForeground = true
+        NativeBackgroundSync.cancel("The app entered the foreground")
         super.onStart()
-        BackgroundSyncEngineRegistry.isActivityForeground = true
     }
 
     override fun onStop() {
-        BackgroundSyncEngineRegistry.isActivityForeground = false
         super.onStop()
+        BackgroundSyncRuntime.isActivityForeground = false
     }
 
     @Deprecated("Association uses the platform chooser result on Android 12")
@@ -159,7 +158,7 @@ class MainActivity : FlutterActivity() {
             throw IllegalStateException("The previous bike association is still closing")
         }
 
-        BackgroundCompanionManager.cancelLegacyScan(applicationContext)
+        BackgroundCompanionManager.stopAdvertisementScan(applicationContext)
         pendingAssociation = PendingAssociation(address, serial, result)
         try {
             val manager = getSystemService(CompanionDeviceManager::class.java)
@@ -350,6 +349,7 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        private const val backgroundSyncChannel = "io.kbl.superduper/background_sync"
         private const val logTag = "BackgroundSync"
         private const val companionAssociationRequestCode = 8107
         private const val associationPersistenceAttempts = 100

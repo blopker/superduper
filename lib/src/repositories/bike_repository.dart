@@ -134,6 +134,8 @@ final class BikeRepository {
         );
       }
 
+      await database.refreshBackgroundSyncPlan();
+
       return (await _getBikeOrNull(normalizedId))!;
     });
   }
@@ -154,6 +156,7 @@ final class BikeRepository {
           ),
         );
       }
+      await database.refreshBackgroundSyncPlan();
     });
   }
 
@@ -305,6 +308,9 @@ final class BikeRepository {
       await (database.update(
         database.bikes,
       )..where((table) => table.deviceId.equals(deviceId))).write(update);
+      if (touchUpdatedAt) {
+        await database.refreshBackgroundSyncPlan();
+      }
     });
   }
 
@@ -322,6 +328,7 @@ final class BikeRepository {
       )..where((table) => table.deviceId.equals(deviceId))).write(
         BikesCompanion(updatedAtMs: Value(_clock().millisecondsSinceEpoch)),
       );
+      await database.refreshBackgroundSyncPlan();
     });
   }
 

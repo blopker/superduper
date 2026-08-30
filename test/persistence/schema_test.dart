@@ -2,6 +2,7 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
+import 'package:superduper/src/repositories/settings_repository.dart';
 
 import '../generated/schema.dart';
 
@@ -72,5 +73,12 @@ void main() {
     );
     expect(preferences.backgroundRequested, isTrue);
     expect(preferences.backgroundConsentVersion, 2);
+
+    await SettingsRepository(database: database).initialize();
+    expect(
+      (await database.select(database.backgroundSyncCommands).getSingle())
+          .payload,
+      [0, 0xd1, 1, 4, 0xff, 0, 0, 0, 0, 0],
+    );
   });
 }

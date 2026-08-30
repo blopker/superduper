@@ -178,8 +178,54 @@ class DataImports extends Table {
   Set<Column<Object>> get primaryKey => {importKey};
 }
 
+@DataClassName('BackgroundSyncPlanRow')
+class BackgroundSyncPlans extends Table {
+  IntColumn get singletonId => integer()();
+  IntColumn get planVersion => integer()();
+  TextColumn get deviceId =>
+      text().references(Bikes, #deviceId, onDelete: KeyAction.cascade)();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (singleton_id = 1)',
+    'CHECK (plan_version = 1)',
+  ];
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+}
+
+@DataClassName('BackgroundSyncCommandRow')
+class BackgroundSyncCommands extends Table {
+  IntColumn get planSingletonId => integer().references(
+    BackgroundSyncPlans,
+    #singletonId,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get sequence => integer()();
+  BlobColumn get payload => blob()();
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (plan_singleton_id = 1)',
+    'CHECK (sequence >= 0)',
+    'CHECK (length(payload) = 10)',
+  ];
+
+  @override
+  Set<Column<Object>> get primaryKey => {planSingletonId, sequence};
+}
+
 @DriftDatabase(
-  tables: [Bikes, BikePreferences, BikeVersions, AppSettings, DataImports],
+  tables: [
+    Bikes,
+    BikePreferences,
+    BikeVersions,
+    AppSettings,
+    DataImports,
+    BackgroundSyncPlans,
+    BackgroundSyncCommands,
+  ],
 )
 final class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
@@ -243,6 +289,10 @@ final class AppDatabase extends _$AppDatabase {
           ),
         );
       }
+      if (from < 4) {
+        await migrator.createTable(backgroundSyncPlans);
+        await migrator.createTable(backgroundSyncCommands);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -250,5 +300,90 @@ final class AppDatabase extends _$AppDatabase {
   );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
+
+  Future<void> refreshBackgroundSyncPlan() {
+    return transaction(() async {
+      await delete(backgroundSyncCommands).go();
+      await delete(backgroundSyncPlans).go();
+
+      final settings = await (select(
+        appSettings,
+      )..where((table) => table.singletonId.equals(1))).getSingleOrNull();
+      final activeBikeId = settings?.activeBikeId;
+      if (activeBikeId == null) {
+        return;
+      }
+
+      final query = select(bikes).join([
+        innerJoin(
+          bikePreferences,
+          bikePreferences.deviceId.equalsExp(bikes.deviceId),
+        ),
+      ])..where(bikes.deviceId.equals(activeBikeId));
+      final row = await query.getSingleOrNull();
+      if (row == null) {
+        return;
+      }
+      final bike = row.readTable(bikes);
+      final preferences = row.readTable(bikePreferences);
+      if (!preferences.backgroundRequested ||
+          preferences.backgroundConsentVersion < backgroundSyncConsentVersion ||
+          preferences.setOnConnect.isEmpty) {
+        return;
+      }
+
+      await into(backgroundSyncPlans).insert(
+        BackgroundSyncPlansCompanion.insert(
+          singletonId: const Value(1),
+          planVersion: 1,
+          deviceId: bike.deviceId,
+        ),
+      );
+      await into(backgroundSyncCommands).insert(
+        BackgroundSyncCommandsCompanion.insert(
+          planSingletonId: 1,
+          sequence: 0,
+          payload: Uint8List.fromList(
+            _backgroundControlFrame(bike, preferences),
+          ),
+        ),
+      );
+    });
+  }
+
+  List<int> _backgroundControlFrame(
+    BikeRow bike,
+    BikePreferenceRow preferences,
+  ) {
+    final patch = preferences.setOnConnect;
+    final mode = switch ((bike.protocol, patch.mode)) {
+      (_, null) => 0xff,
+      (BikeProtocolVersion.v1, final mode?) =>
+        mode +
+            (bike.region == BikeRegion.eu.name
+                ? BikeControlValues.modeCount
+                : 0),
+      (BikeProtocolVersion.v2, final mode?) => mode,
+    };
+    return [
+      0,
+      switch (bike.protocol) {
+        BikeProtocolVersion.v1 => 0xd1,
+        BikeProtocolVersion.v2 => 0xc1,
+      },
+      switch (patch.light) {
+        true => 1,
+        false => 0,
+        null => 0xff,
+      },
+      patch.assist ?? 0xff,
+      mode,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ];
+  }
 }

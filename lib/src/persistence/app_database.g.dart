@@ -2572,6 +2572,561 @@ class DataImportsCompanion extends UpdateCompanion<DataImportRow> {
   }
 }
 
+class $BackgroundSyncPlansTable extends BackgroundSyncPlans
+    with TableInfo<$BackgroundSyncPlansTable, BackgroundSyncPlanRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BackgroundSyncPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _singletonIdMeta = const VerificationMeta(
+    'singletonId',
+  );
+  @override
+  late final GeneratedColumn<int> singletonId = GeneratedColumn<int>(
+    'singleton_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _planVersionMeta = const VerificationMeta(
+    'planVersion',
+  );
+  @override
+  late final GeneratedColumn<int> planVersion = GeneratedColumn<int>(
+    'plan_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES bikes (device_id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [singletonId, planVersion, deviceId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'background_sync_plans';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BackgroundSyncPlanRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton_id')) {
+      context.handle(
+        _singletonIdMeta,
+        singletonId.isAcceptableOrUnknown(
+          data['singleton_id']!,
+          _singletonIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('plan_version')) {
+      context.handle(
+        _planVersionMeta,
+        planVersion.isAcceptableOrUnknown(
+          data['plan_version']!,
+          _planVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_planVersionMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singletonId};
+  @override
+  BackgroundSyncPlanRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BackgroundSyncPlanRow(
+      singletonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton_id'],
+      )!,
+      planVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plan_version'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+    );
+  }
+
+  @override
+  $BackgroundSyncPlansTable createAlias(String alias) {
+    return $BackgroundSyncPlansTable(attachedDatabase, alias);
+  }
+}
+
+class BackgroundSyncPlanRow extends DataClass
+    implements Insertable<BackgroundSyncPlanRow> {
+  final int singletonId;
+  final int planVersion;
+  final String deviceId;
+  const BackgroundSyncPlanRow({
+    required this.singletonId,
+    required this.planVersion,
+    required this.deviceId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton_id'] = Variable<int>(singletonId);
+    map['plan_version'] = Variable<int>(planVersion);
+    map['device_id'] = Variable<String>(deviceId);
+    return map;
+  }
+
+  BackgroundSyncPlansCompanion toCompanion(bool nullToAbsent) {
+    return BackgroundSyncPlansCompanion(
+      singletonId: Value(singletonId),
+      planVersion: Value(planVersion),
+      deviceId: Value(deviceId),
+    );
+  }
+
+  factory BackgroundSyncPlanRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BackgroundSyncPlanRow(
+      singletonId: serializer.fromJson<int>(json['singletonId']),
+      planVersion: serializer.fromJson<int>(json['planVersion']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singletonId': serializer.toJson<int>(singletonId),
+      'planVersion': serializer.toJson<int>(planVersion),
+      'deviceId': serializer.toJson<String>(deviceId),
+    };
+  }
+
+  BackgroundSyncPlanRow copyWith({
+    int? singletonId,
+    int? planVersion,
+    String? deviceId,
+  }) => BackgroundSyncPlanRow(
+    singletonId: singletonId ?? this.singletonId,
+    planVersion: planVersion ?? this.planVersion,
+    deviceId: deviceId ?? this.deviceId,
+  );
+  BackgroundSyncPlanRow copyWithCompanion(BackgroundSyncPlansCompanion data) {
+    return BackgroundSyncPlanRow(
+      singletonId: data.singletonId.present
+          ? data.singletonId.value
+          : this.singletonId,
+      planVersion: data.planVersion.present
+          ? data.planVersion.value
+          : this.planVersion,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundSyncPlanRow(')
+          ..write('singletonId: $singletonId, ')
+          ..write('planVersion: $planVersion, ')
+          ..write('deviceId: $deviceId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(singletonId, planVersion, deviceId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BackgroundSyncPlanRow &&
+          other.singletonId == this.singletonId &&
+          other.planVersion == this.planVersion &&
+          other.deviceId == this.deviceId);
+}
+
+class BackgroundSyncPlansCompanion
+    extends UpdateCompanion<BackgroundSyncPlanRow> {
+  final Value<int> singletonId;
+  final Value<int> planVersion;
+  final Value<String> deviceId;
+  const BackgroundSyncPlansCompanion({
+    this.singletonId = const Value.absent(),
+    this.planVersion = const Value.absent(),
+    this.deviceId = const Value.absent(),
+  });
+  BackgroundSyncPlansCompanion.insert({
+    this.singletonId = const Value.absent(),
+    required int planVersion,
+    required String deviceId,
+  }) : planVersion = Value(planVersion),
+       deviceId = Value(deviceId);
+  static Insertable<BackgroundSyncPlanRow> custom({
+    Expression<int>? singletonId,
+    Expression<int>? planVersion,
+    Expression<String>? deviceId,
+  }) {
+    return RawValuesInsertable({
+      if (singletonId != null) 'singleton_id': singletonId,
+      if (planVersion != null) 'plan_version': planVersion,
+      if (deviceId != null) 'device_id': deviceId,
+    });
+  }
+
+  BackgroundSyncPlansCompanion copyWith({
+    Value<int>? singletonId,
+    Value<int>? planVersion,
+    Value<String>? deviceId,
+  }) {
+    return BackgroundSyncPlansCompanion(
+      singletonId: singletonId ?? this.singletonId,
+      planVersion: planVersion ?? this.planVersion,
+      deviceId: deviceId ?? this.deviceId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singletonId.present) {
+      map['singleton_id'] = Variable<int>(singletonId.value);
+    }
+    if (planVersion.present) {
+      map['plan_version'] = Variable<int>(planVersion.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundSyncPlansCompanion(')
+          ..write('singletonId: $singletonId, ')
+          ..write('planVersion: $planVersion, ')
+          ..write('deviceId: $deviceId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BackgroundSyncCommandsTable extends BackgroundSyncCommands
+    with TableInfo<$BackgroundSyncCommandsTable, BackgroundSyncCommandRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BackgroundSyncCommandsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _planSingletonIdMeta = const VerificationMeta(
+    'planSingletonId',
+  );
+  @override
+  late final GeneratedColumn<int> planSingletonId = GeneratedColumn<int>(
+    'plan_singleton_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES background_sync_plans (singleton_id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> payload = GeneratedColumn<Uint8List>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [planSingletonId, sequence, payload];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'background_sync_commands';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BackgroundSyncCommandRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('plan_singleton_id')) {
+      context.handle(
+        _planSingletonIdMeta,
+        planSingletonId.isAcceptableOrUnknown(
+          data['plan_singleton_id']!,
+          _planSingletonIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_planSingletonIdMeta);
+    }
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sequenceMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {planSingletonId, sequence};
+  @override
+  BackgroundSyncCommandRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BackgroundSyncCommandRow(
+      planSingletonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}plan_singleton_id'],
+      )!,
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}payload'],
+      )!,
+    );
+  }
+
+  @override
+  $BackgroundSyncCommandsTable createAlias(String alias) {
+    return $BackgroundSyncCommandsTable(attachedDatabase, alias);
+  }
+}
+
+class BackgroundSyncCommandRow extends DataClass
+    implements Insertable<BackgroundSyncCommandRow> {
+  final int planSingletonId;
+  final int sequence;
+  final Uint8List payload;
+  const BackgroundSyncCommandRow({
+    required this.planSingletonId,
+    required this.sequence,
+    required this.payload,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['plan_singleton_id'] = Variable<int>(planSingletonId);
+    map['sequence'] = Variable<int>(sequence);
+    map['payload'] = Variable<Uint8List>(payload);
+    return map;
+  }
+
+  BackgroundSyncCommandsCompanion toCompanion(bool nullToAbsent) {
+    return BackgroundSyncCommandsCompanion(
+      planSingletonId: Value(planSingletonId),
+      sequence: Value(sequence),
+      payload: Value(payload),
+    );
+  }
+
+  factory BackgroundSyncCommandRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BackgroundSyncCommandRow(
+      planSingletonId: serializer.fromJson<int>(json['planSingletonId']),
+      sequence: serializer.fromJson<int>(json['sequence']),
+      payload: serializer.fromJson<Uint8List>(json['payload']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'planSingletonId': serializer.toJson<int>(planSingletonId),
+      'sequence': serializer.toJson<int>(sequence),
+      'payload': serializer.toJson<Uint8List>(payload),
+    };
+  }
+
+  BackgroundSyncCommandRow copyWith({
+    int? planSingletonId,
+    int? sequence,
+    Uint8List? payload,
+  }) => BackgroundSyncCommandRow(
+    planSingletonId: planSingletonId ?? this.planSingletonId,
+    sequence: sequence ?? this.sequence,
+    payload: payload ?? this.payload,
+  );
+  BackgroundSyncCommandRow copyWithCompanion(
+    BackgroundSyncCommandsCompanion data,
+  ) {
+    return BackgroundSyncCommandRow(
+      planSingletonId: data.planSingletonId.present
+          ? data.planSingletonId.value
+          : this.planSingletonId,
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+      payload: data.payload.present ? data.payload.value : this.payload,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundSyncCommandRow(')
+          ..write('planSingletonId: $planSingletonId, ')
+          ..write('sequence: $sequence, ')
+          ..write('payload: $payload')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(planSingletonId, sequence, $driftBlobEquality.hash(payload));
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BackgroundSyncCommandRow &&
+          other.planSingletonId == this.planSingletonId &&
+          other.sequence == this.sequence &&
+          $driftBlobEquality.equals(other.payload, this.payload));
+}
+
+class BackgroundSyncCommandsCompanion
+    extends UpdateCompanion<BackgroundSyncCommandRow> {
+  final Value<int> planSingletonId;
+  final Value<int> sequence;
+  final Value<Uint8List> payload;
+  final Value<int> rowid;
+  const BackgroundSyncCommandsCompanion({
+    this.planSingletonId = const Value.absent(),
+    this.sequence = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BackgroundSyncCommandsCompanion.insert({
+    required int planSingletonId,
+    required int sequence,
+    required Uint8List payload,
+    this.rowid = const Value.absent(),
+  }) : planSingletonId = Value(planSingletonId),
+       sequence = Value(sequence),
+       payload = Value(payload);
+  static Insertable<BackgroundSyncCommandRow> custom({
+    Expression<int>? planSingletonId,
+    Expression<int>? sequence,
+    Expression<Uint8List>? payload,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (planSingletonId != null) 'plan_singleton_id': planSingletonId,
+      if (sequence != null) 'sequence': sequence,
+      if (payload != null) 'payload': payload,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BackgroundSyncCommandsCompanion copyWith({
+    Value<int>? planSingletonId,
+    Value<int>? sequence,
+    Value<Uint8List>? payload,
+    Value<int>? rowid,
+  }) {
+    return BackgroundSyncCommandsCompanion(
+      planSingletonId: planSingletonId ?? this.planSingletonId,
+      sequence: sequence ?? this.sequence,
+      payload: payload ?? this.payload,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (planSingletonId.present) {
+      map['plan_singleton_id'] = Variable<int>(planSingletonId.value);
+    }
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<Uint8List>(payload.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundSyncCommandsCompanion(')
+          ..write('planSingletonId: $planSingletonId, ')
+          ..write('sequence: $sequence, ')
+          ..write('payload: $payload, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   late final $BikesTable bikes = $BikesTable(this);
@@ -2581,6 +3136,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BikeVersionsTable bikeVersions = $BikeVersionsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $DataImportsTable dataImports = $DataImportsTable(this);
+  late final $BackgroundSyncPlansTable backgroundSyncPlans =
+      $BackgroundSyncPlansTable(this);
+  late final $BackgroundSyncCommandsTable backgroundSyncCommands =
+      $BackgroundSyncCommandsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2591,6 +3150,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     bikeVersions,
     appSettings,
     dataImports,
+    backgroundSyncPlans,
+    backgroundSyncCommands,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2621,6 +3182,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('app_settings', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'bikes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('background_sync_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'background_sync_plans',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('background_sync_commands', kind: UpdateKind.delete),
+      ],
     ),
   ]);
 }

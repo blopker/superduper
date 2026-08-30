@@ -175,21 +175,20 @@ small lock-and-value indicators on Bike Control; tapping one opens Bike Settings
 ### 6. Android Background Sync
 
 Background Sync applies the normal Set on connect behavior when Android wakes
-the app for a companion bike presence event. Enabling it:
+the process for a companion bike presence event. Enabling it:
 
-- Requests notification permission.
-- Requests exemption from Android battery optimization.
-- Starts a low-priority connected-device foreground service.
 - Registers the selected bike as a companion device.
-- Schedules bounded background synchronization when that bike appears.
+- Materializes exact Set on connect commands in SQLite whenever settings change.
+- Runs a bounded native authentication and write transaction when that bike appears.
 
 Disabling Background Sync removes the companion association. The preference is
 saved per bike, and the control is not shown on iOS.
 
-The current foreground task has no independent polling callback; it relies on
-the app's normal connection and state-sync work remaining active. Screen-off,
-backgrounded, dismissed-from-recents, and force-stopped behavior therefore need
-separate acceptance tests in the modernization effort.
+The background path does not start Flutter or a foreground service. FlutterBluePlus
+owns foreground connections; Android owns only the short presence-triggered
+transaction and closes it before the app resumes. Screen-off, backgrounded,
+dismissed-from-recents, and force-stopped behavior remain physical-device
+acceptance-test cases.
 
 ### 7. Personalize and remove a bike
 
