@@ -25,7 +25,6 @@ final class BackgroundSyncConfigurationFailure implements Exception {
 abstract interface class BackgroundSyncPlatformGateway {
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   });
   Future<void> cancel();
@@ -43,7 +42,6 @@ final class NoopBackgroundSyncPlatformGateway
   @override
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   }) async => BackgroundSyncRegistration.configured;
 }
@@ -63,7 +61,6 @@ final class SystemBackgroundSyncPlatformGateway
   @override
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   }) async {
     if (!_isSupported) {
@@ -72,7 +69,6 @@ final class SystemBackgroundSyncPlatformGateway
     try {
       final pending = channel.invokeMethod<bool>('configure', {
         'deviceId': deviceId,
-        'moduleSerial': moduleSerial,
         'requestAssociation': requestAssociation,
       });
       final associated = requestAssociation
@@ -211,12 +207,12 @@ final class BackgroundSyncCoordinator {
         await _exclusiveBluetooth.release(stopScan: false);
         rethrow;
       }
+      var preferenceEnabled = false;
       try {
         _requireBluetoothAccess(access);
         final serial = await _moduleSerialFor(matches.single);
         final registration = await platform.configure(
           deviceId: matches.single.bike.deviceId,
-          moduleSerial: serial,
           requestAssociation: true,
         );
         if (registration != BackgroundSyncRegistration.configured) {
@@ -224,17 +220,34 @@ final class BackgroundSyncCoordinator {
             'Android did not save the bike association. Try enabling Background Sync again.',
           );
         }
-        _configured = (
-          deviceId: matches.single.bike.deviceId,
-          moduleSerial: serial,
-        );
-        _configurationKnown = true;
         await bikeRepository.setBackgroundPreference(
           deviceId,
           requested: true,
           consentVersion: backgroundSyncConsentVersion,
         );
+        preferenceEnabled = true;
+        final refreshedRegistration = await platform.configure(
+          deviceId: matches.single.bike.deviceId,
+          requestAssociation: false,
+        );
+        if (refreshedRegistration != BackgroundSyncRegistration.configured) {
+          throw const BackgroundSyncConfigurationFailure(
+            'Android did not retain the bike association. Try enabling Background Sync again.',
+          );
+        }
+        _configured = (
+          deviceId: matches.single.bike.deviceId,
+          moduleSerial: serial,
+        );
+        _configurationKnown = true;
       } on Object {
+        if (preferenceEnabled) {
+          await bikeRepository.setBackgroundPreference(
+            deviceId,
+            requested: false,
+            consentVersion: backgroundSyncConsentVersion,
+          );
+        }
         _configured = null;
         await platform.cancel();
         rethrow;
@@ -381,7 +394,6 @@ final class BackgroundSyncCoordinator {
     } else {
       final registration = await platform.configure(
         deviceId: next.deviceId,
-        moduleSerial: next.moduleSerial,
         requestAssociation: false,
       );
       if (registration == BackgroundSyncRegistration.needsAssociation) {

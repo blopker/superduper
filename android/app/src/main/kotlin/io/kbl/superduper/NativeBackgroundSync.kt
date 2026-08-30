@@ -354,12 +354,18 @@ private class NativeBikeTransaction(
             finish("failed", "GATT service discovery failed with status $status")
             return
         }
-        val authenticationService = gatt.getService(authenticationServiceUuid)
-        val controlService = gatt.getService(controlServiceUuid)
-        val challenge = authenticationService.characteristic(challengeUuid)
-        val response = authenticationService.characteristic(responseUuid)
-        val authentication = authenticationService.characteristic(authenticationUuid)
-        val command = controlService.characteristic(commandUuid)
+        val authenticationService = gatt.getService(plan.authenticationServiceUuid)
+        val commandService = gatt.getService(plan.commandServiceUuid)
+        val challenge = authenticationService.characteristic(
+            plan.authenticationChallengeUuid,
+        )
+        val response = authenticationService.characteristic(
+            plan.authenticationResponseUuid,
+        )
+        val authentication = authenticationService.characteristic(
+            plan.authenticationStateUuid,
+        )
+        val command = commandService.characteristic(plan.commandCharacteristicUuid)
         if (challenge == null || response == null || authentication == null || command == null) {
             finish("failed", "The bike is missing a required GATT characteristic")
             return
@@ -388,13 +394,13 @@ private class NativeBikeTransaction(
         }
         when (state) {
             State.READING_CHALLENGE -> {
-                if (characteristic.uuid != challengeUuid) return
-                if (value.size != authenticationValueLength) {
+                if (characteristic.uuid != plan.authenticationChallengeUuid) return
+                if (value.size != plan.authenticationChallengeLength) {
                     finish("failed", "The authentication challenge has an invalid length")
                     return
                 }
-                val key = ByteArray(authenticationValueLength) { 0xff.toByte() }
-                val response = MessageDigest.getInstance("SHA-1").digest(value + key)
+                val response = MessageDigest.getInstance(plan.authenticationDigest)
+                    .digest(value + plan.authenticationKey)
                 state = State.WRITING_RESPONSE
                 if (!write(gatt, responseCharacteristic, response)) {
                     finish("failed", "Could not write the authentication response")
@@ -402,8 +408,8 @@ private class NativeBikeTransaction(
             }
 
             State.READING_AUTHENTICATION -> {
-                if (characteristic.uuid != authenticationUuid) return
-                if (value.size != 1 || value[0].toInt() != 1) {
+                if (characteristic.uuid != plan.authenticationStateUuid) return
+                if (!value.contentEquals(plan.authenticatedState)) {
                     finish("failed", "Bike authentication was rejected")
                     return
                 }
@@ -428,7 +434,7 @@ private class NativeBikeTransaction(
         }
         when (state) {
             State.WRITING_RESPONSE -> {
-                if (characteristic.uuid != responseUuid) return
+                if (characteristic.uuid != plan.authenticationResponseUuid) return
                 state = State.READING_AUTHENTICATION
                 val authentication = authenticationCharacteristic
                 if (authentication == null || !gatt.readCharacteristic(authentication)) {
@@ -437,7 +443,7 @@ private class NativeBikeTransaction(
             }
 
             State.WRITING_COMMAND -> {
-                if (characteristic.uuid != commandUuid) return
+                if (characteristic.uuid != plan.commandCharacteristicUuid) return
                 commandIndex++
                 if (commandIndex == plan.commands.size) {
                     finish("confirmed", null)
@@ -509,19 +515,6 @@ private class NativeBikeTransaction(
     ): BluetoothGattCharacteristic? = this?.getCharacteristic(uuid)
 
     private companion object {
-        const val authenticationValueLength = 20
         const val transactionTimeoutMs = 45_000L
-        val authenticationServiceUuid: UUID =
-            UUID.fromString("00002554-1212-efde-1523-785feabcd123")
-        val challengeUuid: UUID =
-            UUID.fromString("00002556-1212-efde-1523-785feabcd123")
-        val responseUuid: UUID =
-            UUID.fromString("00002557-1212-efde-1523-785feabcd123")
-        val authenticationUuid: UUID =
-            UUID.fromString("00002558-1212-efde-1523-785feabcd123")
-        val controlServiceUuid: UUID =
-            UUID.fromString("00001554-1212-efde-1523-785feabcd123")
-        val commandUuid: UUID =
-            UUID.fromString("0000155f-1212-efde-1523-785feabcd123")
     }
 }

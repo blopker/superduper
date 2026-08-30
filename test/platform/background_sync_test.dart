@@ -85,7 +85,6 @@ void main() {
       expect(platform.configurations, [
         const _Configuration(
           deviceId: 'bike',
-          moduleSerial: '00112233aabbccdd',
           requestAssociation: false,
         ),
       ]);
@@ -238,8 +237,11 @@ void main() {
     expect(platform.configurations, [
       const _Configuration(
         deviceId: 'bike',
-        moduleSerial: '00112233aabbccdd',
         requestAssociation: true,
+      ),
+      const _Configuration(
+        deviceId: 'bike',
+        requestAssociation: false,
       ),
     ]);
     expect(transport.scanStarts, 1);
@@ -263,7 +265,8 @@ void main() {
       final releasedPause = await activeBike.acquireDiscoveryPause();
       expect(releasedPause, isNotNull);
       await releasedPause!.release();
-      expect(platform.configurations.single.requestAssociation, isTrue);
+      expect(platform.configurations.first.requestAssociation, isTrue);
+      expect(platform.configurations.last.requestAssociation, isFalse);
     },
   );
 
@@ -312,7 +315,6 @@ void main() {
           expect(call.method, 'configure');
           expect(call.arguments, {
             'deviceId': 'AA:BB:CC:DD:EE:FF',
-            'moduleSerial': '00112233aabbccdd',
             'requestAssociation': true,
           });
           throw PlatformException(
@@ -329,7 +331,6 @@ void main() {
     await expectLater(
       SystemBackgroundSyncPlatformGateway().configure(
         deviceId: 'AA:BB:CC:DD:EE:FF',
-        moduleSerial: '00112233aabbccdd',
         requestAssociation: true,
       ),
       throwsA(
@@ -355,7 +356,6 @@ void main() {
 
     final registration = await SystemBackgroundSyncPlatformGateway().configure(
       deviceId: 'AA:BB:CC:DD:EE:FF',
-      moduleSerial: '00112233aabbccdd',
       requestAssociation: false,
     );
 
@@ -383,7 +383,6 @@ void main() {
           configurationTimeout: Duration.zero,
         ).configure(
           deviceId: 'AA:BB:CC:DD:EE:FF',
-          moduleSerial: '00112233aabbccdd',
           requestAssociation: false,
         ),
         throwsA(
@@ -415,7 +414,6 @@ void main() {
             configurationTimeout: Duration.zero,
           ).configure(
             deviceId: 'AA:BB:CC:DD:EE:FF',
-            moduleSerial: '00112233aabbccdd',
             requestAssociation: true,
           );
       await Future<void>.delayed(Duration.zero);
@@ -433,23 +431,20 @@ void main() {
 final class _Configuration {
   const _Configuration({
     required this.deviceId,
-    required this.moduleSerial,
     required this.requestAssociation,
   });
 
   final String deviceId;
-  final String moduleSerial;
   final bool requestAssociation;
 
   @override
   bool operator ==(Object other) =>
       other is _Configuration &&
       other.deviceId == deviceId &&
-      other.moduleSerial == moduleSerial &&
       other.requestAssociation == requestAssociation;
 
   @override
-  int get hashCode => Object.hash(deviceId, moduleSerial, requestAssociation);
+  int get hashCode => Object.hash(deviceId, requestAssociation);
 }
 
 final class _FakeBackgroundSyncPlatform
@@ -473,7 +468,6 @@ final class _FakeBackgroundSyncPlatform
   @override
   Future<BackgroundSyncRegistration> configure({
     required String deviceId,
-    required String moduleSerial,
     required bool requestAssociation,
   }) async {
     if (configureError case final error?) {
@@ -483,7 +477,6 @@ final class _FakeBackgroundSyncPlatform
     configurations.add(
       _Configuration(
         deviceId: deviceId,
-        moduleSerial: moduleSerial,
         requestAssociation: requestAssociation,
       ),
     );

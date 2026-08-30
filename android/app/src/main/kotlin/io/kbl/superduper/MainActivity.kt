@@ -20,7 +20,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private data class PendingAssociation(
         val deviceId: String,
-        val moduleSerial: String,
         val result: MethodChannel.Result,
         var chooserLaunched: Boolean = false,
     )
@@ -48,13 +47,10 @@ class MainActivity : FlutterActivity() {
                     "configure" -> {
                         val deviceId = call.argument<String>("deviceId")
                             ?: throw IllegalArgumentException("deviceId is required")
-                        val serial = call.argument<String>("moduleSerial")
-                            ?: throw IllegalArgumentException("moduleSerial is required")
                         val requestAssociation =
                             call.argument<Boolean>("requestAssociation") ?: false
                         configureBackgroundSync(
                             deviceId,
-                            serial,
                             requestAssociation,
                             result,
                         )
@@ -123,12 +119,10 @@ class MainActivity : FlutterActivity() {
 
     private fun configureBackgroundSync(
         deviceId: String,
-        moduleSerial: String,
         requestAssociation: Boolean,
         result: MethodChannel.Result,
     ) {
         val address = BackgroundCompanionManager.normalizeDeviceId(deviceId)
-        val serial = BackgroundCompanionManager.normalizeSerial(moduleSerial)
         if (!BackgroundCompanionManager.hasCompanionSupport(applicationContext)) {
             if (requestAssociation) {
                 throw IllegalStateException(
@@ -141,7 +135,6 @@ class MainActivity : FlutterActivity() {
         if (BackgroundCompanionManager.configureIfAssociated(
                 applicationContext,
                 address,
-                serial,
             )
         ) {
             result.success(true)
@@ -159,7 +152,7 @@ class MainActivity : FlutterActivity() {
         }
 
         BackgroundCompanionManager.stopAdvertisementScan(applicationContext)
-        pendingAssociation = PendingAssociation(address, serial, result)
+        pendingAssociation = PendingAssociation(address, result)
         try {
             val manager = getSystemService(CompanionDeviceManager::class.java)
             val request = BackgroundCompanionManager.associationRequest(address)
@@ -288,7 +281,6 @@ class MainActivity : FlutterActivity() {
             BackgroundCompanionManager.configureIfAssociated(
                 applicationContext,
                 pending.deviceId,
-                pending.moduleSerial,
             )
         } catch (error: Exception) {
             failAssociation(error.message ?: error.javaClass.simpleName)

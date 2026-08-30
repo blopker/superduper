@@ -162,11 +162,14 @@ the request is retained and resumed after the adapter reaches `STATE_ON`.
 
 Drift is the only writer of the background plan. Whenever the active bike,
 protocol, region, consent, or Set on connect choices change, Dart atomically
-replaces an ordered list of exact 10-byte writes. Disabled fields are encoded as
-`0xFF`, which the display's independent range checks ignore. Kotlin opens the
-database read-only, verifies the schema, bike address, plan version, sequence,
-and packet shape, then authenticates and sends the bytes without interpreting
-light, mode, assist, region, or protocol semantics. An absent plan is a no-op.
+replaces the complete native execution plan: the exact manufacturer-data scan
+filter, GATT service and characteristic identifiers, authentication inputs and
+expected state, and the ordered command payloads. Disabled fields are encoded
+as `0xFF`, which the display's independent range checks ignore. Kotlin opens the
+database read-only, validates the plan's transport-level shape, then supplies
+that data to Android's scan, digest, and GATT APIs. It contains no bike UUIDs,
+manufacturer IDs, authentication secrets, or light, mode, assist, region, and
+protocol semantics. An absent plan is a no-op.
 
 The implementation still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung/Xiaomi hardware matrix.
 
@@ -263,24 +266,27 @@ This keeps a single connection owner and tests whether a cold Flutter launch is 
 The Android background path is deliberately smaller than the foreground session:
 
 ```text
+load the materialized execution plan
 connect
-discover fixed services and characteristics
-read authentication challenge
-write authentication response
-verify authentication
-load the pre-encoded command plan
+discover the plan's services and characteristics
+read the plan's authentication challenge
+write the computed authentication response
+verify the plan's expected authentication state
 write its commands in order
 record the acknowledged write
 record result
 ```
 
-This is a bike-specific state machine, not a general BLE library. Swift and Kotlin implementations should share language-neutral golden fixtures for authentication, V1 and V2 packet encoding, configuration merging, and manufacturer filters.
+This is a bounded plan executor, not a general BLE library. Dart owns the bike-specific golden fixtures for authentication inputs, V1 and V2 packet encoding, configuration merging, and manufacturer filters. Native implementations validate and execute the same materialized plan format.
 
-The native transaction consumes an atomic desired-state snapshot containing only:
+The native transaction consumes an atomic execution snapshot containing:
 
 - a plan-format version;
 - the active bike Bluetooth address; and
-- ordered, literal 10-byte command payloads.
+- an exact manufacturer-data scan filter;
+- service and characteristic identifiers;
+- authentication algorithm inputs and expected state; and
+- ordered, literal command payloads.
 
 It writes timestamps and a bounded diagnostic outcome to Android shared preferences. It never mutates Drift.
 

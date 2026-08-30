@@ -2614,8 +2614,168 @@ class $BackgroundSyncPlansTable extends BackgroundSyncPlans
       'REFERENCES bikes (device_id) ON DELETE CASCADE',
     ),
   );
+  static const VerificationMeta _scanManufacturerIdMeta =
+      const VerificationMeta('scanManufacturerId');
   @override
-  List<GeneratedColumn> get $columns => [singletonId, planVersion, deviceId];
+  late final GeneratedColumn<int> scanManufacturerId = GeneratedColumn<int>(
+    'scan_manufacturer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scanManufacturerDataMeta =
+      const VerificationMeta('scanManufacturerData');
+  @override
+  late final GeneratedColumn<Uint8List> scanManufacturerData =
+      GeneratedColumn<Uint8List>(
+        'scan_manufacturer_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _scanManufacturerMaskMeta =
+      const VerificationMeta('scanManufacturerMask');
+  @override
+  late final GeneratedColumn<Uint8List> scanManufacturerMask =
+      GeneratedColumn<Uint8List>(
+        'scan_manufacturer_mask',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationServiceUuidMeta =
+      const VerificationMeta('authenticationServiceUuid');
+  @override
+  late final GeneratedColumn<String> authenticationServiceUuid =
+      GeneratedColumn<String>(
+        'authentication_service_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationChallengeUuidMeta =
+      const VerificationMeta('authenticationChallengeUuid');
+  @override
+  late final GeneratedColumn<String> authenticationChallengeUuid =
+      GeneratedColumn<String>(
+        'authentication_challenge_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationResponseUuidMeta =
+      const VerificationMeta('authenticationResponseUuid');
+  @override
+  late final GeneratedColumn<String> authenticationResponseUuid =
+      GeneratedColumn<String>(
+        'authentication_response_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationStateUuidMeta =
+      const VerificationMeta('authenticationStateUuid');
+  @override
+  late final GeneratedColumn<String> authenticationStateUuid =
+      GeneratedColumn<String>(
+        'authentication_state_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationChallengeLengthMeta =
+      const VerificationMeta('authenticationChallengeLength');
+  @override
+  late final GeneratedColumn<int> authenticationChallengeLength =
+      GeneratedColumn<int>(
+        'authentication_challenge_length',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationDigestMeta =
+      const VerificationMeta('authenticationDigest');
+  @override
+  late final GeneratedColumn<String> authenticationDigest =
+      GeneratedColumn<String>(
+        'authentication_digest',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticationKeyMeta = const VerificationMeta(
+    'authenticationKey',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> authenticationKey =
+      GeneratedColumn<Uint8List>(
+        'authentication_key',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _authenticatedStateMeta =
+      const VerificationMeta('authenticatedState');
+  @override
+  late final GeneratedColumn<Uint8List> authenticatedState =
+      GeneratedColumn<Uint8List>(
+        'authenticated_state',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _commandServiceUuidMeta =
+      const VerificationMeta('commandServiceUuid');
+  @override
+  late final GeneratedColumn<String> commandServiceUuid =
+      GeneratedColumn<String>(
+        'command_service_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _commandCharacteristicUuidMeta =
+      const VerificationMeta('commandCharacteristicUuid');
+  @override
+  late final GeneratedColumn<String> commandCharacteristicUuid =
+      GeneratedColumn<String>(
+        'command_characteristic_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singletonId,
+    planVersion,
+    deviceId,
+    scanManufacturerId,
+    scanManufacturerData,
+    scanManufacturerMask,
+    authenticationServiceUuid,
+    authenticationChallengeUuid,
+    authenticationResponseUuid,
+    authenticationStateUuid,
+    authenticationChallengeLength,
+    authenticationDigest,
+    authenticationKey,
+    authenticatedState,
+    commandServiceUuid,
+    commandCharacteristicUuid,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2656,6 +2816,149 @@ class $BackgroundSyncPlansTable extends BackgroundSyncPlans
     } else if (isInserting) {
       context.missing(_deviceIdMeta);
     }
+    if (data.containsKey('scan_manufacturer_id')) {
+      context.handle(
+        _scanManufacturerIdMeta,
+        scanManufacturerId.isAcceptableOrUnknown(
+          data['scan_manufacturer_id']!,
+          _scanManufacturerIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scanManufacturerIdMeta);
+    }
+    if (data.containsKey('scan_manufacturer_data')) {
+      context.handle(
+        _scanManufacturerDataMeta,
+        scanManufacturerData.isAcceptableOrUnknown(
+          data['scan_manufacturer_data']!,
+          _scanManufacturerDataMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scanManufacturerDataMeta);
+    }
+    if (data.containsKey('scan_manufacturer_mask')) {
+      context.handle(
+        _scanManufacturerMaskMeta,
+        scanManufacturerMask.isAcceptableOrUnknown(
+          data['scan_manufacturer_mask']!,
+          _scanManufacturerMaskMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scanManufacturerMaskMeta);
+    }
+    if (data.containsKey('authentication_service_uuid')) {
+      context.handle(
+        _authenticationServiceUuidMeta,
+        authenticationServiceUuid.isAcceptableOrUnknown(
+          data['authentication_service_uuid']!,
+          _authenticationServiceUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationServiceUuidMeta);
+    }
+    if (data.containsKey('authentication_challenge_uuid')) {
+      context.handle(
+        _authenticationChallengeUuidMeta,
+        authenticationChallengeUuid.isAcceptableOrUnknown(
+          data['authentication_challenge_uuid']!,
+          _authenticationChallengeUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationChallengeUuidMeta);
+    }
+    if (data.containsKey('authentication_response_uuid')) {
+      context.handle(
+        _authenticationResponseUuidMeta,
+        authenticationResponseUuid.isAcceptableOrUnknown(
+          data['authentication_response_uuid']!,
+          _authenticationResponseUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationResponseUuidMeta);
+    }
+    if (data.containsKey('authentication_state_uuid')) {
+      context.handle(
+        _authenticationStateUuidMeta,
+        authenticationStateUuid.isAcceptableOrUnknown(
+          data['authentication_state_uuid']!,
+          _authenticationStateUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationStateUuidMeta);
+    }
+    if (data.containsKey('authentication_challenge_length')) {
+      context.handle(
+        _authenticationChallengeLengthMeta,
+        authenticationChallengeLength.isAcceptableOrUnknown(
+          data['authentication_challenge_length']!,
+          _authenticationChallengeLengthMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationChallengeLengthMeta);
+    }
+    if (data.containsKey('authentication_digest')) {
+      context.handle(
+        _authenticationDigestMeta,
+        authenticationDigest.isAcceptableOrUnknown(
+          data['authentication_digest']!,
+          _authenticationDigestMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationDigestMeta);
+    }
+    if (data.containsKey('authentication_key')) {
+      context.handle(
+        _authenticationKeyMeta,
+        authenticationKey.isAcceptableOrUnknown(
+          data['authentication_key']!,
+          _authenticationKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticationKeyMeta);
+    }
+    if (data.containsKey('authenticated_state')) {
+      context.handle(
+        _authenticatedStateMeta,
+        authenticatedState.isAcceptableOrUnknown(
+          data['authenticated_state']!,
+          _authenticatedStateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_authenticatedStateMeta);
+    }
+    if (data.containsKey('command_service_uuid')) {
+      context.handle(
+        _commandServiceUuidMeta,
+        commandServiceUuid.isAcceptableOrUnknown(
+          data['command_service_uuid']!,
+          _commandServiceUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_commandServiceUuidMeta);
+    }
+    if (data.containsKey('command_characteristic_uuid')) {
+      context.handle(
+        _commandCharacteristicUuidMeta,
+        commandCharacteristicUuid.isAcceptableOrUnknown(
+          data['command_characteristic_uuid']!,
+          _commandCharacteristicUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_commandCharacteristicUuidMeta);
+    }
     return context;
   }
 
@@ -2677,6 +2980,58 @@ class $BackgroundSyncPlansTable extends BackgroundSyncPlans
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      scanManufacturerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scan_manufacturer_id'],
+      )!,
+      scanManufacturerData: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}scan_manufacturer_data'],
+      )!,
+      scanManufacturerMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}scan_manufacturer_mask'],
+      )!,
+      authenticationServiceUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}authentication_service_uuid'],
+      )!,
+      authenticationChallengeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}authentication_challenge_uuid'],
+      )!,
+      authenticationResponseUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}authentication_response_uuid'],
+      )!,
+      authenticationStateUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}authentication_state_uuid'],
+      )!,
+      authenticationChallengeLength: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}authentication_challenge_length'],
+      )!,
+      authenticationDigest: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}authentication_digest'],
+      )!,
+      authenticationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}authentication_key'],
+      )!,
+      authenticatedState: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}authenticated_state'],
+      )!,
+      commandServiceUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}command_service_uuid'],
+      )!,
+      commandCharacteristicUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}command_characteristic_uuid'],
+      )!,
     );
   }
 
@@ -2691,10 +3046,36 @@ class BackgroundSyncPlanRow extends DataClass
   final int singletonId;
   final int planVersion;
   final String deviceId;
+  final int scanManufacturerId;
+  final Uint8List scanManufacturerData;
+  final Uint8List scanManufacturerMask;
+  final String authenticationServiceUuid;
+  final String authenticationChallengeUuid;
+  final String authenticationResponseUuid;
+  final String authenticationStateUuid;
+  final int authenticationChallengeLength;
+  final String authenticationDigest;
+  final Uint8List authenticationKey;
+  final Uint8List authenticatedState;
+  final String commandServiceUuid;
+  final String commandCharacteristicUuid;
   const BackgroundSyncPlanRow({
     required this.singletonId,
     required this.planVersion,
     required this.deviceId,
+    required this.scanManufacturerId,
+    required this.scanManufacturerData,
+    required this.scanManufacturerMask,
+    required this.authenticationServiceUuid,
+    required this.authenticationChallengeUuid,
+    required this.authenticationResponseUuid,
+    required this.authenticationStateUuid,
+    required this.authenticationChallengeLength,
+    required this.authenticationDigest,
+    required this.authenticationKey,
+    required this.authenticatedState,
+    required this.commandServiceUuid,
+    required this.commandCharacteristicUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2702,6 +3083,31 @@ class BackgroundSyncPlanRow extends DataClass
     map['singleton_id'] = Variable<int>(singletonId);
     map['plan_version'] = Variable<int>(planVersion);
     map['device_id'] = Variable<String>(deviceId);
+    map['scan_manufacturer_id'] = Variable<int>(scanManufacturerId);
+    map['scan_manufacturer_data'] = Variable<Uint8List>(scanManufacturerData);
+    map['scan_manufacturer_mask'] = Variable<Uint8List>(scanManufacturerMask);
+    map['authentication_service_uuid'] = Variable<String>(
+      authenticationServiceUuid,
+    );
+    map['authentication_challenge_uuid'] = Variable<String>(
+      authenticationChallengeUuid,
+    );
+    map['authentication_response_uuid'] = Variable<String>(
+      authenticationResponseUuid,
+    );
+    map['authentication_state_uuid'] = Variable<String>(
+      authenticationStateUuid,
+    );
+    map['authentication_challenge_length'] = Variable<int>(
+      authenticationChallengeLength,
+    );
+    map['authentication_digest'] = Variable<String>(authenticationDigest);
+    map['authentication_key'] = Variable<Uint8List>(authenticationKey);
+    map['authenticated_state'] = Variable<Uint8List>(authenticatedState);
+    map['command_service_uuid'] = Variable<String>(commandServiceUuid);
+    map['command_characteristic_uuid'] = Variable<String>(
+      commandCharacteristicUuid,
+    );
     return map;
   }
 
@@ -2710,6 +3116,19 @@ class BackgroundSyncPlanRow extends DataClass
       singletonId: Value(singletonId),
       planVersion: Value(planVersion),
       deviceId: Value(deviceId),
+      scanManufacturerId: Value(scanManufacturerId),
+      scanManufacturerData: Value(scanManufacturerData),
+      scanManufacturerMask: Value(scanManufacturerMask),
+      authenticationServiceUuid: Value(authenticationServiceUuid),
+      authenticationChallengeUuid: Value(authenticationChallengeUuid),
+      authenticationResponseUuid: Value(authenticationResponseUuid),
+      authenticationStateUuid: Value(authenticationStateUuid),
+      authenticationChallengeLength: Value(authenticationChallengeLength),
+      authenticationDigest: Value(authenticationDigest),
+      authenticationKey: Value(authenticationKey),
+      authenticatedState: Value(authenticatedState),
+      commandServiceUuid: Value(commandServiceUuid),
+      commandCharacteristicUuid: Value(commandCharacteristicUuid),
     );
   }
 
@@ -2722,6 +3141,43 @@ class BackgroundSyncPlanRow extends DataClass
       singletonId: serializer.fromJson<int>(json['singletonId']),
       planVersion: serializer.fromJson<int>(json['planVersion']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      scanManufacturerId: serializer.fromJson<int>(json['scanManufacturerId']),
+      scanManufacturerData: serializer.fromJson<Uint8List>(
+        json['scanManufacturerData'],
+      ),
+      scanManufacturerMask: serializer.fromJson<Uint8List>(
+        json['scanManufacturerMask'],
+      ),
+      authenticationServiceUuid: serializer.fromJson<String>(
+        json['authenticationServiceUuid'],
+      ),
+      authenticationChallengeUuid: serializer.fromJson<String>(
+        json['authenticationChallengeUuid'],
+      ),
+      authenticationResponseUuid: serializer.fromJson<String>(
+        json['authenticationResponseUuid'],
+      ),
+      authenticationStateUuid: serializer.fromJson<String>(
+        json['authenticationStateUuid'],
+      ),
+      authenticationChallengeLength: serializer.fromJson<int>(
+        json['authenticationChallengeLength'],
+      ),
+      authenticationDigest: serializer.fromJson<String>(
+        json['authenticationDigest'],
+      ),
+      authenticationKey: serializer.fromJson<Uint8List>(
+        json['authenticationKey'],
+      ),
+      authenticatedState: serializer.fromJson<Uint8List>(
+        json['authenticatedState'],
+      ),
+      commandServiceUuid: serializer.fromJson<String>(
+        json['commandServiceUuid'],
+      ),
+      commandCharacteristicUuid: serializer.fromJson<String>(
+        json['commandCharacteristicUuid'],
+      ),
     );
   }
   @override
@@ -2731,6 +3187,35 @@ class BackgroundSyncPlanRow extends DataClass
       'singletonId': serializer.toJson<int>(singletonId),
       'planVersion': serializer.toJson<int>(planVersion),
       'deviceId': serializer.toJson<String>(deviceId),
+      'scanManufacturerId': serializer.toJson<int>(scanManufacturerId),
+      'scanManufacturerData': serializer.toJson<Uint8List>(
+        scanManufacturerData,
+      ),
+      'scanManufacturerMask': serializer.toJson<Uint8List>(
+        scanManufacturerMask,
+      ),
+      'authenticationServiceUuid': serializer.toJson<String>(
+        authenticationServiceUuid,
+      ),
+      'authenticationChallengeUuid': serializer.toJson<String>(
+        authenticationChallengeUuid,
+      ),
+      'authenticationResponseUuid': serializer.toJson<String>(
+        authenticationResponseUuid,
+      ),
+      'authenticationStateUuid': serializer.toJson<String>(
+        authenticationStateUuid,
+      ),
+      'authenticationChallengeLength': serializer.toJson<int>(
+        authenticationChallengeLength,
+      ),
+      'authenticationDigest': serializer.toJson<String>(authenticationDigest),
+      'authenticationKey': serializer.toJson<Uint8List>(authenticationKey),
+      'authenticatedState': serializer.toJson<Uint8List>(authenticatedState),
+      'commandServiceUuid': serializer.toJson<String>(commandServiceUuid),
+      'commandCharacteristicUuid': serializer.toJson<String>(
+        commandCharacteristicUuid,
+      ),
     };
   }
 
@@ -2738,10 +3223,42 @@ class BackgroundSyncPlanRow extends DataClass
     int? singletonId,
     int? planVersion,
     String? deviceId,
+    int? scanManufacturerId,
+    Uint8List? scanManufacturerData,
+    Uint8List? scanManufacturerMask,
+    String? authenticationServiceUuid,
+    String? authenticationChallengeUuid,
+    String? authenticationResponseUuid,
+    String? authenticationStateUuid,
+    int? authenticationChallengeLength,
+    String? authenticationDigest,
+    Uint8List? authenticationKey,
+    Uint8List? authenticatedState,
+    String? commandServiceUuid,
+    String? commandCharacteristicUuid,
   }) => BackgroundSyncPlanRow(
     singletonId: singletonId ?? this.singletonId,
     planVersion: planVersion ?? this.planVersion,
     deviceId: deviceId ?? this.deviceId,
+    scanManufacturerId: scanManufacturerId ?? this.scanManufacturerId,
+    scanManufacturerData: scanManufacturerData ?? this.scanManufacturerData,
+    scanManufacturerMask: scanManufacturerMask ?? this.scanManufacturerMask,
+    authenticationServiceUuid:
+        authenticationServiceUuid ?? this.authenticationServiceUuid,
+    authenticationChallengeUuid:
+        authenticationChallengeUuid ?? this.authenticationChallengeUuid,
+    authenticationResponseUuid:
+        authenticationResponseUuid ?? this.authenticationResponseUuid,
+    authenticationStateUuid:
+        authenticationStateUuid ?? this.authenticationStateUuid,
+    authenticationChallengeLength:
+        authenticationChallengeLength ?? this.authenticationChallengeLength,
+    authenticationDigest: authenticationDigest ?? this.authenticationDigest,
+    authenticationKey: authenticationKey ?? this.authenticationKey,
+    authenticatedState: authenticatedState ?? this.authenticatedState,
+    commandServiceUuid: commandServiceUuid ?? this.commandServiceUuid,
+    commandCharacteristicUuid:
+        commandCharacteristicUuid ?? this.commandCharacteristicUuid,
   );
   BackgroundSyncPlanRow copyWithCompanion(BackgroundSyncPlansCompanion data) {
     return BackgroundSyncPlanRow(
@@ -2752,6 +3269,45 @@ class BackgroundSyncPlanRow extends DataClass
           ? data.planVersion.value
           : this.planVersion,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      scanManufacturerId: data.scanManufacturerId.present
+          ? data.scanManufacturerId.value
+          : this.scanManufacturerId,
+      scanManufacturerData: data.scanManufacturerData.present
+          ? data.scanManufacturerData.value
+          : this.scanManufacturerData,
+      scanManufacturerMask: data.scanManufacturerMask.present
+          ? data.scanManufacturerMask.value
+          : this.scanManufacturerMask,
+      authenticationServiceUuid: data.authenticationServiceUuid.present
+          ? data.authenticationServiceUuid.value
+          : this.authenticationServiceUuid,
+      authenticationChallengeUuid: data.authenticationChallengeUuid.present
+          ? data.authenticationChallengeUuid.value
+          : this.authenticationChallengeUuid,
+      authenticationResponseUuid: data.authenticationResponseUuid.present
+          ? data.authenticationResponseUuid.value
+          : this.authenticationResponseUuid,
+      authenticationStateUuid: data.authenticationStateUuid.present
+          ? data.authenticationStateUuid.value
+          : this.authenticationStateUuid,
+      authenticationChallengeLength: data.authenticationChallengeLength.present
+          ? data.authenticationChallengeLength.value
+          : this.authenticationChallengeLength,
+      authenticationDigest: data.authenticationDigest.present
+          ? data.authenticationDigest.value
+          : this.authenticationDigest,
+      authenticationKey: data.authenticationKey.present
+          ? data.authenticationKey.value
+          : this.authenticationKey,
+      authenticatedState: data.authenticatedState.present
+          ? data.authenticatedState.value
+          : this.authenticatedState,
+      commandServiceUuid: data.commandServiceUuid.present
+          ? data.commandServiceUuid.value
+          : this.commandServiceUuid,
+      commandCharacteristicUuid: data.commandCharacteristicUuid.present
+          ? data.commandCharacteristicUuid.value
+          : this.commandCharacteristicUuid,
     );
   }
 
@@ -2760,20 +3316,79 @@ class BackgroundSyncPlanRow extends DataClass
     return (StringBuffer('BackgroundSyncPlanRow(')
           ..write('singletonId: $singletonId, ')
           ..write('planVersion: $planVersion, ')
-          ..write('deviceId: $deviceId')
+          ..write('deviceId: $deviceId, ')
+          ..write('scanManufacturerId: $scanManufacturerId, ')
+          ..write('scanManufacturerData: $scanManufacturerData, ')
+          ..write('scanManufacturerMask: $scanManufacturerMask, ')
+          ..write('authenticationServiceUuid: $authenticationServiceUuid, ')
+          ..write('authenticationChallengeUuid: $authenticationChallengeUuid, ')
+          ..write('authenticationResponseUuid: $authenticationResponseUuid, ')
+          ..write('authenticationStateUuid: $authenticationStateUuid, ')
+          ..write(
+            'authenticationChallengeLength: $authenticationChallengeLength, ',
+          )
+          ..write('authenticationDigest: $authenticationDigest, ')
+          ..write('authenticationKey: $authenticationKey, ')
+          ..write('authenticatedState: $authenticatedState, ')
+          ..write('commandServiceUuid: $commandServiceUuid, ')
+          ..write('commandCharacteristicUuid: $commandCharacteristicUuid')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(singletonId, planVersion, deviceId);
+  int get hashCode => Object.hash(
+    singletonId,
+    planVersion,
+    deviceId,
+    scanManufacturerId,
+    $driftBlobEquality.hash(scanManufacturerData),
+    $driftBlobEquality.hash(scanManufacturerMask),
+    authenticationServiceUuid,
+    authenticationChallengeUuid,
+    authenticationResponseUuid,
+    authenticationStateUuid,
+    authenticationChallengeLength,
+    authenticationDigest,
+    $driftBlobEquality.hash(authenticationKey),
+    $driftBlobEquality.hash(authenticatedState),
+    commandServiceUuid,
+    commandCharacteristicUuid,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is BackgroundSyncPlanRow &&
           other.singletonId == this.singletonId &&
           other.planVersion == this.planVersion &&
-          other.deviceId == this.deviceId);
+          other.deviceId == this.deviceId &&
+          other.scanManufacturerId == this.scanManufacturerId &&
+          $driftBlobEquality.equals(
+            other.scanManufacturerData,
+            this.scanManufacturerData,
+          ) &&
+          $driftBlobEquality.equals(
+            other.scanManufacturerMask,
+            this.scanManufacturerMask,
+          ) &&
+          other.authenticationServiceUuid == this.authenticationServiceUuid &&
+          other.authenticationChallengeUuid ==
+              this.authenticationChallengeUuid &&
+          other.authenticationResponseUuid == this.authenticationResponseUuid &&
+          other.authenticationStateUuid == this.authenticationStateUuid &&
+          other.authenticationChallengeLength ==
+              this.authenticationChallengeLength &&
+          other.authenticationDigest == this.authenticationDigest &&
+          $driftBlobEquality.equals(
+            other.authenticationKey,
+            this.authenticationKey,
+          ) &&
+          $driftBlobEquality.equals(
+            other.authenticatedState,
+            this.authenticatedState,
+          ) &&
+          other.commandServiceUuid == this.commandServiceUuid &&
+          other.commandCharacteristicUuid == this.commandCharacteristicUuid);
 }
 
 class BackgroundSyncPlansCompanion
@@ -2781,26 +3396,115 @@ class BackgroundSyncPlansCompanion
   final Value<int> singletonId;
   final Value<int> planVersion;
   final Value<String> deviceId;
+  final Value<int> scanManufacturerId;
+  final Value<Uint8List> scanManufacturerData;
+  final Value<Uint8List> scanManufacturerMask;
+  final Value<String> authenticationServiceUuid;
+  final Value<String> authenticationChallengeUuid;
+  final Value<String> authenticationResponseUuid;
+  final Value<String> authenticationStateUuid;
+  final Value<int> authenticationChallengeLength;
+  final Value<String> authenticationDigest;
+  final Value<Uint8List> authenticationKey;
+  final Value<Uint8List> authenticatedState;
+  final Value<String> commandServiceUuid;
+  final Value<String> commandCharacteristicUuid;
   const BackgroundSyncPlansCompanion({
     this.singletonId = const Value.absent(),
     this.planVersion = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.scanManufacturerId = const Value.absent(),
+    this.scanManufacturerData = const Value.absent(),
+    this.scanManufacturerMask = const Value.absent(),
+    this.authenticationServiceUuid = const Value.absent(),
+    this.authenticationChallengeUuid = const Value.absent(),
+    this.authenticationResponseUuid = const Value.absent(),
+    this.authenticationStateUuid = const Value.absent(),
+    this.authenticationChallengeLength = const Value.absent(),
+    this.authenticationDigest = const Value.absent(),
+    this.authenticationKey = const Value.absent(),
+    this.authenticatedState = const Value.absent(),
+    this.commandServiceUuid = const Value.absent(),
+    this.commandCharacteristicUuid = const Value.absent(),
   });
   BackgroundSyncPlansCompanion.insert({
     this.singletonId = const Value.absent(),
     required int planVersion,
     required String deviceId,
+    required int scanManufacturerId,
+    required Uint8List scanManufacturerData,
+    required Uint8List scanManufacturerMask,
+    required String authenticationServiceUuid,
+    required String authenticationChallengeUuid,
+    required String authenticationResponseUuid,
+    required String authenticationStateUuid,
+    required int authenticationChallengeLength,
+    required String authenticationDigest,
+    required Uint8List authenticationKey,
+    required Uint8List authenticatedState,
+    required String commandServiceUuid,
+    required String commandCharacteristicUuid,
   }) : planVersion = Value(planVersion),
-       deviceId = Value(deviceId);
+       deviceId = Value(deviceId),
+       scanManufacturerId = Value(scanManufacturerId),
+       scanManufacturerData = Value(scanManufacturerData),
+       scanManufacturerMask = Value(scanManufacturerMask),
+       authenticationServiceUuid = Value(authenticationServiceUuid),
+       authenticationChallengeUuid = Value(authenticationChallengeUuid),
+       authenticationResponseUuid = Value(authenticationResponseUuid),
+       authenticationStateUuid = Value(authenticationStateUuid),
+       authenticationChallengeLength = Value(authenticationChallengeLength),
+       authenticationDigest = Value(authenticationDigest),
+       authenticationKey = Value(authenticationKey),
+       authenticatedState = Value(authenticatedState),
+       commandServiceUuid = Value(commandServiceUuid),
+       commandCharacteristicUuid = Value(commandCharacteristicUuid);
   static Insertable<BackgroundSyncPlanRow> custom({
     Expression<int>? singletonId,
     Expression<int>? planVersion,
     Expression<String>? deviceId,
+    Expression<int>? scanManufacturerId,
+    Expression<Uint8List>? scanManufacturerData,
+    Expression<Uint8List>? scanManufacturerMask,
+    Expression<String>? authenticationServiceUuid,
+    Expression<String>? authenticationChallengeUuid,
+    Expression<String>? authenticationResponseUuid,
+    Expression<String>? authenticationStateUuid,
+    Expression<int>? authenticationChallengeLength,
+    Expression<String>? authenticationDigest,
+    Expression<Uint8List>? authenticationKey,
+    Expression<Uint8List>? authenticatedState,
+    Expression<String>? commandServiceUuid,
+    Expression<String>? commandCharacteristicUuid,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
       if (planVersion != null) 'plan_version': planVersion,
       if (deviceId != null) 'device_id': deviceId,
+      if (scanManufacturerId != null)
+        'scan_manufacturer_id': scanManufacturerId,
+      if (scanManufacturerData != null)
+        'scan_manufacturer_data': scanManufacturerData,
+      if (scanManufacturerMask != null)
+        'scan_manufacturer_mask': scanManufacturerMask,
+      if (authenticationServiceUuid != null)
+        'authentication_service_uuid': authenticationServiceUuid,
+      if (authenticationChallengeUuid != null)
+        'authentication_challenge_uuid': authenticationChallengeUuid,
+      if (authenticationResponseUuid != null)
+        'authentication_response_uuid': authenticationResponseUuid,
+      if (authenticationStateUuid != null)
+        'authentication_state_uuid': authenticationStateUuid,
+      if (authenticationChallengeLength != null)
+        'authentication_challenge_length': authenticationChallengeLength,
+      if (authenticationDigest != null)
+        'authentication_digest': authenticationDigest,
+      if (authenticationKey != null) 'authentication_key': authenticationKey,
+      if (authenticatedState != null) 'authenticated_state': authenticatedState,
+      if (commandServiceUuid != null)
+        'command_service_uuid': commandServiceUuid,
+      if (commandCharacteristicUuid != null)
+        'command_characteristic_uuid': commandCharacteristicUuid,
     });
   }
 
@@ -2808,11 +3512,43 @@ class BackgroundSyncPlansCompanion
     Value<int>? singletonId,
     Value<int>? planVersion,
     Value<String>? deviceId,
+    Value<int>? scanManufacturerId,
+    Value<Uint8List>? scanManufacturerData,
+    Value<Uint8List>? scanManufacturerMask,
+    Value<String>? authenticationServiceUuid,
+    Value<String>? authenticationChallengeUuid,
+    Value<String>? authenticationResponseUuid,
+    Value<String>? authenticationStateUuid,
+    Value<int>? authenticationChallengeLength,
+    Value<String>? authenticationDigest,
+    Value<Uint8List>? authenticationKey,
+    Value<Uint8List>? authenticatedState,
+    Value<String>? commandServiceUuid,
+    Value<String>? commandCharacteristicUuid,
   }) {
     return BackgroundSyncPlansCompanion(
       singletonId: singletonId ?? this.singletonId,
       planVersion: planVersion ?? this.planVersion,
       deviceId: deviceId ?? this.deviceId,
+      scanManufacturerId: scanManufacturerId ?? this.scanManufacturerId,
+      scanManufacturerData: scanManufacturerData ?? this.scanManufacturerData,
+      scanManufacturerMask: scanManufacturerMask ?? this.scanManufacturerMask,
+      authenticationServiceUuid:
+          authenticationServiceUuid ?? this.authenticationServiceUuid,
+      authenticationChallengeUuid:
+          authenticationChallengeUuid ?? this.authenticationChallengeUuid,
+      authenticationResponseUuid:
+          authenticationResponseUuid ?? this.authenticationResponseUuid,
+      authenticationStateUuid:
+          authenticationStateUuid ?? this.authenticationStateUuid,
+      authenticationChallengeLength:
+          authenticationChallengeLength ?? this.authenticationChallengeLength,
+      authenticationDigest: authenticationDigest ?? this.authenticationDigest,
+      authenticationKey: authenticationKey ?? this.authenticationKey,
+      authenticatedState: authenticatedState ?? this.authenticatedState,
+      commandServiceUuid: commandServiceUuid ?? this.commandServiceUuid,
+      commandCharacteristicUuid:
+          commandCharacteristicUuid ?? this.commandCharacteristicUuid,
     );
   }
 
@@ -2828,6 +3564,65 @@ class BackgroundSyncPlansCompanion
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (scanManufacturerId.present) {
+      map['scan_manufacturer_id'] = Variable<int>(scanManufacturerId.value);
+    }
+    if (scanManufacturerData.present) {
+      map['scan_manufacturer_data'] = Variable<Uint8List>(
+        scanManufacturerData.value,
+      );
+    }
+    if (scanManufacturerMask.present) {
+      map['scan_manufacturer_mask'] = Variable<Uint8List>(
+        scanManufacturerMask.value,
+      );
+    }
+    if (authenticationServiceUuid.present) {
+      map['authentication_service_uuid'] = Variable<String>(
+        authenticationServiceUuid.value,
+      );
+    }
+    if (authenticationChallengeUuid.present) {
+      map['authentication_challenge_uuid'] = Variable<String>(
+        authenticationChallengeUuid.value,
+      );
+    }
+    if (authenticationResponseUuid.present) {
+      map['authentication_response_uuid'] = Variable<String>(
+        authenticationResponseUuid.value,
+      );
+    }
+    if (authenticationStateUuid.present) {
+      map['authentication_state_uuid'] = Variable<String>(
+        authenticationStateUuid.value,
+      );
+    }
+    if (authenticationChallengeLength.present) {
+      map['authentication_challenge_length'] = Variable<int>(
+        authenticationChallengeLength.value,
+      );
+    }
+    if (authenticationDigest.present) {
+      map['authentication_digest'] = Variable<String>(
+        authenticationDigest.value,
+      );
+    }
+    if (authenticationKey.present) {
+      map['authentication_key'] = Variable<Uint8List>(authenticationKey.value);
+    }
+    if (authenticatedState.present) {
+      map['authenticated_state'] = Variable<Uint8List>(
+        authenticatedState.value,
+      );
+    }
+    if (commandServiceUuid.present) {
+      map['command_service_uuid'] = Variable<String>(commandServiceUuid.value);
+    }
+    if (commandCharacteristicUuid.present) {
+      map['command_characteristic_uuid'] = Variable<String>(
+        commandCharacteristicUuid.value,
+      );
+    }
     return map;
   }
 
@@ -2836,7 +3631,22 @@ class BackgroundSyncPlansCompanion
     return (StringBuffer('BackgroundSyncPlansCompanion(')
           ..write('singletonId: $singletonId, ')
           ..write('planVersion: $planVersion, ')
-          ..write('deviceId: $deviceId')
+          ..write('deviceId: $deviceId, ')
+          ..write('scanManufacturerId: $scanManufacturerId, ')
+          ..write('scanManufacturerData: $scanManufacturerData, ')
+          ..write('scanManufacturerMask: $scanManufacturerMask, ')
+          ..write('authenticationServiceUuid: $authenticationServiceUuid, ')
+          ..write('authenticationChallengeUuid: $authenticationChallengeUuid, ')
+          ..write('authenticationResponseUuid: $authenticationResponseUuid, ')
+          ..write('authenticationStateUuid: $authenticationStateUuid, ')
+          ..write(
+            'authenticationChallengeLength: $authenticationChallengeLength, ',
+          )
+          ..write('authenticationDigest: $authenticationDigest, ')
+          ..write('authenticationKey: $authenticationKey, ')
+          ..write('authenticatedState: $authenticatedState, ')
+          ..write('commandServiceUuid: $commandServiceUuid, ')
+          ..write('commandCharacteristicUuid: $commandCharacteristicUuid')
           ..write(')'))
         .toString();
   }

@@ -21,7 +21,6 @@ import androidx.annotation.RequiresApi
 internal object BackgroundCompanionManager {
     const val preferencesName = "background_sync"
     const val deviceIdKey = "device_id"
-    const val serialKey = "module_serial"
     const val lastPresenceAtKey = "last_presence_at_ms"
     const val lastPresenceSourceKey = "last_presence_source"
     const val lastSyncStartedAtKey = "last_sync_started_at_ms"
@@ -34,10 +33,10 @@ internal object BackgroundCompanionManager {
 
     private const val legacyPresentKey = "bike_present"
     private const val legacyCompanionPresentKey = "companion_present"
+    private const val legacySerialKey = "module_serial"
     private const val registrationErrorDetailKey = "registration_error_detail"
     private const val registrationErrorAtKey = "registration_error_at_ms"
     private const val typedPresenceApi = 36
-    private const val manufacturerId = 0x020f
     private const val logTag = "BackgroundSync"
 
     fun preferences(context: Context): SharedPreferences =
@@ -47,14 +46,6 @@ internal object BackgroundCompanionManager {
         val normalized = value.uppercase()
         require(BluetoothAdapter.checkBluetoothAddress(normalized)) {
             "The saved bike does not have a valid Bluetooth address"
-        }
-        return normalized
-    }
-
-    fun normalizeSerial(value: String): String {
-        val normalized = value.lowercase()
-        require(normalized.matches(Regex("[0-9a-f]{16}"))) {
-            "moduleSerial must contain exactly eight hexadecimal bytes"
         }
         return normalized
     }
@@ -81,10 +72,8 @@ internal object BackgroundCompanionManager {
     fun configureIfAssociated(
         context: Context,
         deviceId: String,
-        moduleSerial: String,
     ): Boolean {
         val address = normalizeDeviceId(deviceId)
-        val serial = normalizeSerial(moduleSerial)
         if (!hasCompanionSupport(context)) {
             throw IllegalStateException(
                 "This phone does not support Android companion-device association",
@@ -97,26 +86,27 @@ internal object BackgroundCompanionManager {
 
         val preferences = preferences(context)
         val previousAddress = preferences.getString(deviceIdKey, null)
-        val previousSerial = preferences.getString(serialKey, null)
         if (previousAddress != null && !previousAddress.equals(address, ignoreCase = true)) {
             NativeBackgroundSync.cancel("Background Sync bike changed")
             stopObserving(context, previousAddress)
             disassociate(context, previousAddress)
         }
-        if (previousSerial != null && previousSerial != serial) {
-            NativeBackgroundSync.cancel("Background Sync configuration changed")
-        }
         preferences
             .edit()
             .putString(deviceIdKey, address)
-            .putString(serialKey, serial)
+            .remove(legacySerialKey)
             .remove(legacyPresentKey)
             .remove(legacyCompanionPresentKey)
             .remove(registrationErrorDetailKey)
             .remove(registrationErrorAtKey)
             .commit()
         startObserving(context, address)
-        startAdvertisementScan(context, serial)
+        val plan = BackgroundSyncPlanStore.load(context, address)
+        if (plan == null) {
+            stopAdvertisementScan(context)
+        } else {
+            startAdvertisementScan(context, plan)
+        }
         return true
     }
 
@@ -126,9 +116,8 @@ internal object BackgroundCompanionManager {
             stopAdvertisementScan(context)
             return
         }
-        val serial = preferences.getString(serialKey, null) ?: return
         try {
-            if (!configureIfAssociated(context, address, serial)) {
+            if (!configureIfAssociated(context, address)) {
                 recordFailure(
                     context,
                     "Background Sync needs this bike to be associated again",
@@ -149,7 +138,7 @@ internal object BackgroundCompanionManager {
         }
         preferences.edit()
             .remove(deviceIdKey)
-            .remove(serialKey)
+            .remove(legacySerialKey)
             .remove(pendingSyncKey)
             .remove(presenceCooldownUntilKey)
             .remove(legacyPresentKey)
@@ -213,7 +202,7 @@ internal object BackgroundCompanionManager {
         Log.d(logTag, "CDM BLE presence observation registered")
     }
 
-    private fun startAdvertisementScan(context: Context, serial: String) {
+    private fun startAdvertisementScan(context: Context, plan: BackgroundSyncPlan) {
         if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -224,12 +213,11 @@ internal object BackgroundCompanionManager {
             ?.bluetoothLeScanner
             ?: throw IllegalStateException("Bluetooth must be on for Background Sync")
         stopAdvertisementScan(context)
-        val serialBytes = decodeSerial(serial)
         val filter = ScanFilter.Builder()
             .setManufacturerData(
-                manufacturerId,
-                serialBytes,
-                ByteArray(serialBytes.size) { 0xff.toByte() },
+                plan.scanManufacturerId,
+                plan.scanManufacturerData,
+                plan.scanManufacturerMask,
             )
             .build()
         val settings = ScanSettings.Builder()
@@ -312,10 +300,6 @@ internal object BackgroundCompanionManager {
             (if (create) PendingIntent.FLAG_UPDATE_CURRENT else PendingIntent.FLAG_NO_CREATE) or
                 PendingIntent.FLAG_MUTABLE,
         )
-    }
-
-    private fun decodeSerial(serial: String): ByteArray = ByteArray(8) { index ->
-        serial.substring(index * 2, index * 2 + 2).toInt(16).toByte()
     }
 
     private fun recordFailure(context: Context, detail: String) {

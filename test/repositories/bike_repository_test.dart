@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
@@ -148,6 +149,7 @@ void main() {
     await settingsRepository.initialize();
     await repository.addBike(
       deviceId: 'AA:BB:CC:DD:EE:FF',
+      moduleSerial: '00112233aabbccdd',
       region: BikeRegion.eu,
       setOnConnect: const BikeControlPatch(light: true, mode: 2),
       backgroundPreference: const BackgroundPreference(
@@ -164,7 +166,26 @@ void main() {
         .getSingle();
 
     expect(plan.deviceId, 'AA:BB:CC:DD:EE:FF');
-    expect(plan.planVersion, 1);
+    expect(plan.planVersion, 2);
+    expect(plan.scanManufacturerId, BikeGatt.manufacturerId);
+    expect(plan.scanManufacturerData, [0, 17, 34, 51, 170, 187, 204, 221]);
+    expect(plan.scanManufacturerMask, List<int>.filled(8, 0xff));
+    expect(plan.authenticationServiceUuid, BikeGatt.authenticationService);
+    expect(
+      plan.authenticationChallengeUuid,
+      BikeGatt.authenticationChallenge,
+    );
+    expect(plan.authenticationResponseUuid, BikeGatt.authenticationResponse);
+    expect(plan.authenticationStateUuid, BikeGatt.authenticationState);
+    expect(
+      plan.authenticationChallengeLength,
+      BikeProtocol.defaultAuthenticationKey.length,
+    );
+    expect(plan.authenticationDigest, 'SHA-1');
+    expect(plan.authenticationKey, BikeProtocol.defaultAuthenticationKey);
+    expect(plan.authenticatedState, [1]);
+    expect(plan.commandServiceUuid, BikeGatt.metricsService);
+    expect(plan.commandCharacteristicUuid, BikeGatt.stateRegister);
     expect(command.sequence, 0);
     expect(command.payload, [0, 0xd1, 1, 0xff, 6, 0, 0, 0, 0, 0]);
   });
@@ -173,6 +194,7 @@ void main() {
     await settingsRepository.initialize();
     await repository.addBike(
       deviceId: 'first',
+      moduleSerial: '00112233aabbccdd',
       setOnConnect: const BikeControlPatch(assist: 4),
       backgroundPreference: const BackgroundPreference(
         requested: true,
@@ -181,6 +203,7 @@ void main() {
     );
     await repository.addBike(
       deviceId: 'second',
+      moduleSerial: 'ffeeddccbbaa2211',
       advertisedName: 'S73 FTEX',
       setOnConnect: const BikeControlPatch(mode: 3),
       backgroundPreference: const BackgroundPreference(

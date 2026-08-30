@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 part 'app_database.g.dart';
@@ -184,11 +185,37 @@ class BackgroundSyncPlans extends Table {
   IntColumn get planVersion => integer()();
   TextColumn get deviceId =>
       text().references(Bikes, #deviceId, onDelete: KeyAction.cascade)();
+  IntColumn get scanManufacturerId => integer()();
+  BlobColumn get scanManufacturerData => blob()();
+  BlobColumn get scanManufacturerMask => blob()();
+  TextColumn get authenticationServiceUuid => text()();
+  TextColumn get authenticationChallengeUuid => text()();
+  TextColumn get authenticationResponseUuid => text()();
+  TextColumn get authenticationStateUuid => text()();
+  IntColumn get authenticationChallengeLength => integer()();
+  TextColumn get authenticationDigest => text()();
+  BlobColumn get authenticationKey => blob()();
+  BlobColumn get authenticatedState => blob()();
+  TextColumn get commandServiceUuid => text()();
+  TextColumn get commandCharacteristicUuid => text()();
 
   @override
   List<String> get customConstraints => [
     'CHECK (singleton_id = 1)',
-    'CHECK (plan_version = 1)',
+    'CHECK (plan_version = 2)',
+    'CHECK (scan_manufacturer_id BETWEEN 0 AND 65535)',
+    'CHECK (length(scan_manufacturer_data) > 0)',
+    'CHECK (length(scan_manufacturer_mask) = length(scan_manufacturer_data))',
+    'CHECK (length(authentication_service_uuid) > 0)',
+    'CHECK (length(authentication_challenge_uuid) > 0)',
+    'CHECK (length(authentication_response_uuid) > 0)',
+    'CHECK (length(authentication_state_uuid) > 0)',
+    'CHECK (authentication_challenge_length > 0)',
+    'CHECK (length(authentication_digest) > 0)',
+    'CHECK (length(authentication_key) > 0)',
+    'CHECK (length(authenticated_state) > 0)',
+    'CHECK (length(command_service_uuid) > 0)',
+    'CHECK (length(command_characteristic_uuid) > 0)',
   ];
 
   @override
@@ -209,7 +236,7 @@ class BackgroundSyncCommands extends Table {
   List<String> get customConstraints => [
     'CHECK (plan_singleton_id = 1)',
     'CHECK (sequence >= 0)',
-    'CHECK (length(payload) = 10)',
+    'CHECK (length(payload) > 0)',
   ];
 
   @override
@@ -292,6 +319,11 @@ final class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await migrator.createTable(backgroundSyncPlans);
         await migrator.createTable(backgroundSyncCommands);
+      } else if (from < 5) {
+        await migrator.deleteTable('background_sync_commands');
+        await migrator.deleteTable('background_sync_plans');
+        await migrator.createTable(backgroundSyncPlans);
+        await migrator.createTable(backgroundSyncCommands);
       }
     },
     beforeOpen: (details) async {
@@ -300,7 +332,7 @@ final class AppDatabase extends _$AppDatabase {
   );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   Future<void> refreshBackgroundSyncPlan() {
     return transaction(() async {
@@ -327,17 +359,43 @@ final class AppDatabase extends _$AppDatabase {
       }
       final bike = row.readTable(bikes);
       final preferences = row.readTable(bikePreferences);
+      final moduleSerial = bike.moduleSerial;
       if (!preferences.backgroundRequested ||
           preferences.backgroundConsentVersion < backgroundSyncConsentVersion ||
-          preferences.setOnConnect.isEmpty) {
+          preferences.setOnConnect.isEmpty ||
+          moduleSerial == null) {
+        return;
+      }
+      final serialBytes = _decodeModuleSerial(moduleSerial);
+      if (serialBytes == null) {
         return;
       }
 
       await into(backgroundSyncPlans).insert(
         BackgroundSyncPlansCompanion.insert(
           singletonId: const Value(1),
-          planVersion: 1,
+          planVersion: 2,
           deviceId: bike.deviceId,
+          scanManufacturerId: BikeGatt.manufacturerId,
+          scanManufacturerData: serialBytes,
+          scanManufacturerMask: Uint8List(serialBytes.length)..fillRange(
+            0,
+            serialBytes.length,
+            0xff,
+          ),
+          authenticationServiceUuid: BikeGatt.authenticationService,
+          authenticationChallengeUuid: BikeGatt.authenticationChallenge,
+          authenticationResponseUuid: BikeGatt.authenticationResponse,
+          authenticationStateUuid: BikeGatt.authenticationState,
+          authenticationChallengeLength:
+              BikeProtocol.defaultAuthenticationKey.length,
+          authenticationDigest: 'SHA-1',
+          authenticationKey: Uint8List.fromList(
+            BikeProtocol.defaultAuthenticationKey,
+          ),
+          authenticatedState: Uint8List.fromList(const [1]),
+          commandServiceUuid: BikeGatt.metricsService,
+          commandCharacteristicUuid: BikeGatt.stateRegister,
         ),
       );
       await into(backgroundSyncCommands).insert(
@@ -350,6 +408,16 @@ final class AppDatabase extends _$AppDatabase {
         ),
       );
     });
+  }
+
+  Uint8List? _decodeModuleSerial(String serial) {
+    if (!RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(serial)) {
+      return null;
+    }
+    return Uint8List.fromList([
+      for (var offset = 0; offset < serial.length; offset += 2)
+        int.parse(serial.substring(offset, offset + 2), radix: 16),
+    ]);
   }
 
   List<int> _backgroundControlFrame(
