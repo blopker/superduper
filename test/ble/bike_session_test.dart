@@ -84,7 +84,7 @@ void main() {
         BikeGatt.displayVersionSelector,
         BikeGatt.componentVersionsSelector,
       ]);
-      expect(session.odometerMeters.value, connection.odometerMeters);
+      expect(session.odometerMeters.value, connection.odometerMeters * 100);
       final authenticationWrite = connection.writes.singleWhere(
         (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
       );
@@ -504,8 +504,8 @@ void main() {
     await session.pauseForBackground();
     await session.resumeFromBackground();
 
-    expect(readings, [12345678, 12345678]);
-    expect(session.odometerMeters.value, 12345678);
+    expect(readings, [1234567800, 1234567800]);
+    expect(session.odometerMeters.value, 1234567800);
     expect(
       connection.writes.where(
         (write) =>

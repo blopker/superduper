@@ -465,7 +465,7 @@ data bytes 4 through 7:
 offset  size  encoding       confirmed meaning
 0       2     big-endian     02 02
 2       4                    other controller fields
-6       4     little-endian  total distance in meters
+6       4     little-endian  total distance in 100-meter units
 ```
 
 Protocol v2 exports IDs `D0`, `D1`, `D2`, and `D9`:
@@ -742,9 +742,9 @@ state. These rules apply equally to light, mode, and assist.
 
 After authentication, select `0202` for protocol v1 or `00D0` for protocol v2,
 then read and validate the matching record from `0x155f`. Bytes 6 through 9 are
-an unsigned little-endian 32-bit total distance in meters. A deterministic
-history read is preferred for an initial snapshot because unchanged telemetry
-does not produce a new notification.
+an unsigned little-endian 32-bit total distance in 100-meter units for protocol
+v1. A deterministic history read is preferred for an initial snapshot because
+unchanged telemetry does not produce a new notification.
 
 ### Authenticated protocol-identification fallback
 

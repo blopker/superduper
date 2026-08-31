@@ -304,7 +304,7 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
 
   int decodeOdometer(List<int> packet) {
     BikeProtocol._validatePacket(packet, BikeGatt.v1OdometerSelector);
-    return BikeProtocol._readLittleEndian(packet, 6, 4);
+    return BikeProtocol._readLittleEndian(packet, 6, 4) * 100;
   }
 
   @override

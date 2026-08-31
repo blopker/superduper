@@ -281,12 +281,12 @@ void main() {
   });
 
   group('decodeOdometerMeters', () {
-    test('decodes the protocol-specific record as a little-endian u32', () {
+    test('converts the protocol-specific distance units to meters', () {
       expect(
         BikeProtocol.v1.decodeOdometer(
-          const [2, 2, 0, 0, 0, 0, 0x78, 0x56, 0x34, 0x12],
+          const [2, 2, 0, 0, 0, 0, 0x72, 0x4c, 0, 0],
         ),
-        0x12345678,
+        1957000,
       );
       expect(
         BikeProtocol.v2.decodeOdometer(
