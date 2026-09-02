@@ -10,7 +10,7 @@
     <a href="https://discord.gg/STvgARZYaw"><strong>Join the Discord</strong></a>
     <br />
     <br />
-    <a href="https://testflight.apple.com/join/Tl0UibRY">iOS Download</a>
+    <a href="https://apps.apple.com/us/app/superduper-bike/id1665290602">iOS Download</a>
     ·
     <a href="https://play.google.com/store/apps/details?id=io.kbl.superduper">Android Download</a>
     ·
