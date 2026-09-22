@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/domain/bike.dart';
+import 'package:superduper/src/domain/distance.dart';
 
 void main() {
   group('module serial', () {
@@ -281,6 +282,17 @@ void main() {
   });
 
   group('decodeOdometerMeters', () {
+    test(
+      'decodes the captured V1 total-distance record in 100-meter units',
+      () {
+        final meters = BikeProtocol.v1.decodeOdometer(
+          const [0x02, 0x02, 0x00, 0x42, 0x00, 0x00, 0x47, 0x35, 0x00, 0x00],
+        );
+        expect(meters, 1363900);
+        expect(formatOdometerDistance(meters), '1363.9 km · 847.5 mi');
+      },
+    );
+
     test('converts the protocol-specific distance units to meters', () {
       expect(
         BikeProtocol.v1.decodeOdometer(
@@ -378,7 +390,7 @@ void main() {
             region: BikeRegion.us,
           ),
         ),
-        [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
+        [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0],
       );
       expect(
         BikeProtocol.v1.encodeConfiguration(
@@ -389,7 +401,7 @@ void main() {
             region: BikeRegion.eu,
           ),
         ),
-        [0, 0xd1, 0, 0, 4, 0, 0, 0, 0, 0],
+        [0, 0xd1, 0, 0, 4, 1, 0, 0, 0, 0],
       );
       expect(
         BikeProtocol.v2.encodeConfiguration(
@@ -400,7 +412,7 @@ void main() {
             region: BikeRegion.eu,
           ),
         ),
-        [0, 0xc1, 1, 3, 2, 0, 0, 0, 0, 0],
+        [0, 0xc1, 1, 3, 2, 1, 0, 0, 0, 0],
       );
     });
 

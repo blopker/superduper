@@ -80,7 +80,7 @@ void main() {
     expect(
       (await database.select(database.backgroundSyncCommands).getSingle())
           .payload,
-      [0, 0xd1, 1, 4, 0xff, 0, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 0xff, 1, 0, 0, 0, 0],
     );
   });
 }

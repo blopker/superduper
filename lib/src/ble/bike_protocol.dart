@@ -8,6 +8,10 @@ export 'package:superduper/src/domain/bike.dart'
 abstract final class BikeGatt {
   static const manufacturerId = 0x020f;
 
+  // Byte 5 of control-command history resets on bike startup. Mark every app
+  // control write so background reconnects preserve subsequent rider changes.
+  static const sessionAppliedMarker = 1;
+
   static const metricsService = '00001554-1212-efde-1523-785feabcd123';
   static const telemetry = '0000155e-1212-efde-1523-785feabcd123';
   static const stateRegister = '0000155f-1212-efde-1523-785feabcd123';
@@ -294,7 +298,7 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
       if (configuration.light) 1 else 0,
       configuration.assist,
       mode,
-      0,
+      BikeGatt.sessionAppliedMarker,
       0,
       0,
       0,
@@ -392,7 +396,7 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
       if (configuration.light) 1 else 0,
       configuration.assist,
       configuration.mode,
-      0,
+      BikeGatt.sessionAppliedMarker,
       0,
       0,
       0,

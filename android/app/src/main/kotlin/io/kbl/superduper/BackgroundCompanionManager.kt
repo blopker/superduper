@@ -28,9 +28,6 @@ internal object BackgroundCompanionManager {
     const val lastDetailKey = "last_detail"
     const val lastCompletedAtKey = "last_completed_at_ms"
     const val pendingSyncKey = "pending_sync"
-    const val presenceCooldownUntilKey = "presence_cooldown_until_ms"
-    const val presenceSessionSynchronizedKey = "presence_session_synchronized"
-    const val presenceAbsentSinceKey = "presence_absent_since_ms"
     const val connectionPausedKey = "connection_paused"
     const val scanAction = "io.kbl.superduper.BACKGROUND_SCAN"
 
@@ -106,10 +103,6 @@ internal object BackgroundCompanionManager {
             NativeBackgroundSync.cancel("Background Sync bike changed")
             stopObserving(context, previousAddress)
             disassociate(context, previousAddress)
-            preferences.edit()
-                .remove(presenceSessionSynchronizedKey)
-                .remove(presenceAbsentSinceKey)
-                .apply()
         }
         preferences
             .edit()
@@ -160,9 +153,6 @@ internal object BackgroundCompanionManager {
             .remove(deviceIdKey)
             .remove(legacySerialKey)
             .remove(pendingSyncKey)
-            .remove(presenceCooldownUntilKey)
-            .remove(presenceSessionSynchronizedKey)
-            .remove(presenceAbsentSinceKey)
             .remove(legacyPresentKey)
             .remove(legacyCompanionPresentKey)
             .apply()

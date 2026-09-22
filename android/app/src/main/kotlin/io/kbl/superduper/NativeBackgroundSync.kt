@@ -11,7 +11,6 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -68,37 +67,6 @@ internal object NativeBackgroundSync {
         )
     }
 
-    fun noteDisappearance(context: Context, deviceId: String, source: String) {
-        val applicationContext = context.applicationContext
-        mainHandler.post {
-            val preferences = BackgroundCompanionManager.preferences(applicationContext)
-            val configuredDeviceId = preferences.getString(
-                BackgroundCompanionManager.deviceIdKey,
-                null,
-            )
-            if (configuredDeviceId?.equals(deviceId, ignoreCase = true) != true) return@post
-
-            val nowMs = System.currentTimeMillis()
-            val cooldownUntil = preferences.getLong(
-                BackgroundCompanionManager.presenceCooldownUntilKey,
-                0L,
-            )
-            val credible = !loading && active == null && nowMs >= cooldownUntil
-            val previousState = readPresenceSession(preferences)
-            val nextState = PresenceSessionGate.onDisappearance(
-                previousState,
-                nowMs,
-                credible,
-            )
-            writePresenceSession(preferences, nextState)
-            if (nextState != previousState) {
-                Log.d(logTag, "Bike absence observed via $source; waiting to confirm power cycle")
-            } else if (!credible) {
-                Log.d(logTag, "Bike disappearance via $source ignored during synchronization")
-            }
-        }
-    }
-
     private fun synchronizeOnMain(context: Context, deviceId: String, source: String) {
         val preferences = BackgroundCompanionManager.preferences(context)
         preferences.edit()
@@ -117,20 +85,6 @@ internal object NativeBackgroundSync {
         if (preferences.getBoolean(BackgroundCompanionManager.connectionPausedKey, false)) {
             preferences.edit().remove(BackgroundCompanionManager.pendingSyncKey).apply()
             record(context, "skippedConnectionPaused", null)
-            return
-        }
-        val appearance = PresenceSessionGate.onAppearance(readPresenceSession(preferences))
-        writePresenceSession(preferences, appearance.state)
-        if (!appearance.shouldSynchronize) {
-            Log.d(logTag, "Native sync request ignored for an already synchronized power session")
-            return
-        }
-        val cooldownUntil = preferences.getLong(
-            BackgroundCompanionManager.presenceCooldownUntilKey,
-            0L,
-        )
-        if (System.currentTimeMillis() < cooldownUntil) {
-            Log.d(logTag, "Native sync request ignored during post-transaction cooldown")
             return
         }
         if (BackgroundSyncRuntime.isActivityForeground) {
@@ -225,14 +179,6 @@ internal object NativeBackgroundSync {
             deferUntilBluetoothOn(transaction.context)
             return
         }
-        if (outcome == "confirmed") {
-            val preferences = BackgroundCompanionManager.preferences(transaction.context)
-            writePresenceSession(
-                preferences,
-                PresenceSessionGate.onConfirmed(readPresenceSession(preferences)),
-            )
-        }
-        startPresenceCooldown(transaction.context)
         record(transaction.context, outcome, detail)
     }
 
@@ -241,7 +187,6 @@ internal object NativeBackgroundSync {
         loading = false
         val transaction = active ?: return
         active = null
-        startPresenceCooldown(transaction.context)
         transaction.cancel(reason)
         record(transaction.context, "cancelled", reason)
     }
@@ -276,53 +221,7 @@ internal object NativeBackgroundSync {
         false
     }
 
-    private fun startPresenceCooldown(context: Context) {
-        BackgroundCompanionManager.preferences(context)
-            .edit()
-            .putLong(
-                BackgroundCompanionManager.presenceCooldownUntilKey,
-                System.currentTimeMillis() + presenceCooldownMs,
-            )
-            .apply()
-    }
-
-    private fun readPresenceSession(preferences: SharedPreferences) =
-        PresenceSessionState(
-            synchronized = preferences.getBoolean(
-                BackgroundCompanionManager.presenceSessionSynchronizedKey,
-                false,
-            ),
-            absentSinceMs = if (
-                preferences.contains(BackgroundCompanionManager.presenceAbsentSinceKey)
-            ) {
-                preferences.getLong(BackgroundCompanionManager.presenceAbsentSinceKey, 0L)
-            } else {
-                null
-            },
-        )
-
-    private fun writePresenceSession(
-        preferences: SharedPreferences,
-        state: PresenceSessionState,
-    ) {
-        val editor = preferences.edit()
-            .putBoolean(
-                BackgroundCompanionManager.presenceSessionSynchronizedKey,
-                state.synchronized,
-            )
-        if (state.absentSinceMs == null) {
-            editor.remove(BackgroundCompanionManager.presenceAbsentSinceKey)
-        } else {
-            editor.putLong(
-                BackgroundCompanionManager.presenceAbsentSinceKey,
-                state.absentSinceMs,
-            )
-        }
-        editor.apply()
-    }
-
     private const val adapterResumeDelayMs = 1_000L
-    private const val presenceCooldownMs = 10_000L
 }
 
 private class NativeBikeTransaction(
@@ -336,6 +235,8 @@ private class NativeBikeTransaction(
         READING_CHALLENGE,
         WRITING_RESPONSE,
         READING_AUTHENTICATION,
+        SELECTING_HISTORY,
+        READING_HISTORY,
         WRITING_COMMAND,
         FINISHED,
     }
@@ -347,7 +248,9 @@ private class NativeBikeTransaction(
     private var responseCharacteristic: BluetoothGattCharacteristic? = null
     private var authenticationCharacteristic: BluetoothGattCharacteristic? = null
     private var commandCharacteristic: BluetoothGattCharacteristic? = null
-    private var commandIndex = 0
+    private var historySelectorCharacteristic: BluetoothGattCharacteristic? = null
+    private val controlSync = BackgroundControlSync(plan.commands.single())
+    private var pendingHistoryRead: Runnable? = null
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -460,13 +363,17 @@ private class NativeBikeTransaction(
             plan.authenticationStateUuid,
         )
         val command = commandService.characteristic(plan.commandCharacteristicUuid)
-        if (challenge == null || response == null || authentication == null || command == null) {
+        val selector = commandService.characteristic(historySelectorUuid)
+        if (challenge == null || response == null || authentication == null ||
+            command == null || selector == null
+        ) {
             finish("failed", "The bike is missing a required GATT characteristic")
             return
         }
         responseCharacteristic = response
         authenticationCharacteristic = authentication
         commandCharacteristic = command
+        historySelectorCharacteristic = selector
         state = State.READING_CHALLENGE
         if (!gatt.readCharacteristic(challenge)) {
             finish("failed", "Could not read the authentication challenge")
@@ -507,7 +414,12 @@ private class NativeBikeTransaction(
                     finish("failed", "Bike authentication was rejected")
                     return
                 }
-                writeNextCommand(gatt)
+                advanceControlSync(gatt, controlSync.start())
+            }
+
+            State.READING_HISTORY -> {
+                if (characteristic.uuid != plan.commandCharacteristicUuid) return
+                advanceControlSync(gatt, controlSync.onRead(value))
             }
 
             else -> Unit
@@ -536,14 +448,14 @@ private class NativeBikeTransaction(
                 }
             }
 
+            State.SELECTING_HISTORY -> {
+                if (characteristic.uuid != historySelectorUuid) return
+                advanceControlSync(gatt, controlSync.onWrite())
+            }
+
             State.WRITING_COMMAND -> {
                 if (characteristic.uuid != plan.commandCharacteristicUuid) return
-                commandIndex++
-                if (commandIndex == plan.commands.size) {
-                    finish("confirmed", null)
-                } else {
-                    writeNextCommand(gatt)
-                }
+                advanceControlSync(gatt, controlSync.onWrite())
             }
 
             else -> Unit
@@ -551,10 +463,41 @@ private class NativeBikeTransaction(
     }
 
     @SuppressLint("MissingPermission")
-    private fun writeNextCommand(gatt: BluetoothGatt) {
-        state = State.WRITING_COMMAND
-        if (!write(gatt, commandCharacteristic, plan.commands[commandIndex])) {
-            finish("failed", "Could not write a background command")
+    private fun advanceControlSync(gatt: BluetoothGatt, action: BackgroundControlSync.Action) {
+        when (action) {
+            is BackgroundControlSync.Action.Select -> {
+                state = State.SELECTING_HISTORY
+                if (!write(gatt, historySelectorCharacteristic, action.selector)) {
+                    finish("failed", "Could not select bike command history")
+                }
+            }
+            is BackgroundControlSync.Action.Read -> {
+                state = State.READING_HISTORY
+                val read = Runnable {
+                    synchronized(this) {
+                        if (state != State.READING_HISTORY) return@synchronized
+                        val characteristic = commandCharacteristic
+                        try {
+                            if (characteristic == null || !gatt.readCharacteristic(characteristic)) {
+                                finish("failed", "Could not read bike command history")
+                            }
+                        } catch (error: RuntimeException) {
+                            finish("failed", error.message ?: "Could not read bike command history")
+                        }
+                    }
+                }
+                pendingHistoryRead = read
+                mainHandler.postDelayed(read, action.delayMs)
+            }
+            is BackgroundControlSync.Action.Write -> {
+                state = State.WRITING_COMMAND
+                if (!write(gatt, commandCharacteristic, action.command)) {
+                    finish("failed", "Could not write the background control command")
+                }
+            }
+            is BackgroundControlSync.Action.Complete ->
+                finish(if (action.applied) "confirmed" else "skippedAlreadySynchronized", null)
+            is BackgroundControlSync.Action.Failed -> finish("failed", action.detail)
         }
     }
 
@@ -587,6 +530,8 @@ private class NativeBikeTransaction(
         if (state == State.FINISHED) return
         state = State.FINISHED
         mainHandler.removeCallbacks(timeout)
+        pendingHistoryRead?.let(mainHandler::removeCallbacks)
+        pendingHistoryRead = null
         val connection = gatt
         gatt = null
         if (connection != null) {
@@ -610,5 +555,6 @@ private class NativeBikeTransaction(
 
     private companion object {
         const val transactionTimeoutMs = 45_000L
+        val historySelectorUuid: UUID = UUID.fromString("00001564-1212-efde-1523-785feabcd123")
     }
 }

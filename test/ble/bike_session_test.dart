@@ -84,7 +84,7 @@ void main() {
         BikeGatt.displayVersionSelector,
         BikeGatt.componentVersionsSelector,
       ]);
-      expect(session.odometerMeters.value, connection.odometerMeters * 100);
+      expect(session.odometerMeters.value, connection.odometerMeters);
       final authenticationWrite = connection.writes.singleWhere(
         (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
       );
@@ -97,7 +97,7 @@ void main() {
       );
       expect(
         _configurationWrites(connection).single.value,
-        [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0],
+        [0, 0xd1, 1, 2, 3, 1, 0, 0, 0, 0],
       );
     },
   );
@@ -124,7 +124,7 @@ void main() {
 
     expect(
       _configurationWrites(connection).single.value,
-      [0, 0xd1, 1, 2, 3, 0, 0, 0, 0, 0],
+      [0, 0xd1, 1, 2, 3, 1, 0, 0, 0, 0],
     );
   });
 
@@ -156,7 +156,7 @@ void main() {
 
     expect(
       _configurationWrites(connection).single.value,
-      [0, 0xc1, 1, 2, 3, 0, 0, 0, 0, 0],
+      [0, 0xc1, 1, 2, 3, 1, 0, 0, 0, 0],
     );
   });
 
@@ -312,10 +312,10 @@ void main() {
     final configurationWrites = _configurationWrites(connection);
     expect(configurationWrites, hasLength(4));
     expect(configurationWrites.map((write) => write.value), [
-      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
-      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
-      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
-      [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0],
+      [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0],
     ]);
     expect(session.state.value, isA<SessionReady>());
   });
@@ -335,8 +335,8 @@ void main() {
           .map((write) => write.value)
           .toList();
       expect(writes, hasLength(2));
-      expect(writes.first, [0, 0xd1, 0, 1, 0, 0, 0, 0, 0, 0]);
-      expect(writes.last, [0, 0xd1, 0, 1, 3, 0, 0, 0, 0, 0]);
+      expect(writes.first, [0, 0xd1, 0, 1, 0, 1, 0, 0, 0, 0]);
+      expect(writes.last, [0, 0xd1, 0, 1, 3, 1, 0, 0, 0, 0]);
     },
   );
 
@@ -488,34 +488,37 @@ void main() {
     );
   });
 
-  test('reads and publishes the V1 odometer on every connection', () async {
-    connection
-      ..odometerMeters = 12345678
-      ..readFrames.addAll([
-        [0, 0, 2, 0, 1, 3],
-        [0, 0, 2, 0, 1, 3],
-      ]);
-    final readings = <int>[];
-    session = createSession(
-      onOdometerRead: (meters) async => readings.add(meters),
-    );
+  test(
+    'reads the V1 odometer at 100-meter resolution on every connection',
+    () async {
+      connection
+        ..odometerMeters = 12345678
+        ..readFrames.addAll([
+          [0, 0, 2, 0, 1, 3],
+          [0, 0, 2, 0, 1, 3],
+        ]);
+      final readings = <int>[];
+      session = createSession(
+        onOdometerRead: (meters) async => readings.add(meters),
+      );
 
-    await session.connect();
-    await session.pauseForBackground();
-    await session.resumeFromBackground();
+      await session.connect();
+      await session.pauseForBackground();
+      await session.resumeFromBackground();
 
-    expect(readings, [1234567800, 1234567800]);
-    expect(session.odometerMeters.value, 1234567800);
-    expect(
-      connection.writes.where(
-        (write) =>
-            write.characteristicUuid == BikeGatt.registerSelector &&
-            write.value[0] == 0x02 &&
-            write.value[1] == 0x02,
-      ),
-      hasLength(2),
-    );
-  });
+      expect(readings, [12345600, 12345600]);
+      expect(session.odometerMeters.value, 12345600);
+      expect(
+        connection.writes.where(
+          (write) =>
+              write.characteristicUuid == BikeGatt.registerSelector &&
+              write.value[0] == 0x02 &&
+              write.value[1] == 0x02,
+        ),
+        hasLength(2),
+      );
+    },
+  );
 
   test('reuses the V2 control record as its odometer reading', () async {
     connection.readFrames.addAll([
@@ -761,7 +764,7 @@ void main() {
 
     final configurationWrites = _configurationWrites(connection);
     expect(configurationWrites, hasLength(2));
-    expect(configurationWrites.last.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
+    expect(configurationWrites.last.value, [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0]);
     expect(session.state.value, isA<SessionReady>());
   });
 
@@ -777,7 +780,7 @@ void main() {
     expect(session.observed.value?.mode, 3);
     final configurationWrites = _configurationWrites(connection);
     expect(configurationWrites, hasLength(2));
-    expect(configurationWrites.last.value, [0, 0xd1, 0, 0, 3, 0, 0, 0, 0, 0]);
+    expect(configurationWrites.last.value, [0, 0xd1, 0, 0, 3, 1, 0, 0, 0, 0]);
   });
 
   test('serializes live control writes', () async {
@@ -1092,7 +1095,7 @@ void main() {
     final write = connection.writes.lastWhere(
       (candidate) => candidate.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(write.value, [0, 0xc1, 0, 1, 3, 0, 0, 0, 0, 0]);
+    expect(write.value, [0, 0xc1, 0, 1, 3, 1, 0, 0, 0, 0]);
   });
 
   test('uses V2 notifications as the live source of bike state', () async {

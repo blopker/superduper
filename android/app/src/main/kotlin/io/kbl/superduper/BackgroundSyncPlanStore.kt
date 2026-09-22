@@ -153,6 +153,8 @@ internal object BackgroundSyncPlanStore {
     }
 
     private fun validatePlan(plan: BackgroundSyncPlan) {
+        check(plan.commands.size == 1) { "Background Sync requires one control command" }
+        BackgroundControlSync(plan.commands.single())
         check(plan.scanManufacturerId in 0..0xffff) {
             "The background scan manufacturer ID is invalid"
         }

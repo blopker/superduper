@@ -25,7 +25,6 @@ class BackgroundScanReceiver : BroadcastReceiver() {
             ?: return
         if (callbackType and ScanSettings.CALLBACK_TYPE_MATCH_LOST != 0) {
             Log.d(logTag, "Background BLE advertisement disappeared")
-            NativeBackgroundSync.noteDisappearance(context, deviceId, "bleScanMatchLost")
             return
         }
         if (callbackType and ScanSettings.CALLBACK_TYPE_FIRST_MATCH == 0) return

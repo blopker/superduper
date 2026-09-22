@@ -19,7 +19,6 @@ class BackgroundSyncCompanionService : CompanionDeviceService() {
     override fun onDeviceDisappeared(address: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             Log.d(logTag, "CDM BLE disappeared via address callback")
-            NativeBackgroundSync.noteDisappearance(this, address, "cdmAddress")
         }
     }
 
@@ -41,8 +40,6 @@ class BackgroundSyncCompanionService : CompanionDeviceService() {
     override fun onDeviceDisappeared(associationInfo: AssociationInfo) {
         if (Build.VERSION.SDK_INT < 36) {
             Log.d(logTag, "CDM BLE disappeared via association callback")
-            val address = associationInfo.deviceMacAddress?.toString() ?: return
-            NativeBackgroundSync.noteDisappearance(this, address, "cdmAssociation")
         }
     }
 
@@ -64,7 +61,7 @@ class BackgroundSyncCompanionService : CompanionDeviceService() {
         when (event.event) {
             DevicePresenceEvent.EVENT_BLE_APPEARED -> synchronize(address, "presence event")
             DevicePresenceEvent.EVENT_BLE_DISAPPEARED ->
-                NativeBackgroundSync.noteDisappearance(this, address, "cdmPresence")
+                Log.d(logTag, "CDM BLE disappeared via presence event")
         }
     }
 

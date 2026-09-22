@@ -447,7 +447,7 @@ final class AppDatabase extends _$AppDatabase {
       },
       patch.assist ?? 0xff,
       mode,
-      0,
+      BikeGatt.sessionAppliedMarker,
       0,
       0,
       0,

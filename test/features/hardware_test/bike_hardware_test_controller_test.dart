@@ -151,7 +151,7 @@ void main() {
       );
       expect(
         result.log.singleWhere((entry) => entry.label == 'Odometer').detail,
-        '123.5 km · 76.7 mi (123456 meters).',
+        '123.5 km · 76.7 mi (123500 meters).',
       );
       expect(
         connection.writes.where(
@@ -167,7 +167,7 @@ void main() {
           .toList();
       expect(
         stateWrites.last.value,
-        [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0],
+        [0, 0xd1, 0, 1, 2, 1, 0, 0, 0, 0],
         reason: 'cleanup must restore the exact starting configuration',
       );
       expect(connection.discoveryCalls, 2);
@@ -255,7 +255,7 @@ void main() {
         .skip(1)
         .toList();
     expect(writes, hasLength(2));
-    expect(writes.last.value, [0, 0xd1, 0, 1, 2, 0, 0, 0, 0, 0]);
+    expect(writes.last.value, [0, 0xd1, 0, 1, 2, 1, 0, 0, 0, 0]);
     expect(controller.state.peek().phase, BikeHardwareTestPhase.cancelled);
     expect(
       controller.state.peek().log.last,

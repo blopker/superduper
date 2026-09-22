@@ -140,7 +140,7 @@ stable bike identity
   -> CDM presence callback or manufacturer-data PendingIntent scan
   -> read the materialized command plan from Drift
   -> native GATT connect and application authentication
-  -> write each pre-encoded command in order
+  -> inspect the session marker, conditionally write and verify the control command
   -> disconnect and record the bounded outcome in Android shared preferences
 ```
 
@@ -156,13 +156,30 @@ system-owned while enabled. Both the companion service and the scan receiver can
 wake a dead process.
 
 A CDM BLE-appeared event or the scan's first matching advertisement starts
-synchronization. A confirmed transaction latches that bike-presence session, so
-later appearance events cannot reapply Set on connect after the rider changes a
-physical control. The latch is cleared only when a subsequent appearance follows
-a credible Android disappearance event. Disappearances during a transaction or its
-cooldown are ignored, including the advertising interruption produced by the native
-transaction itself. The service also serializes transactions and ignores duplicates
-while one is loading or connected.
+an authenticated inspection of the bike's control-command history. Byte 5 equal
+to `1` means an app control command was already received during this bike power
+session, so background synchronization disconnects without reapplying settings.
+An unmarked, valid control record allows the single materialized command to be
+written with byte 5 set to `1`. Foreground control writes use the same marker.
+Bike startup resets the control history record (`00D1` on V1, `00C1` on V2),
+allowing the next background synchronization without any disappearance callback.
+
+Each inspection first selects and observes `FCFC` as a different-ID cache barrier,
+then selects the control record. After a write, the transaction repeats that
+sequence and verifies the complete command before reporting `confirmed`; this
+confirms firmware receipt, not motor-controller application. An existing marker
+reports `skippedAlreadySynchronized`. Missing, malformed, or stale history reads
+fail the bounded transaction without authorizing a control write.
+
+The service serializes transactions and ignores duplicates while one is loading
+or connected. Once a transaction finishes, the next appearance can immediately
+start another marker check. There is no post-transaction cooldown or persistent
+phone-side synchronized latch. Disappearance events are
+diagnostic only. The marker does not detect button changes before the first sync;
+riders should wait for startup synchronization before adjusting controls. Other
+BLE clients can overwrite the marker and permit a later background application.
+See [firmware and hardware evidence](BACKGROUND_SESSION_EVIDENCE.md).
+
 It also bails out while the activity is foreground. When the activity enters the
 foreground, it cancels and closes any native GATT client before FlutterBluePlus
 resumes ownership. If Android reports appearance while Bluetooth is transitioning,
@@ -177,12 +194,13 @@ Drift is the only writer of the background plan. Whenever the active bike,
 protocol, region, consent, or Set on connect choices change, Dart atomically
 replaces the complete native execution plan: the exact manufacturer-data scan
 filter, GATT service and characteristic identifiers, authentication inputs and
-expected state, and the ordered command payloads. Disabled fields are encoded
+expected state, and the control command. Disabled fields are encoded
 as `0xFF`, which the display's independent range checks ignore. Kotlin opens the
-database read-only, validates the plan's transport-level shape, then supplies
-that data to Android's scan, digest, and GATT APIs. It contains no bike UUIDs,
-manufacturer IDs, authentication secrets, or light, mode, assist, region, and
-protocol semantics. An absent plan is a no-op.
+database read-only, validates that the plan has exactly one ten-byte V1/V2
+control command, then supplies that data to Android's scan, digest, and GATT
+APIs. The native executor knows the history-selector UUID, control IDs, and
+session-marker convention. Authentication inputs, scan filters, and encoded
+setting values come from the plan. An absent plan is a no-op.
 
 The implementation still needs durable outcome storage in Drift, an outcome display in the UI and support report, unused-app restriction onboarding, and the Pixel/Samsung/Xiaomi hardware matrix.
 
@@ -221,7 +239,12 @@ Source: [Companion-device pairing](https://developer.android.com/develop/connect
 
 ### Executing the synchronization
 
-The presence service runs a short native bike-specific state machine: connect, discover the fixed characteristics, complete challenge-response authentication, write the materialized commands, and close the GATT client. It does not start Flutter, WorkManager, polling, notifications, version reads, or odometer reads.
+The presence service runs a short native bike-specific state machine: connect,
+discover the fixed characteristics, complete challenge-response authentication,
+inspect command history, conditionally write and verify the marked control
+command, and close the GATT client. It does not start Flutter, WorkManager,
+notifications, version reads, or odometer reads. Selected history reads retry
+within a bounded deadline to allow the firmware's selector handler to run.
 
 If the operation cannot reliably finish as short work, a `connectedDevice` foreground service is the supported fallback. That introduces a user-visible notification and should not be the default unless testing proves it necessary.
 

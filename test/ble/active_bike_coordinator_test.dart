@@ -116,7 +116,7 @@ void main() {
     final writes = connections['first']!.single.writes.where(
       (write) => write.characteristicUuid == BikeGatt.stateRegister,
     );
-    expect(writes.last.value, [0, 0xd1, 1, 4, 3, 0, 0, 0, 0, 0]);
+    expect(writes.last.value, [0, 0xd1, 1, 4, 3, 1, 0, 0, 0, 0]);
   });
 
   test('temporary selection never changes the persisted active bike', () async {

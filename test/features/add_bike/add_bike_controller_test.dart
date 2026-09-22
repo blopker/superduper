@@ -188,7 +188,7 @@ void main() {
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
     expect(saved.setOnConnect, const BikeControlPatch());
-    expect(saved.odometer?.meters, 123456);
+    expect(saved.odometer?.meters, 123500);
     expect(
       saved.versions?.info,
       const BikeVersionInfo(

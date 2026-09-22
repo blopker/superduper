@@ -213,7 +213,7 @@ final class FakeBikeConnection implements BikeConnection {
     0xef,
     0x01,
   ];
-  int odometerMeters = 123456;
+  int odometerMeters = 123500;
   Object? connectError;
   Object? discoveryError;
   Object? readError;
@@ -355,16 +355,17 @@ final class FakeBikeConnection implements BikeConnection {
           return List<int>.unmodifiable(componentVersionsFrame);
         }
         if (_sameBytes(selectedHistoryId, BikeGatt.v1OdometerSelector)) {
+          final hundredMeterUnits = odometerMeters ~/ 100;
           return List<int>.unmodifiable([
             ...BikeGatt.v1OdometerSelector,
             0,
             0,
             0,
             0,
-            odometerMeters & 0xff,
-            (odometerMeters >> 8) & 0xff,
-            (odometerMeters >> 16) & 0xff,
-            (odometerMeters >> 24) & 0xff,
+            hundredMeterUnits & 0xff,
+            (hundredMeterUnits >> 8) & 0xff,
+            (hundredMeterUnits >> 16) & 0xff,
+            (hundredMeterUnits >> 24) & 0xff,
           ]);
         }
         if (readFrames.isEmpty) {

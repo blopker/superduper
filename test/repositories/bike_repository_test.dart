@@ -187,7 +187,7 @@ void main() {
     expect(plan.commandServiceUuid, BikeGatt.metricsService);
     expect(plan.commandCharacteristicUuid, BikeGatt.stateRegister);
     expect(command.sequence, 0);
-    expect(command.payload, [0, 0xd1, 1, 0xff, 6, 0, 0, 0, 0, 0]);
+    expect(command.payload, [0, 0xd1, 1, 0xff, 6, 1, 0, 0, 0, 0]);
   });
 
   test('rebuilds and removes the native background command plan', () async {
@@ -215,14 +215,14 @@ void main() {
     expect(
       (await database.select(database.backgroundSyncCommands).getSingle())
           .payload,
-      [0, 0xd1, 0xff, 4, 0xff, 0, 0, 0, 0, 0],
+      [0, 0xd1, 0xff, 4, 0xff, 1, 0, 0, 0, 0],
     );
 
     await settingsRepository.makeBikeActive('second');
     expect(
       (await database.select(database.backgroundSyncCommands).getSingle())
           .payload,
-      [0, 0xc1, 0xff, 0xff, 3, 0, 0, 0, 0, 0],
+      [0, 0xc1, 0xff, 0xff, 3, 1, 0, 0, 0, 0],
     );
 
     await repository.setOnConnect('second', const BikeControlPatch());

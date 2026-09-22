@@ -242,7 +242,14 @@ offset  size  meaning
 
 The RX handler rejects normal commands unless the write length is exactly 10 bytes and application authentication has succeeded. The one observed exception is packet `F0CC`, which bypasses both checks in the handler. The characteristic has a 10-byte maximum and requires an encrypted BLE link, but the `F0CC` branch itself does not verify the actual write length before reading its fields.
 
-Unless a packet section says otherwise, unused bytes should be zero.
+Unless a packet section says otherwise, unused bytes should be zero. SuperDuper
+uses byte 5 of its `00D1` (V1) and `00C1` (V2) control writes as a session marker:
+`1` means an app configuration was sent this power cycle. Bytes 6–9 remain zero.
+The firmware ignores this byte for controls but retains it in command history;
+startup seeds that history record with zeroes. Both foreground and background
+control writes carry the marker. Background sync checks it before writing and
+verifies the full marked record afterward. See
+[session-marker evidence and limitations](BACKGROUND_SESSION_EVIDENCE.md).
 
 ### Protocol feature summary
 
@@ -467,6 +474,15 @@ offset  size  encoding       confirmed meaning
 2       4                    other controller fields
 6       4     little-endian  total distance in 100-meter units
 ```
+
+Physical V1 validation (`221122`, hardware `v3.2.0`) returned
+`02 02 00 42 00 00 47 35 00 00`: raw `0x3547` = 13,639, or
+1,363,900 meters. The standard conversion is 847.5 miles. The bike display
+showed TOTAL 851 miles because its renderer uses integer kilometer values and
+the approximate imperial conversion `km * 10 / 16`, truncating the result.
+Its RANGE page showed 35 miles, matching the separate `0203` record's range
+of 57 km (`02 03 00 00 00 00 00 00 39 00`). The app uses 1,609.344 meters
+per mile rather than reproducing the display's approximation.
 
 Protocol v2 exports IDs `D0`, `D1`, `D2`, and `D9`:
 
