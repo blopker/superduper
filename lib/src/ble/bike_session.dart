@@ -7,7 +7,7 @@ import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/domain/bike.dart';
 
 sealed class BikeSessionFailure implements Exception {
-  const BikeSessionFailure(this.message);
+  const new(this.message);
 
   final String message;
 
@@ -16,76 +16,74 @@ sealed class BikeSessionFailure implements Exception {
 }
 
 final class BikeSessionTransportFailure extends BikeSessionFailure {
-  const BikeSessionTransportFailure(Object cause)
-    : super('Bike communication failed: $cause');
+  const new(Object cause) : super('Bike communication failed: $cause');
 }
 
 final class BikeBluetoothUnavailable extends BikeSessionFailure {
-  const BikeBluetoothUnavailable(super.message, {required this.canRetry});
+  const new(super.message, {required this.canRetry});
 
   final bool canRetry;
 }
 
 final class BikeCommandTimedOut extends BikeSessionFailure {
-  const BikeCommandTimedOut(String operation) : super('$operation timed out.');
+  const new(String operation) : super('$operation timed out.');
 }
 
 final class BikeSessionDisposedFailure extends BikeSessionFailure {
-  const BikeSessionDisposedFailure() : super('The bike session is disposed.');
+  const new() : super('The bike session is disposed.');
 }
 
 final class BikeSessionNotReady extends BikeSessionFailure {
-  const BikeSessionNotReady() : super('The bike is not ready for controls.');
+  const new() : super('The bike is not ready for controls.');
 }
 
 final class BikeAuthenticationFailed extends BikeSessionFailure {
-  const BikeAuthenticationFailed(String detail)
-    : super('Bike authentication failed. $detail');
+  const new(String detail) : super('Bike authentication failed. $detail');
 }
 
 final class BikeProtocolNotSupported extends BikeSessionFailure {
-  const BikeProtocolNotSupported(String detail)
+  const new(String detail)
     : super('The bike protocol is not supported. $detail');
 }
 
 sealed class BikeSessionState {
-  const BikeSessionState();
+  const new();
 }
 
 final class SessionIdle extends BikeSessionState {
-  const SessionIdle();
+  const new();
 }
 
 final class SessionConnecting extends BikeSessionState {
-  const SessionConnecting();
+  const new();
 }
 
 final class SessionDiscovering extends BikeSessionState {
-  const SessionDiscovering();
+  const new();
 }
 
 final class SessionConnected extends BikeSessionState {
-  const SessionConnected();
+  const new();
 }
 
 final class SessionAuthenticating extends BikeSessionState {
-  const SessionAuthenticating();
+  const new();
 }
 
 final class SessionSynchronizing extends BikeSessionState {
-  const SessionSynchronizing({required this.attempt});
+  const new({required this.attempt});
 
   final int attempt;
 }
 
 final class SessionReady extends BikeSessionState {
-  const SessionReady({required this.configuration});
+  const new({required this.configuration});
 
   final BikeConfiguration configuration;
 }
 
 final class SessionReconnecting extends BikeSessionState {
-  const SessionReconnecting({
+  const new({
     required this.attempt,
     required this.retryAfter,
     required this.failure,
@@ -97,20 +95,20 @@ final class SessionReconnecting extends BikeSessionState {
 }
 
 final class SessionDisconnected extends BikeSessionState {
-  const SessionDisconnected({required this.manuallyPaused});
+  const new({required this.manuallyPaused});
 
   final bool manuallyPaused;
 }
 
 final class SessionFailed extends BikeSessionState {
-  const SessionFailed({required this.failure, required this.canRetry});
+  const new({required this.failure, required this.canRetry});
 
   final BikeSessionFailure failure;
   final bool canRetry;
 }
 
 final class SessionDisposed extends BikeSessionState {
-  const SessionDisposed();
+  const new();
 }
 
 typedef VersionsRead = Future<void> Function(BikeVersionInfo versions);
@@ -118,7 +116,7 @@ typedef OdometerRead = Future<void> Function(int meters);
 typedef ManualConnectionPauseChanged = Future<void> Function(bool paused);
 
 final class BikeSession {
-  BikeSession({
+  new({
     required this.connection,
     required BikeRegion? preferredRegion,
     required BikeControlPatch setOnConnect,
@@ -810,9 +808,7 @@ final class BikeSession {
     if (_configurationChangeGeneration == generation && existing != null) {
       return existing;
     }
-    final pending = _commands.add(
-      () => _drainConfigurationChanges(generation),
-    );
+    final pending = _commands.add(() => _drainConfigurationChanges(generation));
     _configurationChangeFuture = pending;
     _configurationChangeGeneration = generation;
     return pending;
@@ -870,7 +866,7 @@ final class BikeSession {
   }
 
   Future<BikeConfiguration> _readConfiguration() async {
-    return _protocol.readConfiguration(
+    return await _protocol.readConfiguration(
       preferredRegion: _preferredRegion,
       fallbackRegion: _observed.peek()?.region,
       onOdometer: (meters) => _odometerMeters.value = meters,
@@ -965,7 +961,7 @@ final class BikeSession {
         // connection attempt, so this is best-effort.
       }
     }
-    return _commands.add(() async {
+    return await _commands.add(() async {
       if (!_isCurrent(disconnectGeneration) || !_disconnectRequested) {
         return;
       }
@@ -1102,7 +1098,7 @@ final class BikeSession {
 }
 
 final class _ProtocolSessionFailure extends BikeSessionFailure {
-  const _ProtocolSessionFailure(BikeProtocolFailure failure)
+  const new(BikeProtocolFailure failure)
     : super('The bike returned invalid data: $failure');
 }
 

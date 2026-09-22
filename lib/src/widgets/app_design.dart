@@ -3,7 +3,7 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/theme/app_theme.dart';
 
 final class BikeColorPalette {
-  BikeColorPalette._({
+  new _({
     required this.accent,
     required this.onAccent,
     required this.secondary,
@@ -16,7 +16,7 @@ final class BikeColorPalette {
     required this.outlineVariant,
   });
 
-  factory BikeColorPalette.from(BikeColor color) {
+  factory from(BikeColor color) {
     final sourcePrimary = color.gradientColors.first;
     final sourceAccent = color.gradientColors.last;
     final panel = color.panelTint;
@@ -108,11 +108,7 @@ final class BikeColorPalette {
 }
 
 final class BikeColorTheme extends StatelessWidget {
-  const BikeColorTheme({
-    required this.color,
-    required this.child,
-    super.key,
-  });
+  const new({required this.color, required this.child, super.key});
 
   final BikeColor color;
   final Widget child;
@@ -143,9 +139,7 @@ final class BikeColorTheme extends StatelessWidget {
       secondary: palette.secondary,
       onSecondary: palette.onSecondary,
       secondaryContainer: secondaryContainer,
-      onSecondaryContainer: BikeColorPalette.foregroundFor(
-        secondaryContainer,
-      ),
+      onSecondaryContainer: BikeColorPalette.foregroundFor(secondaryContainer),
       surface: palette.panel,
       surfaceContainerLowest: AppColors.ink,
       surfaceContainerLow: palette.surfaceLow,
@@ -195,9 +189,7 @@ final class BikeColorTheme extends StatelessWidget {
       dialogTheme: base.dialogTheme.copyWith(
         backgroundColor: palette.panelRaised,
       ),
-      popupMenuTheme: base.popupMenuTheme.copyWith(
-        color: palette.panelRaised,
-      ),
+      popupMenuTheme: base.popupMenuTheme.copyWith(color: palette.panelRaised),
       dividerTheme: base.dividerTheme.copyWith(color: palette.outlineVariant),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         fillColor: palette.panel,
@@ -207,9 +199,7 @@ final class BikeColorTheme extends StatelessWidget {
         ),
       ),
       textButtonTheme: TextButtonThemeData(style: textButtonStyle),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: outlinedButtonStyle,
-      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: outlinedButtonStyle),
       iconButtonTheme: IconButtonThemeData(style: iconButtonStyle),
       listTileTheme: base.listTileTheme.copyWith(iconColor: palette.accent),
       switchTheme: SwitchThemeData(
@@ -243,7 +233,7 @@ final class BikeColorTheme extends StatelessWidget {
 }
 
 final class _BikeColorThemeScope extends InheritedWidget {
-  const _BikeColorThemeScope({required this.palette, required super.child});
+  const new({required this.palette, required super.child});
 
   final BikeColorPalette palette;
 
@@ -255,7 +245,7 @@ final class _BikeColorThemeScope extends InheritedWidget {
 }
 
 final class AppPageBody extends StatelessWidget {
-  const AppPageBody({
+  const new({
     required this.child,
     this.maxWidth = 760,
     this.bikeColor,
@@ -289,7 +279,7 @@ final class AppPageBody extends StatelessWidget {
 }
 
 final class BikePageScaffold extends StatelessWidget {
-  const BikePageScaffold({
+  const new({
     required this.title,
     required this.color,
     required this.children,
@@ -325,7 +315,7 @@ final class BikePageScaffold extends StatelessWidget {
 }
 
 final class BikeHeader extends StatelessWidget {
-  const BikeHeader({
+  const new({
     required this.color,
     required this.name,
     required this.isActive,
@@ -409,7 +399,7 @@ final class BikeHeader extends StatelessWidget {
 }
 
 final class BrandMasthead extends StatelessWidget {
-  const BrandMasthead({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -451,12 +441,7 @@ final class BrandMasthead extends StatelessWidget {
 }
 
 final class SectionHeader extends StatelessWidget {
-  const SectionHeader({
-    required this.title,
-    this.eyebrow,
-    this.action,
-    super.key,
-  });
+  const new({required this.title, this.eyebrow, this.action, super.key});
 
   final String title;
   final String? eyebrow;
@@ -507,7 +492,7 @@ final class SectionHeader extends StatelessWidget {
 }
 
 final class SurfacePanel extends StatelessWidget {
-  const SurfacePanel({
+  const new({
     required this.child,
     this.padding = const EdgeInsets.all(20),
     this.color,
@@ -531,12 +516,7 @@ final class SurfacePanel extends StatelessWidget {
 }
 
 final class StatusPill extends StatelessWidget {
-  const StatusPill({
-    required this.label,
-    required this.color,
-    this.icon,
-    super.key,
-  });
+  const new({required this.label, required this.color, this.icon, super.key});
 
   final String label;
   final Color color;
@@ -572,7 +552,7 @@ final class StatusPill extends StatelessWidget {
 }
 
 final class BikeColorLabel extends StatelessWidget {
-  const BikeColorLabel({required this.color, super.key});
+  const new({required this.color, super.key});
 
   final BikeColor color;
 

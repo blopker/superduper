@@ -14,7 +14,7 @@ import 'package:superduper/src/repositories/settings_repository.dart';
 const backgroundSyncChannelName = 'io.kbl.superduper/background_sync';
 
 final class BackgroundSyncConfigurationFailure implements Exception {
-  const BackgroundSyncConfigurationFailure(this.message);
+  const new(this.message);
 
   final String message;
 
@@ -35,7 +35,7 @@ enum BackgroundSyncRegistration { configured, needsAssociation }
 
 final class NoopBackgroundSyncPlatformGateway
     implements BackgroundSyncPlatformGateway {
-  const NoopBackgroundSyncPlatformGateway();
+  const new();
 
   @override
   Future<void> cancel() async {}
@@ -52,7 +52,7 @@ final class NoopBackgroundSyncPlatformGateway
 
 final class SystemBackgroundSyncPlatformGateway
     implements BackgroundSyncPlatformGateway {
-  SystemBackgroundSyncPlatformGateway({
+  new({
     this.channel = const MethodChannel(backgroundSyncChannelName),
     this.configurationTimeout = const Duration(minutes: 2),
   });
@@ -125,7 +125,7 @@ final class SystemBackgroundSyncPlatformGateway
 }
 
 final class BackgroundSyncCoordinator {
-  BackgroundSyncCoordinator({
+  new({
     required this.bikeRepository,
     required this.settingsRepository,
     required this.activeBikeCoordinator,

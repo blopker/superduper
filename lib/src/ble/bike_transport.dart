@@ -3,7 +3,7 @@ enum BikeAdapterState { unknown, on, off, unavailable, unauthorized }
 enum BikeConnectionState { disconnected, connecting, connected }
 
 final class DiscoveredBike {
-  const DiscoveredBike({
+  const new({
     required this.deviceId,
     required this.name,
     required this.rssi,
@@ -17,7 +17,7 @@ final class DiscoveredBike {
 }
 
 sealed class BikeTransportFailure implements Exception {
-  const BikeTransportFailure(this.operation, this.message);
+  const new(this.operation, this.message);
 
   final String operation;
   final String message;
@@ -27,21 +27,18 @@ sealed class BikeTransportFailure implements Exception {
 }
 
 final class BikeAdapterUnavailable extends BikeTransportFailure {
-  const BikeAdapterUnavailable(
-    String message, {
-    this.canRetry = true,
-  }) : super('Bluetooth', message);
+  const new(String message, {this.canRetry = true})
+    : super('Bluetooth', message);
 
   final bool canRetry;
 }
 
 final class BikeConnectionFailure extends BikeTransportFailure {
-  const BikeConnectionFailure(super.operation, super.message);
+  const new(super.operation, super.message);
 }
 
 final class BikeGattNotSupported extends BikeTransportFailure {
-  const BikeGattNotSupported(String message)
-    : super('Service discovery', message);
+  const new(String message) : super('Service discovery', message);
 }
 
 abstract interface class BikeTransport {

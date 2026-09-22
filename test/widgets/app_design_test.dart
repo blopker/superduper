@@ -28,10 +28,7 @@ void main() {
       BikeColor.defaultForDeviceId('AA:BB:CC:DD:EE:FF'),
       BikeColor.frostedMint,
     );
-    expect(
-      () => BikeColor.defaultForDeviceId('  '),
-      throwsArgumentError,
-    );
+    expect(() => BikeColor.defaultForDeviceId('  '), throwsArgumentError);
   });
 
   test('bike cards are tinted from the primary gradient color', () {

@@ -96,9 +96,7 @@ void main() {
       await File(path.join(directory.path, filename)).writeAsString('data');
     }
 
-    await AppDatabase.resetAppData(
-      documentsDirectory: () async => directory,
-    );
+    await AppDatabase.resetAppData(documentsDirectory: () async => directory);
 
     for (final filename in removedNames) {
       expect(File(path.join(directory.path, filename)).existsSync(), isFalse);

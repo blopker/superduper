@@ -17,7 +17,7 @@ enum UserErrorContext {
 }
 
 final class BikeHardwareTestFailure implements Exception {
-  const BikeHardwareTestFailure(this.message);
+  const new(this.message);
 
   final String message;
 
@@ -25,10 +25,7 @@ final class BikeHardwareTestFailure implements Exception {
   String toString() => message;
 }
 
-String userFacingError(
-  Object error, {
-  required UserErrorContext context,
-}) {
+String userFacingError(Object error, {required UserErrorContext context}) {
   final known = switch (error) {
     BikeBluetoothUnavailable(:final message) => _bluetoothMessage(message),
     BikeCommandTimedOut() => 'The bike took too long to respond.',

@@ -180,10 +180,7 @@ void main() {
 
     expect(controller.state.value, isA<AddBikeCompleted>());
     expect(saved.bike.displayName, 'My Bike');
-    expect(
-      saved.bike.advertisedName,
-      BikeProtocolVersion.v1.advertisedName,
-    );
+    expect(saved.bike.advertisedName, BikeProtocolVersion.v1.advertisedName);
     expect(saved.bike.protocol, BikeProtocolVersion.v1);
     expect(saved.bike.region, BikeRegion.eu);
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
@@ -205,27 +202,24 @@ void main() {
     expect((await settings.get()).activeBikeId, 'new-bike');
   });
 
-  test(
-    'firmware revision is metadata and does not affect setup',
-    () async {
-      final candidate = DiscoveredBike(
-        deviceId: 'future-bike',
-        name: BikeProtocolVersion.v1.advertisedName,
-        rssi: -42,
-      );
-      (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
-        ..firmwareRevision = '260101'
-        ..softwareRevision = '260101'
-        ..readFrames.add([0, 0, 2, 0, 1, 3]);
+  test('firmware revision is metadata and does not affect setup', () async {
+    final candidate = DiscoveredBike(
+      deviceId: 'future-bike',
+      name: BikeProtocolVersion.v1.advertisedName,
+      rssi: -42,
+    );
+    (transport.openConnection(candidate.deviceId) as FakeBikeConnection)
+      ..firmwareRevision = '260101'
+      ..softwareRevision = '260101'
+      ..readFrames.add([0, 0, 2, 0, 1, 3]);
 
-      await controller.start();
-      await controller.selectCandidate(candidate);
+    await controller.start();
+    await controller.selectCandidate(candidate);
 
-      final confirmation = controller.state.value as AddBikeConfirming;
-      expect(confirmation.protocol, BikeProtocolVersion.v1);
-      expect(confirmation.versions?.firmwareRevision, '260101');
-    },
-  );
+    final confirmation = controller.state.value as AddBikeConfirming;
+    expect(confirmation.protocol, BikeProtocolVersion.v1);
+    expect(confirmation.versions?.firmwareRevision, '260101');
+  });
 
   test('V2 bikes are persisted without a region', () async {
     final candidate = DiscoveredBike(
@@ -254,10 +248,7 @@ void main() {
     );
 
     expect(saved.bike.region, isNull);
-    expect(
-      saved.bike.advertisedName,
-      BikeProtocolVersion.v2.advertisedName,
-    );
+    expect(saved.bike.advertisedName, BikeProtocolVersion.v2.advertisedName);
     expect(saved.bike.protocol, BikeProtocolVersion.v2);
   });
 

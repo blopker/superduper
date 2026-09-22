@@ -4,7 +4,7 @@ import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/user_facing_error.dart';
 
 final class BikeSessionPresentation {
-  const BikeSessionPresentation({
+  const new({
     required this.icon,
     required this.label,
     required this.color,
@@ -13,10 +13,7 @@ final class BikeSessionPresentation {
     required this.canRetry,
   });
 
-  factory BikeSessionPresentation.from(
-    BikeSessionState state, {
-    String bikeName = 'your bike',
-  }) {
+  factory from(BikeSessionState state, {String bikeName = 'your bike'}) {
     return switch (state) {
       SessionIdle() || SessionConnecting() => BikeSessionPresentation(
         icon: Icons.bluetooth_searching_rounded,
@@ -97,7 +94,7 @@ final class BikeSessionPresentation {
     };
   }
 
-  factory BikeSessionPresentation.savedBikesFailure(Object error) {
+  factory savedBikesFailure(Object error) {
     return BikeSessionPresentation(
       icon: Icons.error_outline_rounded,
       label: 'Needs attention',

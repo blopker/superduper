@@ -45,7 +45,7 @@ enum BikeRegion {
   us('US'),
   eu('EU');
 
-  const BikeRegion(this.label);
+  new(this.label);
 
   final String label;
 }
@@ -89,7 +89,7 @@ abstract final class BikeControlValues {
 }
 
 final class BikeConfiguration {
-  const BikeConfiguration({
+  const new({
     required this.light,
     required this.mode,
     required this.assist,
@@ -128,7 +128,7 @@ final class BikeConfiguration {
 }
 
 final class BikeControlPatch {
-  const BikeControlPatch({this.light, this.mode, this.assist});
+  const new({this.light, this.mode, this.assist});
 
   final bool? light;
   final int? mode;
@@ -149,11 +149,7 @@ final class BikeControlPatch {
   }
 
   BikeConfiguration applyTo(BikeConfiguration base) {
-    return base.copyWith(
-      light: light,
-      mode: mode,
-      assist: assist,
-    );
+    return base.copyWith(light: light, mode: mode, assist: assist);
   }
 
   BikeControlPatch merge(BikeControlPatch newer) {
@@ -218,7 +214,7 @@ enum BikeColor {
   pixelBlue('pixel_blue', 'Pixel Blue', 30),
   midnightSky('midnight_sky', 'Midnight Sky', 31);
 
-  const BikeColor(this.key, this.displayName, this.legacyIndex);
+  new(this.key, this.displayName, this.legacyIndex);
 
   final String key;
   final String displayName;
@@ -260,7 +256,7 @@ enum BikeColor {
 }
 
 final class Bike {
-  Bike({
+  new({
     required this.deviceId,
     required this.displayName,
     required this.protocol,
@@ -288,7 +284,7 @@ final class Bike {
 }
 
 final class BikeVersionInfo {
-  const BikeVersionInfo({
+  const new({
     required this.hardwareRevision,
     required this.firmwareRevision,
     required this.softwareRevision,
@@ -335,14 +331,14 @@ final class BikeVersionInfo {
 }
 
 final class CachedBikeVersions {
-  const CachedBikeVersions({required this.info, required this.readAt});
+  const new({required this.info, required this.readAt});
 
   final BikeVersionInfo info;
   final DateTime readAt;
 }
 
 final class CachedBikeOdometer {
-  const CachedBikeOdometer({required this.meters, required this.readAt});
+  const new({required this.meters, required this.readAt});
 
   final int meters;
   final DateTime readAt;
@@ -351,19 +347,16 @@ final class CachedBikeOdometer {
 const backgroundSyncConsentVersion = 2;
 
 final class BackgroundPreference {
-  const BackgroundPreference({
-    required this.requested,
-    required this.consentVersion,
-  });
+  const new({required this.requested, required this.consentVersion});
 
-  const BackgroundPreference.defaults() : requested = false, consentVersion = 0;
+  const new defaults() : requested = false, consentVersion = 0;
 
   final bool requested;
   final int consentVersion;
 }
 
 final class SavedBike {
-  const SavedBike({
+  const new({
     required this.bike,
     required this.setOnConnect,
     this.backgroundPreference = const BackgroundPreference.defaults(),
@@ -379,7 +372,7 @@ final class SavedBike {
 }
 
 final class BikeNotFoundException implements Exception {
-  const BikeNotFoundException(this.deviceId);
+  const new(this.deviceId);
 
   final String deviceId;
 
@@ -388,7 +381,7 @@ final class BikeNotFoundException implements Exception {
 }
 
 final class BikeAlreadyExistsException implements Exception {
-  const BikeAlreadyExistsException(this.deviceId);
+  const new(this.deviceId);
 
   final String deviceId;
 

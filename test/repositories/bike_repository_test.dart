@@ -86,17 +86,11 @@ void main() {
     'Set on connect values are saved independently of a live bike',
     () async {
       await settingsRepository.initialize();
-      await repository.addBike(
-        deviceId: 'bike',
-      );
+      await repository.addBike(deviceId: 'bike');
 
       await repository.setOnConnect(
         'bike',
-        const BikeControlPatch(
-          light: true,
-          mode: 3,
-          assist: 4,
-        ),
+        const BikeControlPatch(light: true, mode: 3, assist: 4),
       );
 
       final saved = (await repository.getBikes()).single;
@@ -111,21 +105,11 @@ void main() {
     await repository.addBike(deviceId: 'bike');
 
     expect(
-      () => repository.setOnConnect(
-        'bike',
-        const BikeControlPatch(
-          mode: 4,
-        ),
-      ),
+      () => repository.setOnConnect('bike', const BikeControlPatch(mode: 4)),
       throwsRangeError,
     );
     expect(
-      () => repository.setOnConnect(
-        'bike',
-        const BikeControlPatch(
-          assist: -1,
-        ),
-      ),
+      () => repository.setOnConnect('bike', const BikeControlPatch(assist: -1)),
       throwsRangeError,
     );
   });
@@ -171,10 +155,7 @@ void main() {
     expect(plan.scanManufacturerData, [0, 17, 34, 51, 170, 187, 204, 221]);
     expect(plan.scanManufacturerMask, List<int>.filled(8, 0xff));
     expect(plan.authenticationServiceUuid, BikeGatt.authenticationService);
-    expect(
-      plan.authenticationChallengeUuid,
-      BikeGatt.authenticationChallenge,
-    );
+    expect(plan.authenticationChallengeUuid, BikeGatt.authenticationChallenge);
     expect(plan.authenticationResponseUuid, BikeGatt.authenticationResponse);
     expect(plan.authenticationStateUuid, BikeGatt.authenticationState);
     expect(
@@ -280,10 +261,7 @@ void main() {
     'bike protocol can be overridden with the other advertised name',
     () async {
       await settingsRepository.initialize();
-      await repository.addBike(
-        deviceId: 'bike',
-        region: BikeRegion.eu,
-      );
+      await repository.addBike(deviceId: 'bike', region: BikeRegion.eu);
 
       await repository.updateBikeDetails(
         'bike',
@@ -294,10 +272,7 @@ void main() {
       );
 
       var saved = (await repository.getBikes()).single;
-      expect(
-        saved.bike.advertisedName,
-        BikeProtocolVersion.v1.advertisedName,
-      );
+      expect(saved.bike.advertisedName, BikeProtocolVersion.v1.advertisedName);
       expect(saved.bike.protocol, BikeProtocolVersion.v2);
       expect(saved.bike.region, equals(null));
 
@@ -310,10 +285,7 @@ void main() {
       );
 
       saved = (await repository.getBikes()).single;
-      expect(
-        saved.bike.advertisedName,
-        BikeProtocolVersion.v1.advertisedName,
-      );
+      expect(saved.bike.advertisedName, BikeProtocolVersion.v1.advertisedName);
       expect(saved.bike.protocol, BikeProtocolVersion.v1);
       expect(saved.bike.region, BikeRegion.us);
     },
@@ -410,10 +382,7 @@ void main() {
       [0, 17, 34, 51, 170, 187, 204, 221],
     );
 
-    await repository.saveModuleSerial(
-      'AA:BB:CC:DD:EE:FF',
-      'ffeeddccbbaa9988',
-    );
+    await repository.saveModuleSerial('AA:BB:CC:DD:EE:FF', 'ffeeddccbbaa9988');
 
     expect(
       (await database.select(database.backgroundSyncPlans).getSingle())
@@ -475,10 +444,7 @@ void main() {
       expect(v2.region, equals(null));
 
       await repository.forgetBike('bike');
-      await repository.addBike(
-        deviceId: 'v1',
-        region: BikeRegion.eu,
-      );
+      await repository.addBike(deviceId: 'v1', region: BikeRegion.eu);
       final v1 = (await repository.getBikes()).single.bike;
       expect(v1.advertisedName, BikeProtocolVersion.v1.advertisedName);
       expect(v1.protocol, BikeProtocolVersion.v1);

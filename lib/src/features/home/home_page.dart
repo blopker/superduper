@@ -19,7 +19,7 @@ import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/bike_session_presentation.dart';
 
 final class HomePage extends SignalStatefulWidget {
-  const HomePage({super.key});
+  const new({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -87,10 +87,7 @@ final class _HomePageState extends State<HomePage> {
                         child: _ActiveStatus(
                           key: ValueKey(activeState.runtimeType),
                           state: activeState,
-                          onRetry: () => _runAction(
-                            context,
-                            coordinator.retry,
-                          ),
+                          onRetry: () => _runAction(context, coordinator.retry),
                           onOpenSettings: coordinator.openPermissionSettings,
                           onOpenBike: (deviceId) =>
                               _openBike(context, deviceId),
@@ -210,9 +207,8 @@ final class _HomePageState extends State<HomePage> {
 
   Future<void> _openHelp(BuildContext context) async {
     _autoOpenHandled = true;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const HelpPage()),
-    );
+    await Navigator.of(context)
+        .push<void>(MaterialPageRoute<void>(builder: (_) => const HelpPage()));
   }
 
   void _scheduleAutoOpen(ActiveBikeState activeState) {
@@ -311,7 +307,7 @@ final class _HomePageState extends State<HomePage> {
 }
 
 final class _MigrationNotice extends StatelessWidget {
-  const _MigrationNotice({required this.startupState, required this.onDismiss});
+  const new({required this.startupState, required this.onDismiss});
 
   final StartupState startupState;
   final Future<void> Function() onDismiss;
@@ -366,7 +362,7 @@ typedef _StatusPresentation = ({
 });
 
 final class _ActiveStatus extends StatelessWidget {
-  const _ActiveStatus({
+  const new({
     required this.state,
     required this.onRetry,
     required this.onOpenSettings,
@@ -505,10 +501,7 @@ final class _ActiveStatus extends StatelessWidget {
         label: 'Needs attention',
         color: AppColors.error,
         title: 'Saved bikes unavailable',
-        detail: userFacingError(
-          error,
-          context: UserErrorContext.savedBikes,
-        ),
+        detail: userFacingError(error, context: UserErrorContext.savedBikes),
         canRetry: true,
         needsSettings: false,
         bike: null,
@@ -530,10 +523,7 @@ final class _ActiveStatus extends StatelessWidget {
     final name = isTemporary ? 'Temporary bike' : bike.bike.displayName;
     final presentation = BikeSessionPresentation.from(state, bikeName: name);
     final needsSettings = switch (state) {
-      SessionFailed(
-        failure: BikeBluetoothUnavailable(canRetry: false),
-      ) =>
-        true,
+      SessionFailed(failure: BikeBluetoothUnavailable(canRetry: false)) => true,
       _ => false,
     };
     return (
@@ -550,7 +540,7 @@ final class _ActiveStatus extends StatelessWidget {
 }
 
 final class _BikeTile extends StatelessWidget {
-  const _BikeTile({
+  const new({
     required this.saved,
     required this.isActive,
     required this.onOpen,

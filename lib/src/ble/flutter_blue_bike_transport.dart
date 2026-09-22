@@ -127,10 +127,7 @@ final class FlutterBlueBikeTransport implements BikeTransport {
 }
 
 final class _FlutterBlueBikeConnection implements BikeConnection {
-  _FlutterBlueBikeConnection({
-    required this._device,
-    required this._onDisposed,
-  });
+  new({required this._device, required this._onDisposed});
 
   final fbp.BluetoothDevice _device;
   final bool Function(_FlutterBlueBikeConnection) _onDisposed;
@@ -351,9 +348,7 @@ final class _FlutterBlueBikeConnection implements BikeConnection {
       serviceUuid,
       characteristicUuid,
     );
-    return characteristic.onValueReceived.map(
-      List<int>.unmodifiable,
-    );
+    return characteristic.onValueReceived.map(List<int>.unmodifiable);
   }
 
   @override

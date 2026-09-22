@@ -82,9 +82,7 @@ void main() {
     expect(find.text('RESET APP DATA?'), findsOneWidget);
     expect(find.textContaining('permanently removes'), findsOneWidget);
 
-    await tester.tap(
-      find.widgetWithText(FilledButton, 'Reset app data').last,
-    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Reset app data').last);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.runAsync(() async {
       final deadline = DateTime.now().add(const Duration(seconds: 2));

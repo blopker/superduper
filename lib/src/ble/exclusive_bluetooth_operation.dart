@@ -10,7 +10,7 @@ typedef ExclusiveBluetoothAccess = ({
 });
 
 final class ExclusiveBluetoothOperationBusy implements Exception {
-  const ExclusiveBluetoothOperationBusy();
+  const new();
 
   static const message =
       'Another Bluetooth operation is in progress. Wait a moment and try again.';
@@ -20,7 +20,7 @@ final class ExclusiveBluetoothOperationBusy implements Exception {
 }
 
 final class ExclusiveBluetoothOperation {
-  ExclusiveBluetoothOperation({
+  new({
     required this.transport,
     required this.permissions,
     required this.activeBikeCoordinator,
@@ -65,10 +65,7 @@ final class ExclusiveBluetoothOperation {
     final adapter = await transport.adapterStates
         .where((state) => state != BikeAdapterState.unknown)
         .first
-        .timeout(
-          adapterTimeout,
-          onTimeout: () => BikeAdapterState.unknown,
-        );
+        .timeout(adapterTimeout, onTimeout: () => BikeAdapterState.unknown);
     return (
       permission: permission,
       adapter: adapter,
@@ -97,8 +94,6 @@ final class ExclusiveBluetoothOperation {
         // A scan may have already ended or never started.
       }
     }
-    await pause.release(
-      temporarilySelect: temporarilySelect,
-    );
+    await pause.release(temporarilySelect: temporarilySelect);
   }
 }

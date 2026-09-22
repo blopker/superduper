@@ -6,15 +6,15 @@ import 'package:superduper/src/persistence/installed_data_importer.dart';
 import 'package:superduper/src/repositories/settings_repository.dart';
 
 sealed class StartupState {
-  const StartupState();
+  const new();
 }
 
 final class StartupLoading extends StartupState {
-  const StartupLoading();
+  const new();
 }
 
 final class StartupReady extends StartupState {
-  const StartupReady({
+  const new({
     required this.importResult,
     required this.repositoryInitialization,
   });
@@ -24,23 +24,20 @@ final class StartupReady extends StartupState {
 }
 
 final class StartupMigrationRecovery extends StartupState {
-  const StartupMigrationRecovery({
-    required this.reason,
-    required this.warnings,
-  });
+  const new({required this.reason, required this.warnings});
 
   final ImportRecoveryReason reason;
   final List<ImportWarning> warnings;
 }
 
 final class StartupFailure extends StartupState {
-  const StartupFailure({required this.error});
+  const new({required this.error});
 
   final Object error;
 }
 
 final class StartupController {
-  StartupController({
+  new({
     required this.database,
     required this.importer,
     required this.settingsRepository,

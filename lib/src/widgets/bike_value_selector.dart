@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 final class BikeValueSelector extends StatelessWidget {
-  const BikeValueSelector({
+  const new({
     required this.values,
     required this.selected,
     required this.enabled,

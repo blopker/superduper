@@ -11,7 +11,7 @@ import 'package:superduper/src/widgets/app_design.dart';
 import 'package:superduper/src/widgets/report_actions.dart';
 
 final class BikeHardwareTestPage extends SignalStatefulWidget {
-  const BikeHardwareTestPage({super.key});
+  const new({super.key});
 
   @override
   State<BikeHardwareTestPage> createState() => _BikeHardwareTestPageState();
@@ -228,7 +228,7 @@ final class _BikeHardwareTestPageState extends State<BikeHardwareTestPage>
 }
 
 final class _Requirement extends StatelessWidget {
-  const _Requirement({required this.text});
+  const new({required this.text});
 
   final String text;
 
@@ -245,7 +245,7 @@ final class _Requirement extends StatelessWidget {
 }
 
 final class _LogRow extends StatelessWidget {
-  const _LogRow({required this.entry});
+  const new({required this.entry});
 
   final BikeHardwareTestLogEntry entry;
 

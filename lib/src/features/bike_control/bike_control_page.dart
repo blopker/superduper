@@ -15,7 +15,7 @@ import 'package:superduper/src/widgets/bike_session_presentation.dart';
 import 'package:superduper/src/widgets/bike_value_selector.dart';
 
 final class BikeControlPage extends SignalStatefulWidget {
-  const BikeControlPage({required this.deviceId, super.key});
+  const new({required this.deviceId, super.key});
 
   final String deviceId;
 
@@ -202,9 +202,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         if (canRetry) ...[
           const SizedBox(height: 18),
           FilledButton.icon(
-            onPressed: () => unawaited(
-              _runConnectionAction(coordinator.retry),
-            ),
+            onPressed: () => unawaited(_runConnectionAction(coordinator.retry)),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Reconnect'),
           ),
@@ -237,10 +235,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              userFacingError(
-                error,
-                context: UserErrorContext.bikeConnection,
-              ),
+              userFacingError(error, context: UserErrorContext.bikeConnection),
             ),
           ),
         );
@@ -263,10 +258,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              userFacingError(
-                error,
-                context: UserErrorContext.bikeConnection,
-              ),
+              userFacingError(error, context: UserErrorContext.bikeConnection),
             ),
           ),
         );
@@ -287,10 +279,7 @@ final class _BikeControlPageState extends State<BikeControlPage> {
 }
 
 final class _ConnectionSummary extends StatelessWidget {
-  const _ConnectionSummary({
-    required this.state,
-    required this.coordinatorFailure,
-  });
+  const new({required this.state, required this.coordinatorFailure});
 
   final BikeSessionState? state;
   final Object? coordinatorFailure;
@@ -351,7 +340,7 @@ final class _ConnectionSummary extends StatelessWidget {
 }
 
 final class _SettingSection extends StatelessWidget {
-  const _SettingSection({
+  const new({
     required this.icon,
     required this.title,
     required this.setOnConnectValue,
@@ -420,10 +409,7 @@ final class _SettingSection extends StatelessWidget {
 }
 
 final class _SettingHeader extends StatelessWidget {
-  const _SettingHeader({
-    required this.title,
-    required this.setOnConnectValue,
-  });
+  const new({required this.title, required this.setOnConnectValue});
 
   final String title;
   final String? setOnConnectValue;
@@ -439,9 +425,7 @@ final class _SettingHeader extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         if (setOnConnectValue case final value?)
           Semantics(
-            key: ValueKey(
-              'set-on-connect-indicator-${title.toLowerCase()}',
-            ),
+            key: ValueKey('set-on-connect-indicator-${title.toLowerCase()}'),
             label: 'Set on connect: $value',
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
@@ -452,9 +436,8 @@ final class _SettingHeader extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     value,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: scheme.primary,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge
+                        ?.copyWith(color: scheme.primary),
                   ),
                 ],
               ),

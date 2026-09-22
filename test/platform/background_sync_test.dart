@@ -83,10 +83,7 @@ void main() {
       await coordinator.start();
 
       expect(platform.configurations, [
-        const _Configuration(
-          deviceId: 'bike',
-          requestAssociation: false,
-        ),
+        const _Configuration(deviceId: 'bike', requestAssociation: false),
       ]);
       await bikes.setBackgroundPreference(
         'bike',
@@ -182,10 +179,7 @@ void main() {
         consentVersion: backgroundSyncConsentVersion,
       ),
     );
-    await bikes.addBike(
-      deviceId: 'second',
-      moduleSerial: 'ffeeddccbbaa2211',
-    );
+    await bikes.addBike(deviceId: 'second', moduleSerial: 'ffeeddccbbaa2211');
     await coordinator.start();
 
     await settings.makeBikeActive('second');
@@ -200,10 +194,7 @@ void main() {
   });
 
   test('does not opt in when native registration fails', () async {
-    await bikes.addBike(
-      deviceId: 'bike',
-      moduleSerial: '00112233aabbccdd',
-    );
+    await bikes.addBike(deviceId: 'bike', moduleSerial: '00112233aabbccdd');
     await coordinator.start();
     platform.configureError = StateError('scanner unavailable');
 
@@ -235,14 +226,8 @@ void main() {
     expect(saved.bike.moduleSerial, '00112233aabbccdd');
     expect(saved.backgroundPreference.requested, isTrue);
     expect(platform.configurations, [
-      const _Configuration(
-        deviceId: 'bike',
-        requestAssociation: true,
-      ),
-      const _Configuration(
-        deviceId: 'bike',
-        requestAssociation: false,
-      ),
+      const _Configuration(deviceId: 'bike', requestAssociation: true),
+      const _Configuration(deviceId: 'bike', requestAssociation: false),
     ]);
     expect(transport.scanStarts, 1);
     expect(transport.scanStops, 1);
@@ -251,10 +236,7 @@ void main() {
   test(
     'pauses the foreground connection during companion association',
     () async {
-      await bikes.addBike(
-        deviceId: 'bike',
-        moduleSerial: '00112233aabbccdd',
-      );
+      await bikes.addBike(deviceId: 'bike', moduleSerial: '00112233aabbccdd');
       await coordinator.start();
       platform.onConfigure = () async {
         expect(await activeBike.acquireDiscoveryPause(), isNull);
@@ -271,10 +253,7 @@ void main() {
   );
 
   test('does not steal another Bluetooth operation pause', () async {
-    await bikes.addBike(
-      deviceId: 'bike',
-      moduleSerial: '00112233aabbccdd',
-    );
+    await bikes.addBike(deviceId: 'bike', moduleSerial: '00112233aabbccdd');
     await coordinator.start();
     final pause = await activeBike.acquireDiscoveryPause();
     expect(pause, isNotNull);
@@ -399,10 +378,7 @@ void main() {
       await expectLater(
         SystemBackgroundSyncPlatformGateway(
           configurationTimeout: Duration.zero,
-        ).configure(
-          deviceId: 'AA:BB:CC:DD:EE:FF',
-          requestAssociation: false,
-        ),
+        ).configure(deviceId: 'AA:BB:CC:DD:EE:FF', requestAssociation: false),
         throwsA(
           isA<BackgroundSyncConfigurationFailure>().having(
             (error) => error.message,
@@ -427,30 +403,20 @@ void main() {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, null);
       });
-      final configuration =
-          SystemBackgroundSyncPlatformGateway(
-            configurationTimeout: Duration.zero,
-          ).configure(
-            deviceId: 'AA:BB:CC:DD:EE:FF',
-            requestAssociation: true,
-          );
+      final configuration = SystemBackgroundSyncPlatformGateway(
+        configurationTimeout: Duration.zero,
+      ).configure(deviceId: 'AA:BB:CC:DD:EE:FF', requestAssociation: true);
       await Future<void>.delayed(Duration.zero);
 
       associated.complete(true);
 
-      expect(
-        await configuration,
-        BackgroundSyncRegistration.configured,
-      );
+      expect(await configuration, BackgroundSyncRegistration.configured);
     },
   );
 }
 
 final class _Configuration {
-  const _Configuration({
-    required this.deviceId,
-    required this.requestAssociation,
-  });
+  const new({required this.deviceId, required this.requestAssociation});
 
   final String deviceId;
   final bool requestAssociation;

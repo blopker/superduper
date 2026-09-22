@@ -6,7 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 
 final class ReportMetadata {
-  const ReportMetadata({
+  const new({
     required this.appVersion,
     required this.buildNumber,
     required this.platform,
@@ -30,7 +30,7 @@ final class ReportMetadata {
 }
 
 final class ShareableReport {
-  const ShareableReport({
+  const new({
     required this.content,
     required this.filenamePrefix,
     required this.subject,

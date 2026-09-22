@@ -38,7 +38,7 @@ abstract final class BikeGatt {
 }
 
 sealed class BikeProtocolFailure implements Exception {
-  const BikeProtocolFailure(this.message);
+  const new(this.message);
 
   final String message;
 
@@ -47,27 +47,25 @@ sealed class BikeProtocolFailure implements Exception {
 }
 
 final class ShortBikeFrame extends BikeProtocolFailure {
-  const ShortBikeFrame(int length)
-    : super('Bike packet is too short: $length bytes.');
+  const new(int length) : super('Bike packet is too short: $length bytes.');
 }
 
 final class MalformedBikeFrame extends BikeProtocolFailure {
-  const MalformedBikeFrame(String field)
-    : super('Bike packet has a malformed $field value.');
+  const new(String field) : super('Bike packet has a malformed $field value.');
 }
 
 final class UnsupportedBikeValue extends BikeProtocolFailure {
-  const UnsupportedBikeValue(String field, int value)
+  const new(String field, int value)
     : super('Bike packet has unsupported $field value $value.');
 }
 
 final class UnexpectedBikePacket extends BikeProtocolFailure {
-  const UnexpectedBikePacket({required String expected, required String actual})
+  const new({required String expected, required String actual})
     : super('Expected bike packet $expected, received $actual.');
 }
 
 final class InvalidAuthenticationValue extends BikeProtocolFailure {
-  const InvalidAuthenticationValue(super.message);
+  const new(super.message);
 }
 
 typedef BikeProtocolTimeout = Future<T> Function<T>(
@@ -76,12 +74,9 @@ typedef BikeProtocolTimeout = Future<T> Function<T>(
 );
 
 abstract class BikeProtocolDefinition {
-  BikeProtocolDefinition() : _connection = null, _timed = null;
+  new() : _connection = null, _timed = null;
 
-  BikeProtocolDefinition.connected({
-    required this._connection,
-    required this._timed,
-  });
+  new connected({required this._connection, required this._timed});
 
   final BikeConnection? _connection;
   final BikeProtocolTimeout? _timed;
@@ -153,7 +148,7 @@ abstract class BikeProtocolDefinition {
         await _tryReadHistoryRecord(BikeGatt.displayVersionSelector);
       }
     }
-    return readHistoryRecord(selector);
+    return await readHistoryRecord(selector);
   }
 
   Future<List<int>?> _tryReadHistoryRecord(List<int> selector) async {
@@ -212,9 +207,9 @@ abstract class BikeProtocolDefinition {
 }
 
 final class V1BikeProtocol extends BikeProtocolDefinition {
-  V1BikeProtocol();
+  new();
 
-  V1BikeProtocol.connected({
+  new connected({
     required BikeConnection connection,
     required BikeProtocolTimeout timed,
   }) : super.connected(connection: connection, timed: timed);
@@ -325,9 +320,9 @@ final class V1BikeProtocol extends BikeProtocolDefinition {
 }
 
 final class V2BikeProtocol extends BikeProtocolDefinition {
-  V2BikeProtocol();
+  new();
 
-  V2BikeProtocol.connected({
+  new connected({
     required BikeConnection connection,
     required BikeProtocolTimeout timed,
   }) : super.connected(connection: connection, timed: timed);
@@ -412,9 +407,7 @@ final class V2BikeProtocol extends BikeProtocolDefinition {
   @override
   Future<int> readOdometer({required int? cachedMeters}) async {
     return cachedMeters ??
-        decodeOdometer(
-          await readProtocolRecord(BikeGatt.v2ControlSelector),
-        );
+        decodeOdometer(await readProtocolRecord(BikeGatt.v2ControlSelector));
   }
 
   @override

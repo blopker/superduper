@@ -11,35 +11,35 @@ import 'package:superduper/src/platform/bluetooth_permissions.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
 
 sealed class AddBikeState {
-  const AddBikeState();
+  const new();
 }
 
 final class AddBikeIdle extends AddBikeState {
-  const AddBikeIdle();
+  const new();
 }
 
 final class AddBikeCheckingAccess extends AddBikeState {
-  const AddBikeCheckingAccess();
+  const new();
 }
 
 final class AddBikePermissionRequired extends AddBikeState {
-  const AddBikePermissionRequired(this.permission);
+  const new(this.permission);
 
   final BluetoothPermissionState permission;
 }
 
 final class AddBikeAdapterUnavailable extends AddBikeState {
-  const AddBikeAdapterUnavailable(this.adapterState);
+  const new(this.adapterState);
 
   final BikeAdapterState adapterState;
 }
 
 final class AddBikeLocationServicesDisabled extends AddBikeState {
-  const AddBikeLocationServicesDisabled();
+  const new();
 }
 
 final class AddBikeScanning extends AddBikeState {
-  const AddBikeScanning({
+  const new({
     required this.results,
     required this.savedDeviceIds,
     required this.isScanning,
@@ -51,13 +51,13 @@ final class AddBikeScanning extends AddBikeState {
 }
 
 final class AddBikeConnecting extends AddBikeState {
-  const AddBikeConnecting(this.candidate);
+  const new(this.candidate);
 
   final DiscoveredBike candidate;
 }
 
 final class AddBikeConfirming extends AddBikeState {
-  const AddBikeConfirming({
+  const new({
     required this.candidate,
     required this.protocol,
     required this.configuration,
@@ -75,23 +75,23 @@ final class AddBikeConfirming extends AddBikeState {
 }
 
 final class AddBikeSaving extends AddBikeState {
-  const AddBikeSaving();
+  const new();
 }
 
 final class AddBikeCompleted extends AddBikeState {
-  const AddBikeCompleted(this.bike);
+  const new(this.bike);
 
   final SavedBike bike;
 }
 
 final class AddBikeFailure extends AddBikeState {
-  const AddBikeFailure(this.message);
+  const new(this.message);
 
   final String message;
 }
 
 final class AddBikeController {
-  AddBikeController({
+  new({
     required this.transport,
     required this.permissions,
     required this.bikeRepository,

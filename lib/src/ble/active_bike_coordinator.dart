@@ -9,25 +9,25 @@ import 'package:superduper/src/repositories/bike_repository.dart';
 import 'package:superduper/src/repositories/settings_repository.dart';
 
 sealed class ActiveBikeState {
-  const ActiveBikeState();
+  const new();
 }
 
 final class ActiveBikeLoading extends ActiveBikeState {
-  const ActiveBikeLoading();
+  const new();
 }
 
 final class NoActiveBike extends ActiveBikeState {
-  const NoActiveBike();
+  const new();
 }
 
 final class ActiveBikePermissionRequired extends ActiveBikeState {
-  const ActiveBikePermissionRequired({required this.permission});
+  const new({required this.permission});
 
   final BluetoothPermissionState permission;
 }
 
 final class ActiveBikeSessionStatus extends ActiveBikeState {
-  const ActiveBikeSessionStatus({
+  const new({
     required this.bike,
     required this.session,
     required this.sessionState,
@@ -41,7 +41,7 @@ final class ActiveBikeSessionStatus extends ActiveBikeState {
 }
 
 final class ActiveBikeCoordinatorFailure extends ActiveBikeState {
-  const ActiveBikeCoordinatorFailure(this.error);
+  const new(this.error);
 
   final Object error;
 }
@@ -49,7 +49,7 @@ final class ActiveBikeCoordinatorFailure extends ActiveBikeState {
 typedef BikeSessionBuilder = BikeSession Function(SavedBike bike);
 
 final class ActiveBikeDiscoveryPause {
-  ActiveBikeDiscoveryPause._(this._coordinator);
+  new _(this._coordinator);
 
   ActiveBikeCoordinator? _coordinator;
 
@@ -71,7 +71,7 @@ final class ActiveBikeDiscoveryPause {
 }
 
 final class _CoordinatorInputs {
-  const _CoordinatorInputs({this.bikes, this.settings});
+  const new({this.bikes, this.settings});
 
   final List<SavedBike>? bikes;
   final AppPreferences? settings;
@@ -80,7 +80,7 @@ final class _CoordinatorInputs {
 }
 
 final class ActiveBikeCoordinator {
-  ActiveBikeCoordinator({
+  new({
     required this.bikeRepository,
     required this.settingsRepository,
     required this.permissions,
@@ -250,9 +250,7 @@ final class ActiveBikeCoordinator {
       _acceptBikes(
         _bikes
             .peek()
-            .where(
-              (saved) => saved.bike.deviceId != deviceId,
-            )
+            .where((saved) => saved.bike.deviceId != deviceId)
             .toList(),
       );
       if (_temporaryBikeId == deviceId) {
@@ -382,10 +380,7 @@ final class ActiveBikeCoordinator {
     _migrationNoticePending.dispose();
   }
 
-  Future<void> _reconcile({
-    bool force = false,
-    bool requestPermission = true,
-  }) {
+  Future<void> _reconcile({bool force = false, bool requestPermission = true}) {
     if (_disposed) {
       return Future.value();
     }
@@ -417,10 +412,7 @@ final class ActiveBikeCoordinator {
       _reconcileRequested = false;
       _reconcileForce = false;
       _reconcileMayRequestPermission = false;
-      await _recomputeOnce(
-        force: force,
-        requestPermission: requestPermission,
-      );
+      await _recomputeOnce(force: force, requestPermission: requestPermission);
     }
   }
 
@@ -476,9 +468,7 @@ final class ActiveBikeCoordinator {
           generation != _switchGeneration) {
         return;
       }
-      final permission = await _ensurePermission(
-        request: requestPermission,
-      );
+      final permission = await _ensurePermission(request: requestPermission);
       if (_disposed ||
           _discoveryPaused ||
           !_foreground ||
@@ -541,7 +531,7 @@ final class ActiveBikeCoordinator {
   }) async {
     final existing = _permissionCheck;
     if (existing != null) {
-      return existing;
+      return await existing;
     }
     late final Future<BluetoothPermissionState> pending;
     pending = permissions.ensureAccess(request: request);
@@ -610,14 +600,9 @@ final class ActiveBikeCoordinator {
 
   void _acceptBikes(List<SavedBike> bikes) {
     final immutable = List<SavedBike>.unmodifiable(
-      bikes.where(
-        (saved) => !_forgettingBikeIds.contains(saved.bike.deviceId),
-      ),
+      bikes.where((saved) => !_forgettingBikeIds.contains(saved.bike.deviceId)),
     );
-    _inputs = _CoordinatorInputs(
-      bikes: immutable,
-      settings: _inputs.settings,
-    );
+    _inputs = _CoordinatorInputs(bikes: immutable, settings: _inputs.settings);
     _bikes.value = immutable;
   }
 

@@ -16,7 +16,7 @@ const installedSettingsFilename = 'settings.json';
 
 final class BikeControlPatchConverter
     extends TypeConverter<BikeControlPatch, String> {
-  const BikeControlPatchConverter();
+  const new();
 
   @override
   BikeControlPatch fromSql(String fromDb) {
@@ -255,9 +255,9 @@ class BackgroundSyncCommands extends Table {
   ],
 )
 final class AppDatabase extends _$AppDatabase {
-  AppDatabase(super.e);
+  new(super.e);
 
-  factory AppDatabase.open() {
+  factory open() {
     return AppDatabase(
       LazyDatabase(() async {
         final documents = await getApplicationDocumentsDirectory();
@@ -378,11 +378,8 @@ final class AppDatabase extends _$AppDatabase {
           deviceId: bike.deviceId,
           scanManufacturerId: BikeGatt.manufacturerId,
           scanManufacturerData: serialBytes,
-          scanManufacturerMask: Uint8List(serialBytes.length)..fillRange(
-            0,
-            serialBytes.length,
-            0xff,
-          ),
+          scanManufacturerMask: Uint8List(serialBytes.length)
+            ..fillRange(0, serialBytes.length, 0xff),
           authenticationServiceUuid: BikeGatt.authenticationService,
           authenticationChallengeUuid: BikeGatt.authenticationChallenge,
           authenticationResponseUuid: BikeGatt.authenticationResponse,

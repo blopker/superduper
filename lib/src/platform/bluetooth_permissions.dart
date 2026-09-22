@@ -18,7 +18,7 @@ abstract interface class BluetoothPermissionGateway {
 
 final class SystemBluetoothPermissionGateway
     implements BluetoothPermissionGateway {
-  SystemBluetoothPermissionGateway({
+  new({
     DeviceInfoPlugin? deviceInfo,
     BluetoothPermissionPlatform? platform,
     Future<int> Function()? androidSdkInt,
@@ -69,10 +69,10 @@ final class SystemBluetoothPermissionGateway
   @override
   Future<bool> openSettings() async {
     if (_settingsOpenerOverride case final opener?) {
-      return opener();
+      return await opener();
     }
     if (_platform == BluetoothPermissionPlatform.macos) {
-      return launchUrl(
+      return await launchUrl(
         Uri.parse(
           'x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth',
         ),
@@ -80,9 +80,9 @@ final class SystemBluetoothPermissionGateway
       );
     }
     if (_platform == BluetoothPermissionPlatform.other) {
-      return Future.value(false);
+      return false;
     }
-    return openAppSettings();
+    return await openAppSettings();
   }
 
   Future<List<Permission>> _requiredPermissions() async {
@@ -100,7 +100,7 @@ final class SystemBluetoothPermissionGateway
 
   Future<int> _androidSdkInt() async {
     if (_androidSdkIntOverride case final read?) {
-      return read();
+      return await read();
     }
     return (await _deviceInfo.androidInfo).version.sdkInt;
   }

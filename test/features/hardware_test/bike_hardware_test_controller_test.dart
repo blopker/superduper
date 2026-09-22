@@ -50,156 +50,157 @@ void main() {
     await database.close();
   });
 
-  test(
-    'runs discovery, settings, reconnect, Set on connect, and cleanup in order',
-    () async {
-      final connection = FakeBikeConnection(deviceId: 'bike')
-        ..operationDelay = const Duration(milliseconds: 1);
-      connection.readFrames.addAll([
-        v1StateFrame(mode: 2, assist: 1),
-        v1StateFrame(light: true, mode: 2, assist: 1),
-        v1StateFrame(mode: 2, assist: 1),
-        v1StateFrame(mode: 3, assist: 1),
-        v1StateFrame(mode: 2, assist: 1),
-        v1StateFrame(mode: 2, assist: 2),
-        v1StateFrame(mode: 2, assist: 1),
-        v1StateFrame(light: true, mode: 2, assist: 1),
-        v1StateFrame(light: true, mode: 2, assist: 2),
-        v1StateFrame(light: true, mode: 2, assist: 2),
-        v1StateFrame(light: true, mode: 2, assist: 2),
-        v1StateFrame(mode: 2, assist: 2),
-        v1StateFrame(mode: 2, assist: 1),
-      ]);
-      transport.connections['bike'] = connection;
+  test('runs discovery, settings, reconnect, Set on connect, and cleanup in order', () async {
+    final connection = FakeBikeConnection(deviceId: 'bike')
+      ..operationDelay = const Duration(milliseconds: 1);
+    connection.readFrames.addAll([
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 1),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(mode: 3, assist: 1),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 1),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(light: true, mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 2),
+      v1StateFrame(mode: 2, assist: 1),
+    ]);
+    transport.connections['bike'] = connection;
 
-      final run = controller.start();
-      await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
-      transport.emitResults([
-        DiscoveredBike(
-          deviceId: 'bike',
-          name: BikeProtocolVersion.v1.advertisedName,
-          rssi: -42,
-          moduleSerial: '0102030405060708',
-        ),
-      ]);
+    final run = controller.start();
+    await _waitForPhase(controller, BikeHardwareTestPhase.scanning);
+    transport.emitResults([
+      DiscoveredBike(
+        deviceId: 'bike',
+        name: BikeProtocolVersion.v1.advertisedName,
+        rssi: -42,
+        moduleSerial: '0102030405060708',
+      ),
+    ]);
 
-      await _waitUntil(
-        () => transport.connections['bike']?.notificationsEnabled ?? false,
-      );
-      connection.emitNotification([3, 0, 1, 0, 0, 2, 0, 0, 0, 0]);
-      await _waitUntil(
-        () => controller
-            .createReport(
-              appVersion: 'test',
-              buildNumber: 'test',
-              platform: 'test',
-              operatingSystemVersion: 'test',
-            )
-            .contains('gatt.notification'),
-      );
-      await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOff);
-      connection
-        ..connectError = StateError('The fake bike is powered off.')
-        ..emitState(BikeConnectionState.disconnected);
-
-      await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOn);
-      connection.connectError = null;
-      await run.timeout(const Duration(seconds: 5));
-
-      final result = controller.state.peek();
-      expect(
-        result.phase,
-        BikeHardwareTestPhase.passed,
-        reason:
-            '${result.title}: ${result.detail}\n${result.log.map((entry) => '${entry.label}: ${entry.detail}').join('\n')}',
-      );
-      expect(
-        result.log.singleWhere((entry) => entry.label == 'Live notification'),
-        isA<BikeHardwareTestLogEntry>()
-            .having(
-              (entry) => entry.status,
-              'status',
-              BikeHardwareTestLogStatus.passed,
-            )
-            .having(
-              (entry) => entry.detail,
-              'detail',
-              'Received 1 live telemetry packet after subscribing.',
-            ),
-      );
-      expect(
-        result.log.map((entry) => entry.label),
-        containsAllInOrder([
-          'Bluetooth access',
-          'Discovery',
-          'Module serial',
-          'First connection and authentication',
-          'Protocol',
-          'Version information',
-          'Odometer',
-          'Initial configuration',
-          'Notification subscription',
-          'Light toggle',
-          'Mode toggle',
-          'Assist toggle',
-          'Live notification',
-          'Set on connect setup',
-          'Power-off detection',
-          'Reconnect and Set on connect',
-          'Cleanup',
-        ]),
-      );
-      expect(
-        result.log.singleWhere((entry) => entry.label == 'Odometer').detail,
-        '123.5 km · 76.7 mi (123500 meters).',
-      );
-      expect(
-        connection.writes.where(
-          (write) =>
-              write.characteristicUuid == BikeGatt.authenticationResponse,
-        ),
-        hasLength(2),
-      );
-      final stateWrites = connection.writes
-          .where(
-            (write) => write.characteristicUuid == BikeGatt.stateRegister,
+    await _waitUntil(
+      () => transport.connections['bike']?.notificationsEnabled ?? false,
+    );
+    connection.emitNotification([3, 0, 1, 0, 0, 2, 0, 0, 0, 0]);
+    await _waitUntil(
+      () => controller
+          .createReport(
+            appVersion: 'test',
+            buildNumber: 'test',
+            platform: 'test',
+            operatingSystemVersion: 'test',
           )
-          .toList();
-      expect(
-        stateWrites.last.value,
-        [0, 0xd1, 0, 1, 2, 1, 0, 0, 0, 0],
-        reason: 'cleanup must restore the exact starting configuration',
-      );
-      expect(connection.discoveryCalls, 2);
-      expect(connection.isDisposed, isTrue);
+          .contains('gatt.notification'),
+    );
+    await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOff);
+    connection
+      ..connectError = StateError('The fake bike is powered off.')
+      ..emitState(BikeConnectionState.disconnected);
 
-      final report = controller.createReport(
-        appVersion: '1.2.3',
-        buildNumber: '45',
-        platform: 'macos',
-        operatingSystemVersion: 'macOS test',
-        generatedAt: DateTime.utc(2026, 8, 24, 12),
-      );
-      expect(report, contains('SUPERDUPER BIKE TEST REPORT'));
-      expect(report, contains('Generated: 2026-08-24T12:00:00.000Z'));
-      expect(report, contains('Result: PASSED'));
-      expect(report, contains('App: 1.2.3 (45)'));
-      expect(report, contains('bike BLE identifier and module serial'));
-      expect(
-        report,
-        contains('${BikeProtocolVersion.v1.advertisedName} bike RSSI -42'),
-      );
-      expect(report, contains('0102030405060708'));
-      expect(report, contains('[PASS] Reconnect and Set on connect'));
-      expect(report, contains('BLE TRACE'));
-      expect(report, contains('<redacted 20-byte authentication value>'));
-      final authenticationResponse = BikeProtocol.authenticationResponse(
-        challenge: List<int>.generate(20, (index) => index),
-        key: BikeProtocol.defaultAuthenticationKey,
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(' ');
-      expect(report, isNot(contains(authenticationResponse)));
-    },
-  );
+    await _waitForPhase(controller, BikeHardwareTestPhase.waitingForPowerOn);
+    connection.connectError = null;
+    await run.timeout(const Duration(seconds: 5));
+
+    final result = controller.state.peek();
+    expect(
+      result.phase,
+      BikeHardwareTestPhase.passed,
+      reason:
+          '${result.title}: ${result.detail}\n${result.log.map((entry) => '${entry.label}: ${entry.detail}').join('\n')}',
+    );
+    expect(
+      result.log.singleWhere((entry) => entry.label == 'Live notification'),
+      isA<BikeHardwareTestLogEntry>()
+          .having(
+            (entry) => entry.status,
+            'status',
+            BikeHardwareTestLogStatus.passed,
+          )
+          .having(
+            (entry) => entry.detail,
+            'detail',
+            'Received 1 live telemetry packet after subscribing.',
+          ),
+    );
+    expect(
+      result.log.map((entry) => entry.label),
+      containsAllInOrder([
+        'Bluetooth access',
+        'Discovery',
+        'Module serial',
+        'First connection and authentication',
+        'Protocol',
+        'Version information',
+        'Odometer',
+        'Initial configuration',
+        'Notification subscription',
+        'Light toggle',
+        'Mode toggle',
+        'Assist toggle',
+        'Live notification',
+        'Set on connect setup',
+        'Power-off detection',
+        'Reconnect and Set on connect',
+        'Cleanup',
+      ]),
+    );
+    expect(
+      result.log.singleWhere((entry) => entry.label == 'Odometer').detail,
+      '123.5 km · 76.7 mi (123500 meters).',
+    );
+    expect(
+      connection.writes.where(
+        (write) => write.characteristicUuid == BikeGatt.authenticationResponse,
+      ),
+      hasLength(2),
+    );
+    final stateWrites = connection.writes
+        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .toList();
+    expect(stateWrites.last.value, [
+      0,
+      0xd1,
+      0,
+      1,
+      2,
+      1,
+      0,
+      0,
+      0,
+      0,
+    ], reason: 'cleanup must restore the exact starting configuration');
+    expect(connection.discoveryCalls, 2);
+    expect(connection.isDisposed, isTrue);
+
+    final report = controller.createReport(
+      appVersion: '1.2.3',
+      buildNumber: '45',
+      platform: 'macos',
+      operatingSystemVersion: 'macOS test',
+      generatedAt: DateTime.utc(2026, 8, 24, 12),
+    );
+    expect(report, contains('SUPERDUPER BIKE TEST REPORT'));
+    expect(report, contains('Generated: 2026-08-24T12:00:00.000Z'));
+    expect(report, contains('Result: PASSED'));
+    expect(report, contains('App: 1.2.3 (45)'));
+    expect(report, contains('bike BLE identifier and module serial'));
+    expect(
+      report,
+      contains('${BikeProtocolVersion.v1.advertisedName} bike RSSI -42'),
+    );
+    expect(report, contains('0102030405060708'));
+    expect(report, contains('[PASS] Reconnect and Set on connect'));
+    expect(report, contains('BLE TRACE'));
+    expect(report, contains('<redacted 20-byte authentication value>'));
+    final authenticationResponse = BikeProtocol.authenticationResponse(
+      challenge: List<int>.generate(20, (index) => index),
+      key: BikeProtocol.defaultAuthenticationKey,
+    ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(' ');
+    expect(report, isNot(contains(authenticationResponse)));
+  });
 
   test('a repeated run does not select a replayed scan result', () async {
     transport.replayedScanResults = [
@@ -260,11 +261,7 @@ void main() {
     expect(
       controller.state.peek().log.last,
       isA<BikeHardwareTestLogEntry>()
-          .having(
-            (entry) => entry.label,
-            'label',
-            'Cleanup',
-          )
+          .having((entry) => entry.label, 'label', 'Cleanup')
           .having(
             (entry) => entry.status,
             'status',
@@ -327,9 +324,7 @@ void main() {
       controller.state
           .peek()
           .log
-          .lastWhere(
-            (entry) => entry.label == 'Test stopped',
-          )
+          .lastWhere((entry) => entry.label == 'Test stopped')
           .detail,
       contains('left the foreground'),
     );

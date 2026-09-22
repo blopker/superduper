@@ -11,7 +11,7 @@ import 'package:superduper/src/user_facing_error.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 final class AddBikePage extends SignalStatefulWidget {
-  const AddBikePage({required this.controller, super.key});
+  const new({required this.controller, super.key});
 
   final AddBikeController controller;
 
@@ -318,7 +318,7 @@ final class _AddBikePageState extends State<AddBikePage>
 }
 
 final class _ScanResults extends StatelessWidget {
-  const _ScanResults({
+  const new({
     required this.results,
     required this.savedDeviceIds,
     required this.isScanning,
@@ -405,7 +405,7 @@ final class _ScanResults extends StatelessWidget {
 }
 
 final class _CandidateTile extends StatelessWidget {
-  const _CandidateTile({
+  const new({
     required this.candidate,
     required this.alreadySaved,
     required this.onTap,
@@ -488,7 +488,7 @@ final class _CandidateTile extends StatelessWidget {
 }
 
 final class _ProgressMessage extends StatelessWidget {
-  const _ProgressMessage({
+  const new({
     required this.title,
     required this.detail,
     this.icon = Icons.bluetooth_searching_rounded,
@@ -533,7 +533,7 @@ final class _ProgressMessage extends StatelessWidget {
 }
 
 final class _AccessMessage extends StatelessWidget {
-  const _AccessMessage({
+  const new({
     required this.icon,
     required this.title,
     required this.detail,
@@ -582,7 +582,7 @@ final class _AccessMessage extends StatelessWidget {
 }
 
 final class _CenteredMessage extends StatelessWidget {
-  const _CenteredMessage({required this.child});
+  const new({required this.child});
 
   final Widget child;
 

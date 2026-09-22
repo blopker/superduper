@@ -4,7 +4,7 @@ import 'package:superduper/src/platform/report_exporter.dart';
 import 'package:superduper/src/user_facing_error.dart';
 
 final class ReportActions extends StatefulWidget {
-  const ReportActions({
+  const new({
     required this.createReport,
     this.shareLabel = 'Save or send report',
     this.copyLabel = 'Copy report',
@@ -71,9 +71,7 @@ final class _ReportActionsState extends State<ReportActions> {
       }
     } on Object catch (error) {
       if (mounted) {
-        _showMessage(
-          userFacingError(error, context: UserErrorContext.report),
-        );
+        _showMessage(userFacingError(error, context: UserErrorContext.report));
       }
     } finally {
       if (mounted) {
@@ -92,9 +90,7 @@ final class _ReportActionsState extends State<ReportActions> {
       }
     } on Object catch (error) {
       if (mounted) {
-        _showMessage(
-          userFacingError(error, context: UserErrorContext.report),
-        );
+        _showMessage(userFacingError(error, context: UserErrorContext.report));
       }
     } finally {
       if (mounted) {

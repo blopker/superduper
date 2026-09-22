@@ -28,7 +28,7 @@ enum BikeHardwareTestPhase {
 enum BikeHardwareTestLogStatus { passed, warning, failed }
 
 final class BikeHardwareTestLogEntry {
-  const BikeHardwareTestLogEntry({
+  const new({
     required this.recordedAt,
     required this.status,
     required this.label,
@@ -42,7 +42,7 @@ final class BikeHardwareTestLogEntry {
 }
 
 final class BikeHardwareTestTraceEntry {
-  const BikeHardwareTestTraceEntry({
+  const new({
     required this.recordedAt,
     required this.event,
     required this.detail,
@@ -54,14 +54,14 @@ final class BikeHardwareTestTraceEntry {
 }
 
 final class BikeHardwareTestState {
-  const BikeHardwareTestState({
+  const new({
     required this.phase,
     required this.title,
     required this.detail,
     this.log = const [],
   });
 
-  const BikeHardwareTestState.idle()
+  const new idle()
     : phase = BikeHardwareTestPhase.idle,
       title = 'Ready for a real-bike test',
       detail = 'Keep the bike stationary with the rear wheel clear. Close any other app that may connect to it.',
@@ -84,13 +84,10 @@ final class BikeHardwareTestState {
   };
 }
 
-typedef _BikeReleaseResult = ({
-  bool settingsRestored,
-  bool autoConnectResumed,
-});
+typedef _BikeReleaseResult = ({bool settingsRestored, bool autoConnectResumed});
 
 final class BikeHardwareTestController {
-  BikeHardwareTestController({
+  new({
     required this.transport,
     required this.permissions,
     required this.activeBikeCoordinator,
@@ -236,10 +233,7 @@ final class BikeHardwareTestController {
       if (!_isCurrent(generation)) {
         return;
       }
-      _addTrace(
-        'test.error',
-        error.toString().replaceAll('\n', ' '),
-      );
+      _addTrace('test.error', error.toString().replaceAll('\n', ' '));
       _addLog(
         BikeHardwareTestLogStatus.failed,
         'Test stopped',
@@ -497,10 +491,7 @@ final class BikeHardwareTestController {
     await session.setAssist(setOnConnectTarget.assist);
     _checkCurrent(generation);
     session.updateSetOnConnect(
-      BikeControlPatch(
-        light: true,
-        assist: setOnConnectTarget.assist,
-      ),
+      BikeControlPatch(light: true, assist: setOnConnectTarget.assist),
     );
     await _waitForReady(session, generation, timeout: stepTimeout);
     _addLog(
@@ -575,9 +566,8 @@ final class BikeHardwareTestController {
           reconnected.assist == setOnConnectTarget.assist,
       'The Set on connect light and assist values were not applied.',
     );
-    final expectedPacket = BikeProtocol.forVersion(
-      session.protocolVersion,
-    ).encodeConfiguration(reconnected);
+    final expectedPacket = BikeProtocol.forVersion(session.protocolVersion)
+        .encodeConfiguration(reconnected);
     final writtenPacket = connection.configurationWrites.last;
     _expect(
       _listsEqual(writtenPacket, expectedPacket),
@@ -1140,7 +1130,7 @@ final class BikeHardwareTestController {
 }
 
 final class _DiagnosticBikeConnection implements BikeConnection {
-  _DiagnosticBikeConnection(this._delegate, {required this.onTrace});
+  new(this._delegate, {required this.onTrace});
 
   final BikeConnection _delegate;
   final void Function(String event, String detail) onTrace;
@@ -1327,5 +1317,5 @@ final class _DiagnosticBikeConnection implements BikeConnection {
 }
 
 final class _BikeHardwareTestCancelled implements Exception {
-  const _BikeHardwareTestCancelled();
+  const new();
 }

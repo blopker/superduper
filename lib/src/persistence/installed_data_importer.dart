@@ -37,7 +37,7 @@ enum DataImportOutcome {
   noSource('no_source'),
   skippedByUser('skipped_by_user');
 
-  const DataImportOutcome(this.databaseValue);
+  new(this.databaseValue);
 
   final String databaseValue;
 
@@ -50,9 +50,9 @@ enum DataImportOutcome {
 }
 
 final class ImportWarning {
-  const ImportWarning({required this.code, this.record, this.field});
+  const new({required this.code, this.record, this.field});
 
-  factory ImportWarning.fromJson(Object? value) {
+  factory fromJson(Object? value) {
     if (value is! Map<String, Object?> || value['code'] is! String) {
       throw const FormatException('Invalid stored import warning.');
     }
@@ -75,11 +75,11 @@ final class ImportWarning {
 }
 
 sealed class InstalledDataImportResult {
-  const InstalledDataImportResult();
+  const new();
 }
 
 final class InstalledDataImportSuccess extends InstalledDataImportResult {
-  const InstalledDataImportSuccess({
+  const new({
     required this.outcome,
     required this.bikesImported,
     required this.warnings,
@@ -95,10 +95,7 @@ final class InstalledDataImportSuccess extends InstalledDataImportResult {
 enum ImportRecoveryReason { unreadableBikes, malformedBikes, noValidBikes }
 
 final class InstalledDataImportRecovery extends InstalledDataImportResult {
-  const InstalledDataImportRecovery({
-    required this.reason,
-    required this.warnings,
-  });
+  const new({required this.reason, required this.warnings});
 
   final ImportRecoveryReason reason;
   final List<ImportWarning> warnings;
@@ -107,7 +104,7 @@ final class InstalledDataImportRecovery extends InstalledDataImportResult {
 typedef DocumentsDirectoryProvider = Future<Directory> Function();
 
 final class InstalledDataImporter {
-  InstalledDataImporter({
+  new({
     required this.database,
     DocumentsDirectoryProvider? documentsDirectory,
     DateTime Function()? clock,
@@ -134,7 +131,7 @@ final class InstalledDataImporter {
     final settingsExist = settingsFile.existsSync();
 
     if (!bikesExist && !settingsExist) {
-      return _recordNoSource();
+      return await _recordNoSource();
     }
 
     final warnings = <ImportWarning>[];
@@ -213,7 +210,7 @@ final class InstalledDataImporter {
       );
     }
 
-    return database.transaction(() async {
+    return await database.transaction(() async {
       await _ensureSettings();
       final now = _clock().millisecondsSinceEpoch;
       var inserted = 0;
@@ -343,7 +340,7 @@ final class InstalledDataImporter {
               ),
         ))
         .go();
-    return run();
+    return await run();
   }
 
   Future<InstalledDataImportSuccess> _recordNoSource() async {
@@ -579,7 +576,7 @@ final class InstalledDataImporter {
 }
 
 final class _ImportedBike {
-  const _ImportedBike({
+  const new({
     required this.deviceId,
     required this.displayName,
     required this.region,

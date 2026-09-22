@@ -4,7 +4,7 @@ import 'package:superduper/src/domain/bike_names.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 
 final class BikeRepository {
-  BikeRepository({required this.database, DateTime Function()? clock})
+  new({required this.database, DateTime Function()? clock})
     : _clock = clock ?? DateTime.now;
 
   final AppDatabase database;
@@ -83,9 +83,8 @@ final class BikeRepository {
     return database.transaction(() async {
       await _ensureSettings();
       final existing =
-          await (database.select(
-                database.bikes,
-              )..where((table) => table.deviceId.equals(normalizedId)))
+          await (database.select(database.bikes)
+                ..where((table) => table.deviceId.equals(normalizedId)))
               .getSingleOrNull();
       if (existing != null) {
         throw BikeAlreadyExistsException(normalizedId);
@@ -108,9 +107,7 @@ final class BikeRepository {
               updatedAtMs: now,
               moduleSerial: Value(normalizedSerial),
               odometerMeters: Value(odometerMeters),
-              odometerReadAtMs: Value(
-                odometerMeters == null ? null : now,
-              ),
+              odometerReadAtMs: Value(odometerMeters == null ? null : now),
             ),
           );
       await database
@@ -187,16 +184,11 @@ final class BikeRepository {
     );
   }
 
-  Future<void> setOnConnect(
-    String deviceId,
-    BikeControlPatch settings,
-  ) {
+  Future<void> setOnConnect(String deviceId, BikeControlPatch settings) {
     _validateSetOnConnect(settings);
     return _updatePreferences(
       deviceId,
-      BikePreferencesCompanion(
-        setOnConnect: Value(settings),
-      ),
+      BikePreferencesCompanion(setOnConnect: Value(settings)),
     );
   }
 
@@ -240,20 +232,10 @@ final class BikeRepository {
       final now = _clock().millisecondsSinceEpoch;
       await database
           .into(database.bikeVersions)
-          .insertOnConflictUpdate(
-            _versionsInsert(
-              deviceId,
-              normalized,
-              now,
-            ),
-          );
-      await (database.update(
-        database.bikes,
-      )..where((table) => table.deviceId.equals(deviceId))).write(
-        BikesCompanion(
-          updatedAtMs: Value(now),
-        ),
-      );
+          .insertOnConflictUpdate(_versionsInsert(deviceId, normalized, now));
+      await (database.update(database.bikes)
+            ..where((table) => table.deviceId.equals(deviceId)))
+          .write(BikesCompanion(updatedAtMs: Value(now)));
       return true;
     });
   }
@@ -405,7 +387,7 @@ final class BikeRepository {
     final row = await (database.selectOnly(
       database.bikes,
     )..addColumns([maxSortOrder])).getSingle();
-    return row.read(maxSortOrder) ?? -1;
+    return row.read<int>(maxSortOrder) ?? -1;
   }
 
   Future<String?> _lowestSortedBikeId() async {

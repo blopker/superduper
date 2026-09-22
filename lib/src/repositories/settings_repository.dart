@@ -3,13 +3,13 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/persistence/app_database.dart';
 
 final class SettingsInitialization {
-  const SettingsInitialization({required this.activeBikeRepaired});
+  const new({required this.activeBikeRepaired});
 
   final bool activeBikeRepaired;
 }
 
 final class AppPreferences {
-  const AppPreferences({
+  const new({
     required this.activeBikeId,
     required this.lastViewedBikeId,
     required this.migrationNoticePending,
@@ -21,7 +21,7 @@ final class AppPreferences {
 }
 
 final class SettingsRepository {
-  const SettingsRepository({required this.database});
+  const new({required this.database});
 
   final AppDatabase database;
 

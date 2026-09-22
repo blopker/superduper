@@ -14,7 +14,7 @@ import 'package:superduper/src/repositories/bike_repository.dart';
 import 'package:superduper/src/repositories/settings_repository.dart';
 
 final class AppServices {
-  factory AppServices({
+  factory({
     required AppDatabase database,
     InstalledDataImporter? importer,
     BikeRepository? bikeRepository,
@@ -104,7 +104,7 @@ final class AppServices {
     );
   }
 
-  AppServices._({
+  new _({
     required this.database,
     required this.importer,
     required this.bikeRepository,
@@ -117,7 +117,7 @@ final class AppServices {
     required this.startup,
   });
 
-  factory AppServices.standard() {
+  factory standard() {
     return AppServices(
       database: AppDatabase.open(),
       backgroundSyncPlatform: SystemBackgroundSyncPlatformGateway(),
@@ -179,11 +179,7 @@ final class AppServices {
 }
 
 final class AppServicesScope extends InheritedWidget {
-  const AppServicesScope({
-    required this.services,
-    required super.child,
-    super.key,
-  });
+  const new({required this.services, required super.child, super.key});
 
   final AppServices services;
 

@@ -5,7 +5,7 @@ import 'package:superduper/src/theme/app_theme.dart';
 import 'package:superduper/src/widgets/app_design.dart';
 
 final class HelpPage extends StatelessWidget {
-  const HelpPage({super.key});
+  const new({super.key});
 
   static final Uri faqUri = Uri.parse(
     'https://github.com/blopker/superduper#faq',
@@ -119,7 +119,7 @@ final class HelpPage extends StatelessWidget {
 }
 
 final class _HelpTip extends StatelessWidget {
-  const _HelpTip({
+  const new({
     required this.number,
     required this.icon,
     required this.title,

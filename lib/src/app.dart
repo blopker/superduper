@@ -15,7 +15,7 @@ typedef AppServicesFactory = AppServices Function();
 typedef AppDataReset = Future<void> Function();
 
 final class SuperduperBootstrap extends StatefulWidget {
-  const SuperduperBootstrap({
+  const new({
     this.createServices = AppServices.standard,
     this.resetData = AppDatabase.resetAppData,
     super.key,
@@ -138,7 +138,7 @@ final class _SuperduperBootstrapState extends State<SuperduperBootstrap> {
 }
 
 final class SuperduperApp extends StatefulWidget {
-  const SuperduperApp({
+  const new({
     required this.services,
     this.onStartupRetry,
     this.onStartupReset,
@@ -214,7 +214,7 @@ final class _SuperduperAppState extends State<SuperduperApp>
 }
 
 final class StartupPage extends SignalWidget {
-  const StartupPage({this.onStartupRetry, this.onStartupReset, super.key});
+  const new({this.onStartupRetry, this.onStartupReset, super.key});
 
   final Future<void> Function()? onStartupRetry;
   final Future<void> Function()? onStartupReset;
@@ -234,10 +234,7 @@ final class StartupPage extends SignalWidget {
           onContinue: services.startup.continueWithoutImport,
         ),
       StartupFailure(:final error) => _StartupFailurePage(
-        message: userFacingError(
-          error,
-          context: UserErrorContext.startup,
-        ),
+        message: userFacingError(error, context: UserErrorContext.startup),
         onRetry: onStartupRetry,
         onReset: onStartupReset,
       ),
@@ -246,7 +243,7 @@ final class StartupPage extends SignalWidget {
 }
 
 final class _MigrationRecoveryPage extends StatelessWidget {
-  const _MigrationRecoveryPage({
+  const new({
     required this.reason,
     required this.warnings,
     required this.onRetry,
@@ -339,7 +336,7 @@ final class _MigrationRecoveryPage extends StatelessWidget {
 }
 
 final class _LoadingPage extends StatelessWidget {
-  const _LoadingPage();
+  const new();
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +366,7 @@ final class _LoadingPage extends StatelessWidget {
 }
 
 final class _StartupFailurePage extends StatelessWidget {
-  const _StartupFailurePage({
+  const new({
     required this.message,
     required this.onRetry,
     required this.onReset,

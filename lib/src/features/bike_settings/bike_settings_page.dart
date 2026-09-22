@@ -21,7 +21,7 @@ import 'package:superduper/src/widgets/report_actions.dart';
 enum BikeSettingsOutcome { forgotten }
 
 final class BikeSettingsPage extends SignalStatefulWidget {
-  const BikeSettingsPage({required this.initialBike, super.key});
+  const new({required this.initialBike, super.key});
 
   final SavedBike initialBike;
 
@@ -154,9 +154,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               DropdownButtonFormField<BikeColor>(
                 initialValue: _color,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Bike color',
-                ),
+                decoration: const InputDecoration(labelText: 'Bike color'),
                 items: [
                   for (final color in BikeColor.displayOrder)
                     DropdownMenuItem(
@@ -175,10 +173,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           ),
         ),
         const SizedBox(height: 34),
-        const SectionHeader(
-          eyebrow: 'Advanced',
-          title: 'BLE protocol',
-        ),
+        const SectionHeader(eyebrow: 'Advanced', title: 'BLE protocol'),
         const SizedBox(height: 16),
         SurfacePanel(
           child: Column(
@@ -204,9 +199,8 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               const SizedBox(height: 14),
               Text(
                 'The advertised name “${saved.bike.advertisedName}” selects ${_protocolLabel(BikeProtocolVersion.fromAdvertisedName(saved.bike.advertisedName) ?? BikeProtocolVersion.v1)} by default. Only change this if that choice is wrong; the wrong protocol can prevent controls and Set on connect values from working.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textMuted),
               ),
             ],
           ),
@@ -241,9 +235,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
                     ? null
                     : (_) => unawaited(
                         _runCoordinatorAction(
-                          () => coordinator.makeBikeActive(
-                            deviceId,
-                          ),
+                          () => coordinator.makeBikeActive(deviceId),
                         ),
                       ),
               ),
@@ -314,10 +306,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           odometer: saved.odometer,
         ),
         const SizedBox(height: 34),
-        const SectionHeader(
-          eyebrow: 'Technical',
-          title: 'Connection details',
-        ),
+        const SectionHeader(eyebrow: 'Technical', title: 'Connection details'),
         const SizedBox(height: 16),
         SurfacePanel(
           child: Column(
@@ -343,9 +332,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
               const SizedBox(height: 18),
               OutlinedButton.icon(
                 onPressed: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const HelpPage(),
-                  ),
+                  MaterialPageRoute<void>(builder: (_) => const HelpPage()),
                 ),
                 icon: const Icon(Icons.help_outline_rounded),
                 label: const Text('Connection help'),
@@ -354,10 +341,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
           ),
         ),
         const SizedBox(height: 34),
-        const SectionHeader(
-          eyebrow: 'Danger zone',
-          title: 'Forget this bike',
-        ),
+        const SectionHeader(eyebrow: 'Danger zone', title: 'Forget this bike'),
         const SizedBox(height: 10),
         const Text(
           'This removes the bike and every Set on connect value from this device.',
@@ -385,19 +369,11 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
     );
   }
 
-  List<Widget> _buildSetOnConnectSettings(
-    SavedBike saved,
-    String deviceId,
-  ) {
+  List<Widget> _buildSetOnConnectSettings(SavedBike saved, String deviceId) {
     return [
-      const SectionHeader(
-        eyebrow: 'Automation',
-        title: 'Set on connect',
-      ),
+      const SectionHeader(eyebrow: 'Automation', title: 'Set on connect'),
       const SizedBox(height: 10),
-      const Text(
-        'Lock in settings when Superduper connects.',
-      ),
+      const Text('Lock in settings when Superduper connects.'),
       const SizedBox(height: 16),
       SurfacePanel(
         padding: EdgeInsets.zero,
@@ -907,7 +883,7 @@ final class _BikeSettingsPageState extends State<BikeSettingsPage> {
 }
 
 final class _BikeVersionsPanel extends StatelessWidget {
-  const _BikeVersionsPanel({
+  const new({
     required this.bike,
     required this.versions,
     required this.odometer,
@@ -941,9 +917,8 @@ final class _BikeVersionsPanel extends StatelessWidget {
             ),
             Text(
               'Read ${_formatTimestamp(readAt)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textMuted),
             ),
             const SizedBox(height: 12),
           ],
@@ -1028,7 +1003,7 @@ final class _BikeVersionsPanel extends StatelessWidget {
 }
 
 final class _VersionRow extends StatelessWidget {
-  const _VersionRow({required this.label, required this.value});
+  const new({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1042,16 +1017,12 @@ final class _VersionRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 3),
           SelectionArea(
-            child: Text(
-              value,
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
+            child: Text(value, style: const TextStyle(fontFamily: 'monospace')),
           ),
         ],
       ),

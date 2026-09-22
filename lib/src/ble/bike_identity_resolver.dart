@@ -5,10 +5,7 @@ import 'package:superduper/src/domain/bike.dart';
 import 'package:superduper/src/repositories/bike_repository.dart';
 
 final class BikeIdentityResolver {
-  const BikeIdentityResolver({
-    required this.bikeRepository,
-    required this.transport,
-  });
+  const new({required this.bikeRepository, required this.transport});
 
   final BikeRepository bikeRepository;
   final BikeTransport transport;

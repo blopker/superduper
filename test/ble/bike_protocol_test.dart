@@ -219,9 +219,7 @@ void main() {
   group('decodeTelemetry', () {
     test('V1 reports every field carried by the state frame', () {
       expect(
-        BikeProtocol.v1.decodeTelemetry(
-          const [3, 0, 4, 0, 1, 3, 0, 0, 0, 0],
-        ),
+        BikeProtocol.v1.decodeTelemetry(const [3, 0, 4, 0, 1, 3, 0, 0, 0, 0]),
         isA<BikeControlPatch>()
             .having((patch) => patch.light, 'light', isTrue)
             .having((patch) => patch.mode, 'mode', 3)
@@ -231,9 +229,18 @@ void main() {
 
     test('V2 D0 reports only light and assist', () {
       expect(
-        BikeProtocol.v2.decodeTelemetry(
-          const [0, 0xd0, 4, 0, 1, 0, 0, 0, 0, 0],
-        ),
+        BikeProtocol.v2.decodeTelemetry(const [
+          0,
+          0xd0,
+          4,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+        ]),
         isA<BikeControlPatch>()
             .having((patch) => patch.light, 'light', isTrue)
             .having((patch) => patch.assist, 'assist', 4),
@@ -251,21 +258,13 @@ void main() {
 
       expect(
         BikeProtocol.v1
-            .applyTelemetry(
-              telemetry,
-              current,
-              preferredRegion: null,
-            )
+            .applyTelemetry(telemetry, current, preferredRegion: null)
             ?.region,
         BikeRegion.eu,
       );
       expect(
         BikeProtocol.v1
-            .applyTelemetry(
-              telemetry,
-              current,
-              preferredRegion: BikeRegion.us,
-            )
+            .applyTelemetry(telemetry, current, preferredRegion: BikeRegion.us)
             ?.region,
         BikeRegion.us,
       );
@@ -273,9 +272,18 @@ void main() {
 
     test('V2 D9 reports only mode and cannot confirm light', () {
       expect(
-        BikeProtocol.v2.decodeTelemetry(
-          const [0, 0xd9, 0, 0, 0, 3, 0, 0, 0, 0],
-        ),
+        BikeProtocol.v2.decodeTelemetry(const [
+          0,
+          0xd9,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+        ]),
         isA<BikeControlPatch>().having((patch) => patch.mode, 'mode', 3),
       );
     });
@@ -285,9 +293,18 @@ void main() {
     test(
       'decodes the captured V1 total-distance record in 100-meter units',
       () {
-        final meters = BikeProtocol.v1.decodeOdometer(
-          const [0x02, 0x02, 0x00, 0x42, 0x00, 0x00, 0x47, 0x35, 0x00, 0x00],
-        );
+        final meters = BikeProtocol.v1.decodeOdometer(const [
+          0x02,
+          0x02,
+          0x00,
+          0x42,
+          0x00,
+          0x00,
+          0x47,
+          0x35,
+          0x00,
+          0x00,
+        ]);
         expect(meters, 1363900);
         expect(formatOdometerDistance(meters), '1363.9 km · 847.5 mi');
       },
@@ -295,24 +312,51 @@ void main() {
 
     test('converts the protocol-specific distance units to meters', () {
       expect(
-        BikeProtocol.v1.decodeOdometer(
-          const [2, 2, 0, 0, 0, 0, 0x72, 0x4c, 0, 0],
-        ),
+        BikeProtocol.v1.decodeOdometer(const [
+          2,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0x72,
+          0x4c,
+          0,
+          0,
+        ]),
         1957000,
       );
       expect(
-        BikeProtocol.v2.decodeOdometer(
-          const [0, 0xd0, 0, 0, 0, 0, 0xef, 0xcd, 0xab, 0x90],
-        ),
+        BikeProtocol.v2.decodeOdometer(const [
+          0,
+          0xd0,
+          0,
+          0,
+          0,
+          0,
+          0xef,
+          0xcd,
+          0xab,
+          0x90,
+        ]),
         0x90abcdef,
       );
     });
 
     test('rejects a record from the wrong protocol', () {
       expect(
-        () => BikeProtocol.v1.decodeOdometer(
-          const [0, 0xd0, 0, 0, 0, 0, 1, 0, 0, 0],
-        ),
+        () => BikeProtocol.v1.decodeOdometer(const [
+          0,
+          0xd0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+        ]),
         throwsA(isA<UnexpectedBikePacket>()),
       );
     });

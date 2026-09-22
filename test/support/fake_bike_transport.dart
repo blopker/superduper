@@ -4,11 +4,14 @@ import 'package:superduper/src/ble/bike_protocol.dart';
 import 'package:superduper/src/ble/bike_transport.dart';
 import 'package:superduper/src/platform/bluetooth_permissions.dart';
 
-List<int> v1StateFrame({
-  bool light = false,
-  int mode = 0,
-  int assist = 0,
-}) => [0, 0, assist, 0, if (light) 1 else 0, mode];
+List<int> v1StateFrame({bool light = false, int mode = 0, int assist = 0}) => [
+  0,
+  0,
+  assist,
+  0,
+  if (light) 1 else 0,
+  mode,
+];
 
 final class FakeBluetoothPermissionGateway
     implements BluetoothPermissionGateway {
@@ -148,7 +151,7 @@ final class FakeBikeTransport implements BikeTransport {
 }
 
 final class CharacteristicWrite {
-  const CharacteristicWrite({
+  const new({
     required this.serviceUuid,
     required this.characteristicUuid,
     required this.value,
@@ -160,17 +163,14 @@ final class CharacteristicWrite {
 }
 
 final class CharacteristicRead {
-  const CharacteristicRead({
-    required this.serviceUuid,
-    required this.characteristicUuid,
-  });
+  const new({required this.serviceUuid, required this.characteristicUuid});
 
   final String serviceUuid;
   final String characteristicUuid;
 }
 
 final class FakeBikeConnection implements BikeConnection {
-  FakeBikeConnection({required this.deviceId});
+  new({required this.deviceId});
 
   @override
   final String deviceId;

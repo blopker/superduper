@@ -49,9 +49,7 @@ void main() {
     await _pumpReadyBikeApp(tester, 'theme');
 
     expect(
-      Theme.of(
-        tester.element(find.text('RIDE CONTROLS')),
-      ).colorScheme.primary,
+      Theme.of(tester.element(find.text('RIDE CONTROLS'))).colorScheme.primary,
       BikeColor.frostedMint.gradientColors.last,
     );
     await tester.tap(find.byTooltip('Help & tips'));
@@ -157,82 +155,75 @@ void main() {
     expect(fixture.connection.configurationWriteStarts, writesBeforeSettings);
   });
 
-  testWidgets(
-    'bike settings save automatically and confirm protocol changes',
-    (
-      tester,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(800, 1400));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final fixture = await _pumpReadyBikeApp(tester, 'settings');
+  testWidgets('bike settings save automatically and confirm protocol changes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = await _pumpReadyBikeApp(tester, 'settings');
 
-      await tester.tap(find.byTooltip('Bike settings'));
-      await tester.pumpAndSettle();
-      expect(find.text('BIKE SETTINGS'), findsOneWidget);
-      expect(find.text('Save changes'), findsNothing);
+    await tester.tap(find.byTooltip('Bike settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('BIKE SETTINGS'), findsOneWidget);
+    expect(find.text('Save changes'), findsNothing);
 
-      await tester.enterText(find.byType(TextField).first, 'Daily Rider');
-      final nameField = tester.widget<TextField>(find.byType(TextField).first);
-      await tester.runAsync(() async {
-        nameField.onChanged?.call('Daily Rider');
-        await _waitUntilAsync(
-          () async =>
-              (await fixture.services.bikeRepository.getBikes())
-                  .single
-                  .bike
-                  .displayName ==
-              'Daily Rider',
-        );
-      });
-      await tester.pump();
-
-      expect(
-        fixture.services.activeBikeCoordinator.bikes
-            .peek()
-            .single
-            .bike
-            .displayName,
-        'Daily Rider',
+    await tester.enterText(find.byType(TextField).first, 'Daily Rider');
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    await tester.runAsync(() async {
+      nameField.onChanged?.call('Daily Rider');
+      await _waitUntilAsync(
+        () async =>
+            (await fixture.services.bikeRepository.getBikes())
+                .single
+                .bike
+                .displayName ==
+            'Daily Rider',
       );
-      expect(find.text('Saved'), findsOneWidget);
-      expect(find.text('V1'), findsOneWidget);
-      await tester.ensureVisible(find.text('V1'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('V1'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('V2').last);
-      await tester.pumpAndSettle();
+    });
+    await tester.pump();
 
-      expect(find.text('CHANGE BIKE PROTOCOL?'), findsOneWidget);
-      expect(find.text('Change protocol'), findsOneWidget);
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+    expect(
+      fixture.services.activeBikeCoordinator.bikes
+          .peek()
+          .single
+          .bike
+          .displayName,
+      'Daily Rider',
+    );
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.text('V1'), findsOneWidget);
+    await tester.ensureVisible(find.text('V1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('V1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('V2').last);
+    await tester.pumpAndSettle();
 
-      expect(
-        fixture.services.activeBikeCoordinator.bikes
-            .peek()
-            .single
-            .bike
-            .protocol,
-        BikeProtocolVersion.v1,
-      );
+    expect(find.text('CHANGE BIKE PROTOCOL?'), findsOneWidget);
+    expect(find.text('Change protocol'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('BIKE INFORMATION'),
-        300,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('BIKE INFORMATION'), findsOneWidget);
-      expect(find.text('123.5 km · 76.7 mi'), findsOneWidget);
-      expect(find.text('v3.2.0'), findsOneWidget);
-      expect(find.text('00112233aabbccdd'), findsOneWidget);
-      expect(find.text('221122'), findsNWidgets(2));
-      expect(find.text('66051'), findsOneWidget);
-      expect(find.text('305419896'), findsOneWidget);
-      expect(find.text('2882400001'), findsOneWidget);
-    },
-  );
+    expect(
+      fixture.services.activeBikeCoordinator.bikes.peek().single.bike.protocol,
+      BikeProtocolVersion.v1,
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('BIKE INFORMATION'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('BIKE INFORMATION'), findsOneWidget);
+    expect(find.text('123.5 km · 76.7 mi'), findsOneWidget);
+    expect(find.text('v3.2.0'), findsOneWidget);
+    expect(find.text('00112233aabbccdd'), findsOneWidget);
+    expect(find.text('221122'), findsNWidgets(2));
+    expect(find.text('66051'), findsOneWidget);
+    expect(find.text('305419896'), findsOneWidget);
+    expect(find.text('2882400001'), findsOneWidget);
+  });
 
   testWidgets('Add Bike explains a blocked Bluetooth permission', (
     tester,
@@ -368,9 +359,7 @@ Future<_ReadyBikeFixture> _pumpReadyBikeApp(
   }
   await services.bikeRepository.setOnConnect(
     'active-bike',
-    const BikeControlPatch(
-      mode: 3,
-    ),
+    const BikeControlPatch(mode: 3),
   );
   transport.readFramesOnOpen['active-bike'] = [
     v1StateFrame(light: true, assist: 2),

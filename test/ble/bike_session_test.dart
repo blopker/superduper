@@ -95,10 +95,18 @@ void main() {
           key: BikeProtocol.defaultAuthenticationKey,
         ),
       );
-      expect(
-        _configurationWrites(connection).single.value,
-        [0, 0xd1, 1, 2, 3, 1, 0, 0, 0, 0],
-      );
+      expect(_configurationWrites(connection).single.value, [
+        0,
+        0xd1,
+        1,
+        2,
+        3,
+        1,
+        0,
+        0,
+        0,
+        0,
+      ]);
     },
   );
 
@@ -122,10 +130,18 @@ void main() {
     connection.configurationWriteGate!.complete();
     await connect;
 
-    expect(
-      _configurationWrites(connection).single.value,
-      [0, 0xd1, 1, 2, 3, 1, 0, 0, 0, 0],
-    );
+    expect(_configurationWrites(connection).single.value, [
+      0,
+      0xd1,
+      1,
+      2,
+      3,
+      1,
+      0,
+      0,
+      0,
+      0,
+    ]);
   });
 
   test('V2 publishes its read before writing it back', () async {
@@ -154,10 +170,18 @@ void main() {
     connection.configurationWriteGate!.complete();
     await connect;
 
-    expect(
-      _configurationWrites(connection).single.value,
-      [0, 0xc1, 1, 2, 3, 1, 0, 0, 0, 0],
-    );
+    expect(_configurationWrites(connection).single.value, [
+      0,
+      0xc1,
+      1,
+      2,
+      3,
+      1,
+      0,
+      0,
+      0,
+      0,
+    ]);
   });
 
   test('session orchestration can use a connected protocol object', () async {
@@ -320,25 +344,22 @@ void main() {
     expect(session.state.value, isA<SessionReady>());
   });
 
-  test(
-    'writes back the read before writing the startup target',
-    () async {
-      connection.readFrames.add([3, 0, 1, 0, 0, 0]);
-      session = createSession(
-        setOnConnect: const BikeControlPatch(mode: 3),
-        readDiagnosticsOnConnect: false,
-      );
+  test('writes back the read before writing the startup target', () async {
+    connection.readFrames.add([3, 0, 1, 0, 0, 0]);
+    session = createSession(
+      setOnConnect: const BikeControlPatch(mode: 3),
+      readDiagnosticsOnConnect: false,
+    );
 
-      await session.connect();
+    await session.connect();
 
-      final writes = _configurationWrites(connection)
-          .map((write) => write.value)
-          .toList();
-      expect(writes, hasLength(2));
-      expect(writes.first, [0, 0xd1, 0, 1, 0, 1, 0, 0, 0, 0]);
-      expect(writes.last, [0, 0xd1, 0, 1, 3, 1, 0, 0, 0, 0]);
-    },
-  );
+    final writes = _configurationWrites(connection)
+        .map((write) => write.value)
+        .toList();
+    expect(writes, hasLength(2));
+    expect(writes.first, [0, 0xd1, 0, 1, 0, 1, 0, 0, 0, 0]);
+    expect(writes.last, [0, 0xd1, 0, 1, 3, 1, 0, 0, 0, 0]);
+  });
 
   test(
     'a startup write preserves controls that are not in the intent',
@@ -427,9 +448,7 @@ void main() {
       ..firmwareRevision = null
       ..readErrors[BikeGatt.authenticationChallenge] =
           const BikeConnectionFailure('Read', 'The link was lost.');
-    session = createSession(
-      reconnectDelays: const [Duration(hours: 1)],
-    );
+    session = createSession(reconnectDelays: const [Duration(hours: 1)]);
 
     await session.connect();
 
@@ -648,9 +667,7 @@ void main() {
 
       expect(session.observed.value?.light, isTrue);
       final readsBeforeWrite = connection.reads
-          .where(
-            (read) => read.characteristicUuid == BikeGatt.stateRegister,
-          )
+          .where((read) => read.characteristicUuid == BikeGatt.stateRegister)
           .length;
 
       final written = await session.setLight(false);
@@ -663,10 +680,7 @@ void main() {
         ),
         hasLength(readsBeforeWrite),
       );
-      expect(
-        _configurationWrites(connection).last.value[2],
-        0,
-      );
+      expect(_configurationWrites(connection).last.value[2], 0);
     },
   );
 
@@ -698,11 +712,7 @@ void main() {
         [0, 0, 2, 0, 1, 3],
       ]);
       session = createSession(
-        setOnConnect: const BikeControlPatch(
-          light: true,
-          mode: 3,
-          assist: 2,
-        ),
+        setOnConnect: const BikeControlPatch(light: true, mode: 3, assist: 2),
         reconnectDelays: const [Duration.zero],
       );
       await session.connect();
@@ -715,10 +725,7 @@ void main() {
             session.observed.value?.mode == 3,
       );
 
-      expect(
-        _configurationWrites(connection),
-        hasLength(4),
-      );
+      expect(_configurationWrites(connection), hasLength(4));
     },
   );
 
@@ -753,11 +760,7 @@ void main() {
       [0, 0, 4, 0, 1, 3],
     ]);
     session = createSession(
-      setOnConnect: const BikeControlPatch(
-        light: true,
-        mode: 3,
-        assist: 4,
-      ),
+      setOnConnect: const BikeControlPatch(light: true, mode: 3, assist: 4),
     );
 
     await session.connect();
@@ -770,9 +773,7 @@ void main() {
 
   test('an acknowledged Set on connect write becomes observed', () async {
     connection.readFrames.add([0, 0, 0, 0, 0, 0]);
-    session = createSession(
-      setOnConnect: const BikeControlPatch(mode: 3),
-    );
+    session = createSession(setOnConnect: const BikeControlPatch(mode: 3));
 
     await session.connect();
 
@@ -880,32 +881,27 @@ void main() {
     },
   );
 
-  test(
-    'preserves a user command queued during Set on connect',
-    () async {
-      connection.readFrames.addAll([
-        [0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 3],
-        [0, 0, 0, 0, 1, 3],
-      ]);
-      session = createSession(
-        setOnConnect: const BikeControlPatch(mode: 3),
-      );
+  test('preserves a user command queued during Set on connect', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 3],
+      [0, 0, 0, 0, 1, 3],
+    ]);
+    session = createSession(setOnConnect: const BikeControlPatch(mode: 3));
 
-      final connect = session.connect();
-      await _waitUntil(() => connection.configurationWriteStarts >= 2);
-      final change = session.setLight(true);
+    final connect = session.connect();
+    await _waitUntil(() => connection.configurationWriteStarts >= 2);
+    final change = session.setLight(true);
 
-      await connect;
-      final confirmed = await change;
+    await connect;
+    final confirmed = await change;
 
-      expect(confirmed.light, isTrue);
-      expect(confirmed.mode, 3);
-      expect(session.pending.value, isNull);
-      expect(session.state.value, isA<SessionReady>());
-    },
-  );
+    expect(confirmed.light, isTrue);
+    expect(confirmed.mode, 3);
+    expect(session.pending.value, isNull);
+    expect(session.state.value, isA<SessionReady>());
+  });
 
   test(
     'a confirmed command updates the observed configuration immediately',
@@ -949,10 +945,7 @@ void main() {
 
     expect(written.light, isTrue);
     expect(session.state.value, isA<SessionReady>());
-    expect(
-      _configurationWrites(connection),
-      hasLength(2),
-    );
+    expect(_configurationWrites(connection), hasLength(2));
     expect(connection.reads, hasLength(readsBeforeWrite));
   });
 
@@ -971,24 +964,16 @@ void main() {
     expect(session.observed.value, isNull);
   });
 
-  test(
-    'accepts Set on connect when its GATT write is acknowledged',
-    () async {
-      connection.readFrames.add([0, 0, 0, 0, 0, 0]);
-      session = createSession(
-        setOnConnect: const BikeControlPatch(light: true),
-      );
+  test('accepts Set on connect when its GATT write is acknowledged', () async {
+    connection.readFrames.add([0, 0, 0, 0, 0, 0]);
+    session = createSession(setOnConnect: const BikeControlPatch(light: true));
 
-      await session.connect();
+    await session.connect();
 
-      expect(session.state.value, isA<SessionReady>());
-      expect(session.observed.value?.light, isTrue);
-      expect(
-        _configurationWrites(connection),
-        hasLength(2),
-      );
-    },
-  );
+    expect(session.state.value, isA<SessionReady>());
+    expect(session.observed.value?.light, isTrue);
+    expect(_configurationWrites(connection), hasLength(2));
+  });
 
   test('uses the persisted region for configuration writes', () async {
     connection.readFrames.addAll([
@@ -1007,28 +992,23 @@ void main() {
     expect(session.observed.value?.region, BikeRegion.eu);
   });
 
-  test(
-    'uses the selected V1 region for the acknowledged write',
-    () async {
-      connection.readFrames.addAll([
-        [0, 0, 0, 0, 0, 1],
-        [0, 0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 1, 5],
-      ]);
-      session = createSession(
-        region: BikeRegion.eu,
-      );
-      await session.connect();
+  test('uses the selected V1 region for the acknowledged write', () async {
+    connection.readFrames.addAll([
+      [0, 0, 0, 0, 0, 1],
+      [0, 0, 0, 0, 1, 1],
+      [0, 0, 0, 0, 1, 5],
+    ]);
+    session = createSession(region: BikeRegion.eu);
+    await session.connect();
 
-      final confirmed = await session.setLight(true);
+    final confirmed = await session.setLight(true);
 
-      final writes = _configurationWrites(connection);
-      expect(writes, hasLength(2));
-      expect(writes.map((write) => write.value[4]), everyElement(5));
-      expect(confirmed.region, BikeRegion.eu);
-      expect(session.observed.value?.region, BikeRegion.eu);
-    },
-  );
+    final writes = _configurationWrites(connection);
+    expect(writes, hasLength(2));
+    expect(writes.map((write) => write.value[4]), everyElement(5));
+    expect(confirmed.region, BikeRegion.eu);
+    expect(session.observed.value?.region, BikeRegion.eu);
+  });
 
   test('does not schedule configuration polling by default', () {
     fakeAsync((async) {
@@ -1149,9 +1129,7 @@ void main() {
       [0, 0xd0, 1, 0, 0, 0, 0, 0, 0, 0],
       [0, 0xd9, 0, 0, 0, 2, 0, 0, 0, 0],
     ]);
-    session = createSession(
-      protocol: BikeProtocolVersion.v2,
-    );
+    session = createSession(protocol: BikeProtocolVersion.v2);
     await session.connect();
     final initialStateReads = connection.reads
         .where((read) => read.characteristicUuid == BikeGatt.stateRegister)
@@ -1223,10 +1201,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
       expect(session.observed.value?.light, isFalse);
-      expect(
-        _configurationWrites(connection),
-        hasLength(2),
-      );
+      expect(_configurationWrites(connection), hasLength(2));
     },
   );
 
@@ -1451,9 +1426,7 @@ void main() {
     await session.connect();
     final writesBeforeEdit = _configurationWrites(connection);
 
-    session.updateSetOnConnect(
-      const BikeControlPatch(light: true),
-    );
+    session.updateSetOnConnect(const BikeControlPatch(light: true));
     await Future<void>.delayed(Duration.zero);
     expect(writesBeforeEdit, hasLength(1));
 
@@ -1461,15 +1434,12 @@ void main() {
     await session.resumeFromBackground();
 
     expect(session.state.value, isA<SessionReady>());
-    expect(
-      _configurationWrites(connection),
-      hasLength(3),
-    );
+    expect(_configurationWrites(connection), hasLength(3));
   });
 }
 
 final class _FakeConnectedProtocol extends BikeProtocolDefinition {
-  _FakeConnectedProtocol(this.configuration);
+  new(this.configuration);
 
   final BikeConfiguration configuration;
   int configurationReads = 0;
@@ -1537,8 +1507,7 @@ bool _sameBytes(List<int> left, List<int> right) {
   return true;
 }
 
-List<CharacteristicWrite> _configurationWrites(
-  FakeBikeConnection connection,
-) => connection.writes
-    .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
-    .toList();
+List<CharacteristicWrite> _configurationWrites(FakeBikeConnection connection) =>
+    connection.writes
+        .where((write) => write.characteristicUuid == BikeGatt.stateRegister)
+        .toList();
